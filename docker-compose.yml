@@ -1,0 +1,29 @@
+services:
+  db:
+    # Postgres 16 + PostGIS 3.5. The image's initdb enables the `postgis`
+    # extension in POSTGRES_DB automatically; db:migrate re-asserts it with
+    # CREATE EXTENSION IF NOT EXISTS so the same command works against Supabase.
+    #
+    # imresamu/postgis rather than postgis/postgis: the official image publishes
+    # amd64 only, so it will not run on Apple Silicon. This is the multi-arch
+    # (amd64 + arm64) build from a docker-postgis maintainer, same contents.
+    image: imresamu/postgis:16-3.5
+    container_name: scoot-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: scoot
+      POSTGRES_PASSWORD: scoot
+      POSTGRES_DB: scoot
+    ports:
+      - '5432:5432'
+    volumes:
+      - scoot-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U scoot -d scoot']
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+volumes:
+  scoot-pgdata:

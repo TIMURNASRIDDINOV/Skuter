@@ -1,0 +1,8 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# pnpm >=10 requires explicit approval before a dependency may run build
+# scripts. esbuild (via tsup/vite) is the only one this repo needs.
+allowBuilds:
+  esbuild: true

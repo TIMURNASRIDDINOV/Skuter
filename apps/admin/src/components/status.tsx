@@ -1,0 +1,51 @@
+import { Tag } from 'antd';
+import type { VehicleStatus } from '@scoot/shared';
+
+/**
+ * One definition of what each vehicle status looks like, used by the tables,
+ * the map pins and the legend — so a colour never means two things.
+ */
+export const VEHICLE_STATUS_META: Record<
+  VehicleStatus,
+  { label: string; colour: string; tag: string }
+> = {
+  available: { label: 'Свободен', colour: '#52c41a', tag: 'success' },
+  in_use: { label: 'В поездке', colour: '#1677ff', tag: 'processing' },
+  reserved: { label: 'Забронирован', colour: '#722ed1', tag: 'purple' },
+  low_battery: { label: 'Низкий заряд', colour: '#faad14', tag: 'warning' },
+  offline: { label: 'Не на связи', colour: '#8c8c8c', tag: 'default' },
+  maintenance: { label: 'Обслуживание', colour: '#f5222d', tag: 'error' },
+};
+
+export function VehicleStatusTag({ status }: { status: VehicleStatus }): React.ReactElement {
+  const meta = VEHICLE_STATUS_META[status];
+  return <Tag color={meta.tag}>{meta.label}</Tag>;
+}
+
+export const RIDE_STATUS_META: Record<string, { label: string; tag: string }> = {
+  active: { label: 'Активна', tag: 'processing' },
+  completed: { label: 'Завершена', tag: 'success' },
+  cancelled: { label: 'Отменена', tag: 'default' },
+};
+
+export function RideStatusTag({ status }: { status: string }): React.ReactElement {
+  const meta = RIDE_STATUS_META[status] ?? { label: status, tag: 'default' };
+  return <Tag color={meta.tag}>{meta.label}</Tag>;
+}
+
+export const SUBSCRIPTION_STATUS_META: Record<string, { label: string; tag: string }> = {
+  active: { label: 'Активна', tag: 'success' },
+  expired: { label: 'Истекла', tag: 'default' },
+  cancelled: { label: 'Отменена', tag: 'error' },
+};
+
+export function SubscriptionStatusTag({ status }: { status: string }): React.ReactElement {
+  const meta = SUBSCRIPTION_STATUS_META[status] ?? { label: status, tag: 'default' };
+  return <Tag color={meta.tag}>{meta.label}</Tag>;
+}
+
+export const ZONE_KIND_META: Record<string, { label: string; colour: string }> = {
+  service: { label: 'Зона обслуживания', colour: '#1677ff' },
+  parking: { label: 'Парковка', colour: '#52c41a' },
+  forbidden: { label: 'Запрещено', colour: '#f5222d' },
+};

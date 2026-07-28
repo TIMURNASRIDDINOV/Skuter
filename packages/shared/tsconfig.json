@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // tsup owns emit (dual ESM/CJS + .d.ts); tsc is used only for typechecking.
+    "noEmit": true,
+    "types": ["vitest/globals"]
+  },
+  "include": ["src/**/*.ts", "tsup.config.ts"]
+}

@@ -1,0 +1,20 @@
+node_modules/
+dist/
+build/
+.expo/
+.turbo/
+coverage/
+
+# env — never commit real values, only .env.example
+.env
+.env.local
+.env.*.local
+
+# native build output (dev client)
+apps/mobile/ios/
+apps/mobile/android/
+
+*.log
+.DS_Store
+.idea/
+.vscode/

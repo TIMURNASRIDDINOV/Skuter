@@ -1,0 +1,76 @@
+import { asc, count, eq } from 'drizzle-orm';
+import type { User } from '@scoot/shared';
+import type { Database } from '../db/client.js';
+import { users } from '../db/schema.js';
+import { toUser, type UserRow } from './mappers.js';
+
+const columns = {
+  id: users.id,
+  phone: users.phone,
+  name: users.name,
+  status: users.status,
+  balance: users.balance,
+  createdAt: users.createdAt,
+} as const;
+
+export interface NewUser {
+  phone: string;
+  name: string | null;
+  balance: number;
+}
+
+export function createUsersRepository(db: Database) {
+  return {
+    async listAll(): Promise<User[]> {
+      const rows = await db.select(columns).from(users).orderBy(asc(users.createdAt));
+      return rows.map((row) => toUser(row as UserRow));
+    },
+
+    async findById(id: string): Promise<User | null> {
+      const [row] = await db.select(columns).from(users).where(eq(users.id, id)).limit(1);
+      return row === undefined ? null : toUser(row as UserRow);
+    },
+
+    async findByPhone(phone: string): Promise<User | null> {
+      const [row] = await db.select(columns).from(users).where(eq(users.phone, phone)).limit(1);
+      return row === undefined ? null : toUser(row as UserRow);
+    },
+
+    /** Riders are created on their first successful OTP verification. */
+    async findOrCreateByPhone(phone: string): Promise<User> {
+      const existing = await this.findByPhone(phone);
+      if (existing !== null) return existing;
+
+      const [row] = await db
+        .insert(users)
+        .values({ phone })
+        .onConflictDoNothing({ target: users.phone })
+        .returning(columns);
+
+      // A concurrent verify for the same phone can win the insert; re-read.
+      if (row === undefined) {
+        const raced = await this.findByPhone(phone);
+        if (raced === null) throw new Error(`Failed to create or find user for ${phone}`);
+        return raced;
+      }
+      return toUser(row as UserRow);
+    },
+
+    async updateName(id: string, name: string | null): Promise<User | null> {
+      const [row] = await db.update(users).set({ name }).where(eq(users.id, id)).returning(columns);
+      return row === undefined ? null : toUser(row as UserRow);
+    },
+
+    async count(): Promise<number> {
+      const [row] = await db.select({ total: count() }).from(users);
+      return row?.total ?? 0;
+    },
+
+    async insertMany(items: readonly NewUser[]): Promise<void> {
+      if (items.length === 0) return;
+      await db.insert(users).values([...items]);
+    },
+  };
+}
+
+export type UsersRepository = ReturnType<typeof createUsersRepository>;
