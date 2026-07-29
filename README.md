@@ -138,14 +138,22 @@ Each workspace has its own `CLAUDE.md`. Start at [CLAUDE.md](CLAUDE.md).
 
 ## Notes
 
-**Maps.** Expo Go cannot render Google Maps on SDK 54+ — it was removed from
-Expo Go on Android in SDK 53, and on iOS Expo Go only supports Apple Maps.
-Config plugins, where the Maps API key lives, don't apply to Expo Go because it
-is a prebuilt binary. The rider app therefore ships as an **`expo-dev-client`
-development build**: same QR-scan-and-reload loop, our own binary. iOS uses
-Apple Maps and needs no key. Android needs a Google Maps SDK key in
-`EXPO_PUBLIC_ANDROID_GOOGLE_MAPS_API_KEY` — without one, Android map tiles render
-grey while everything else still works.
+**Maps.** The rider app uses **MapLibre** (`@maplibre/maplibre-react-native`)
+with OpenFreeMap's Liberty vector tiles on both platforms — free, no API key,
+no registration. MapLibre is a native module and config plugins don't apply to
+Expo Go (a prebuilt binary), so the app ships as an **`expo-dev-client`
+development build**: same QR-scan-and-reload loop, our own binary.
+
+**Public API URL.** Test builds call
+`https://scoot-api.timurnasriddinov56.workers.dev` — a tiny Cloudflare Worker
+([infra/cloudflare-proxy](infra/cloudflare-proxy/worker.js)) that forwards to a
+Cloudflare quick tunnel into the dev machine. Bring it up with
+`scripts/demo-tunnel.sh` (API and database must be running); re-run it whenever
+the tunnel drops — the Worker URL is permanent, so installed builds keep
+working without a rebuild. One caveat: quick tunnels buffer streaming responses
+in 128 KiB chunks, so the admin panel's SSE live updates lag by ~30–60 s when
+served through the public URL (the rider app polls REST and is unaffected).
+For the fully live admin experience, run it locally against the local API.
 
 **Postgres image.** `imresamu/postgis` rather than `postgis/postgis`: the
 official image is amd64-only and will not run on Apple Silicon. Same contents,

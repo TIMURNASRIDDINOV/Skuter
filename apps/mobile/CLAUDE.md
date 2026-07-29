@@ -8,17 +8,17 @@ https://docs.expo.dev/versions/v56.0.0/ before reaching for an API from memory.
 
 ## Ships as a dev client, not Expo Go
 
-Expo Go cannot render Google Maps on SDK 54+ and config plugins don't apply to
-it (see README "Maps"). The app is an **`expo-dev-client` development build**:
+Maps are **MapLibre** (`@maplibre/maplibre-react-native` v11) with OpenFreeMap
+Liberty tiles on both platforms — free, keyless; style URL and zoom constants
+live in `lib/map.ts`. MapLibre is a native module and config plugins don't
+apply to Expo Go (see README "Maps"). The app is an **`expo-dev-client`
+development build**:
 
 ```bash
 pnpm -F @scoot/mobile exec expo prebuild --platform ios   # generates ios/ (gitignored)
 pnpm -F @scoot/mobile ios                                 # build + run on simulator/device
 pnpm -F @scoot/mobile dev                                 # dev server only, once a client is installed
 ```
-
-iOS uses Apple Maps and needs no key. Android needs
-`EXPO_PUBLIC_ANDROID_GOOGLE_MAPS_API_KEY` or its tiles render grey.
 
 `EXPO_PUBLIC_API_URL` must be reachable **from the phone** — the machine's LAN
 IP on a real device; `localhost` works on the iOS Simulator. Expo CLI loads

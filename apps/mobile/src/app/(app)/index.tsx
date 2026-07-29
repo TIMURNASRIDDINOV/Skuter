@@ -1,12 +1,12 @@
 import BottomSheet from '@gorhom/bottom-sheet';
+import { Camera, Map, UserLocation } from '@maplibre/maplibre-react-native';
+import type { CameraRef, ViewStateChangeEvent } from '@maplibre/maplibre-react-native';
 import type { Vehicle } from '@scoot/shared';
-import { formatSom, TASHKENT_MAP_CENTER, TASHKENT_MAP_DELTA } from '@scoot/shared';
+import { formatSom, TASHKENT_MAP_CENTER } from '@scoot/shared';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import MapView from 'react-native-maps';
-import type { Region } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useActiveRide, useVehicles, useZones, usePlans } from '@/api/queries';
 import { NearbyList, VehicleDetail } from '@/components/VehicleSheet';
@@ -14,13 +14,15 @@ import { VehicleMarkers } from '@/components/VehicleMarkers';
 import { ZoneOverlays } from '@/components/ZoneOverlays';
 import { formatDuration } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
+import { CITY_ZOOM, FOCUS_ZOOM, INITIAL_BOUNDS, MAP_STYLE_URL } from '@/lib/map';
 import { colors, radius, spacing, typography } from '@/lib/theme';
 
-const INITIAL_REGION: Region = {
-  latitude: TASHKENT_MAP_CENTER.lat,
-  longitude: TASHKENT_MAP_CENTER.lon,
-  latitudeDelta: TASHKENT_MAP_DELTA.latitudeDelta,
-  longitudeDelta: TASHKENT_MAP_DELTA.longitudeDelta,
+type Viewport = Pick<ViewStateChangeEvent, 'center' | 'zoom' | 'bounds'>;
+
+const INITIAL_VIEWPORT: Viewport = {
+  center: [TASHKENT_MAP_CENTER.lon, TASHKENT_MAP_CENTER.lat],
+  zoom: CITY_ZOOM,
+  bounds: INITIAL_BOUNDS,
 };
 
 const SHEET_PEEK = 120;
@@ -29,7 +31,7 @@ export default function MapScreen() {
   const { t } = useI18n();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const mapRef = useRef<MapView>(null);
+  const cameraRef = useRef<CameraRef>(null);
   const sheetRef = useRef<BottomSheet>(null);
 
   const vehiclesQuery = useVehicles();
@@ -37,7 +39,7 @@ export default function MapScreen() {
   const plansQuery = usePlans();
   const activeRideQuery = useActiveRide();
 
-  const [region, setRegion] = useState<Region>(INITIAL_REGION);
+  const [viewport, setViewport] = useState<Viewport>(INITIAL_VIEWPORT);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -63,15 +65,11 @@ export default function MapScreen() {
   const selectVehicle = (vehicle: Vehicle) => {
     setSelectedId(vehicle.id);
     sheetRef.current?.snapToIndex(1);
-    mapRef.current?.animateToRegion(
-      {
-        latitude: vehicle.location.lat,
-        longitude: vehicle.location.lon,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      },
-      350,
-    );
+    cameraRef.current?.easeTo({
+      center: [vehicle.location.lon, vehicle.location.lat],
+      zoom: FOCUS_ZOOM,
+      duration: 350,
+    });
   };
 
   // Demo step 7: pull-to-refresh re-fetches zones as well as vehicles,
@@ -88,15 +86,11 @@ export default function MapScreen() {
   const locateMe = async () => {
     try {
       const position = await Location.getCurrentPositionAsync({});
-      mapRef.current?.animateToRegion(
-        {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        },
-        350,
-      );
+      cameraRef.current?.easeTo({
+        center: [position.coords.longitude, position.coords.latitude],
+        zoom: FOCUS_ZOOM,
+        duration: 350,
+      });
     } catch {
       // No fix (simulator without a location set) — the map stays put.
     }
@@ -106,31 +100,40 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
-      <MapView
-        ref={mapRef}
+      <Map
         style={StyleSheet.absoluteFill}
-        initialRegion={INITIAL_REGION}
-        onRegionChangeComplete={setRegion}
-        showsUserLocation
-        showsMyLocationButton={false}
-        showsCompass={false}
-        toolbarEnabled={false}
+        mapStyle={MAP_STYLE_URL}
+        compass={false}
+        // The sheet is permanently docked at SHEET_PEEK — keep the MapLibre
+        // logo and the OSM attribution button visible above it.
+        logoPosition={{ bottom: SHEET_PEEK + spacing.s, left: spacing.s }}
+        attributionPosition={{ bottom: SHEET_PEEK + spacing.s, right: spacing.s }}
+        onRegionDidChange={(event) => {
+          const { center, zoom, bounds } = event.nativeEvent;
+          setViewport({ center, zoom, bounds });
+        }}
       >
+        <Camera
+          ref={cameraRef}
+          initialViewState={{ center: INITIAL_VIEWPORT.center, zoom: CITY_ZOOM }}
+        />
+        <UserLocation />
         <ZoneOverlays zones={zones} />
         <VehicleMarkers
           vehicles={vehicles}
-          region={region}
+          bounds={viewport.bounds}
+          zoom={viewport.zoom}
           selectedId={selectedId}
           onSelectVehicle={selectVehicle}
-          onPressCluster={(lat, lon, zoom) => {
-            const longitudeDelta = 360 / 2 ** zoom;
-            mapRef.current?.animateToRegion(
-              { latitude: lat, longitude: lon, latitudeDelta: longitudeDelta * 0.8, longitudeDelta },
-              350,
-            );
+          onPressCluster={(lat, lon, expansionZoom) => {
+            cameraRef.current?.easeTo({
+              center: [lon, lat],
+              zoom: expansionZoom,
+              duration: 350,
+            });
           }}
         />
-      </MapView>
+      </Map>
 
       <View style={[styles.topBar, { top: insets.top + spacing.s }]}>
         <Pressable style={styles.roundButton} onPress={() => router.push('/profile')}>
@@ -201,7 +204,7 @@ export default function MapScreen() {
         ) : (
           <NearbyList
             vehicles={vehicles}
-            centre={{ lat: region.latitude, lon: region.longitude }}
+            centre={{ lat: viewport.center[1], lon: viewport.center[0] }}
             refreshing={refreshing}
             onRefresh={() => void refresh()}
             onSelect={selectVehicle}

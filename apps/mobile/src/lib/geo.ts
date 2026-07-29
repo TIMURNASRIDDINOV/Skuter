@@ -1,11 +1,4 @@
 import type { GeoPolygon, LatLon } from '@scoot/shared';
-import type { LatLng, Region } from 'react-native-maps';
-
-/** Outer ring of a zone polygon as react-native-maps coordinates. */
-export function polygonToLatLngs(polygon: GeoPolygon): LatLng[] {
-  const ring = polygon.coordinates[0] ?? [];
-  return ring.map(([longitude, latitude]) => ({ latitude, longitude }));
-}
 
 /**
  * Ray-cast point-in-polygon against the outer ring. Advisory only — the
@@ -45,19 +38,4 @@ export function polygonCentroid(polygon: GeoPolygon): LatLon {
     lat += y;
   }
   return { lat: lat / open.length, lon: lon / open.length };
-}
-
-/** [west, south, east, north] for supercluster. */
-export function regionToBBox(region: Region): [number, number, number, number] {
-  return [
-    region.longitude - region.longitudeDelta / 2,
-    region.latitude - region.latitudeDelta / 2,
-    region.longitude + region.longitudeDelta / 2,
-    region.latitude + region.latitudeDelta / 2,
-  ];
-}
-
-/** Web-mercator-ish zoom level from a region, for supercluster. */
-export function regionToZoom(region: Region): number {
-  return Math.round(Math.log2(360 / region.longitudeDelta));
 }

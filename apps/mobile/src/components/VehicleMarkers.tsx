@@ -1,15 +1,16 @@
+import { Marker } from '@maplibre/maplibre-react-native';
+import type { LngLatBounds } from '@maplibre/maplibre-react-native';
 import type { Vehicle } from '@scoot/shared';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Marker } from 'react-native-maps';
-import type { Region } from 'react-native-maps';
 import Supercluster from 'supercluster';
-import { regionToBBox, regionToZoom } from '@/lib/geo';
 import { colors, VEHICLE_STATUS_COLOUR } from '@/lib/theme';
 
 interface VehicleMarkersProps {
   vehicles: Vehicle[];
-  region: Region;
+  /** Current viewport, as reported by the map — already [w, s, e, n]. */
+  bounds: LngLatBounds;
+  zoom: number;
   selectedId: string | null;
   onSelectVehicle: (vehicle: Vehicle) => void;
   onPressCluster: (lat: number, lon: number, expansionZoom: number) => void;
@@ -23,7 +24,8 @@ type VehicleFeature = Supercluster.PointFeature<{ vehicle: Vehicle }>;
  */
 export function VehicleMarkers({
   vehicles,
-  region,
+  bounds,
+  zoom,
   selectedId,
   onSelectVehicle,
   onPressCluster,
@@ -40,8 +42,8 @@ export function VehicleMarkers({
   }, [vehicles]);
 
   const clusters = useMemo(
-    () => index.getClusters(regionToBBox(region), regionToZoom(region)),
-    [index, region],
+    () => index.getClusters([...bounds], Math.round(zoom)),
+    [index, bounds, zoom],
   );
 
   return (
@@ -56,9 +58,7 @@ export function VehicleMarkers({
           return (
             <Marker
               key={`cluster-${clusterId}`}
-              coordinate={{ latitude: lat, longitude: lon }}
-              anchor={{ x: 0.5, y: 0.5 }}
-              tracksViewChanges={false}
+              lngLat={[lon, lat]}
               onPress={() =>
                 onPressCluster(lat, lon, Math.min(index.getClusterExpansionZoom(clusterId), 18))
               }
@@ -75,9 +75,7 @@ export function VehicleMarkers({
         return (
           <Marker
             key={vehicle.id}
-            coordinate={{ latitude: vehicle.location.lat, longitude: vehicle.location.lon }}
-            anchor={{ x: 0.5, y: 0.5 }}
-            tracksViewChanges={false}
+            lngLat={[vehicle.location.lon, vehicle.location.lat]}
             onPress={() => onSelectVehicle(vehicle)}
           >
             <View

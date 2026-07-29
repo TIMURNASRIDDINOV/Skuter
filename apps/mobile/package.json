@@ -5,6 +5,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
+    "eas-build-post-install": "pnpm -w build",
     "dev": "expo start",
     "ios": "expo run:ios",
     "android": "expo run:android",
@@ -12,9 +13,11 @@
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.14",
+    "@maplibre/maplibre-react-native": "^11.3.6",
     "@scoot/shared": "workspace:*",
     "@tanstack/react-query": "^5.101.4",
     "expo": "~56.0.17",
+    "expo-build-properties": "~56.0.24",
     "expo-camera": "~56.0.8",
     "expo-constants": "~56.0.22",
     "expo-dev-client": "~56.0.24",
@@ -29,7 +32,6 @@
     "react": "19.2.3",
     "react-native": "0.85.3",
     "react-native-gesture-handler": "~2.31.1",
-    "react-native-maps": "1.27.2",
     "react-native-reanimated": "4.3.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",

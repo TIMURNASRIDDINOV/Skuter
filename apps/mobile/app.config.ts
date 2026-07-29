@@ -39,15 +39,19 @@ const config: ExpoConfig = {
       backgroundImage: './assets/images/android-icon-background.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
-    config: {
-      googleMaps: {
-        // iOS uses Apple Maps and needs no key. Without this, Android map
-        // tiles render grey while everything else still works (see README).
-        apiKey: process.env.EXPO_PUBLIC_ANDROID_GOOGLE_MAPS_API_KEY,
-      },
-    },
   },
   plugins: [
+    // MapLibre + OpenFreeMap tiles on both platforms — no API key anywhere.
+    '@maplibre/maplibre-react-native',
+    [
+      'expo-build-properties',
+      {
+        // Same reason as NSAllowsArbitraryLoads above: test builds call the
+        // API over plain HTTP, which Android 9+ blocks in release builds.
+        // Remove for a store submission.
+        android: { usesCleartextTraffic: true },
+      },
+    ],
     'expo-router',
     [
       'expo-splash-screen',

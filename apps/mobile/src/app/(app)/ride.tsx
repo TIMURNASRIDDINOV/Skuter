@@ -1,10 +1,11 @@
+import { Camera, GeoJSONSource, Layer, Map, Marker } from '@maplibre/maplibre-react-native';
+import type { CameraRef } from '@maplibre/maplibre-react-native';
 import type { LatLon, ParkingCheck } from '@scoot/shared';
 import { calculateRideCost, formatSom } from '@scoot/shared';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiRequestError } from '@/api/client';
 import { useActiveRide, useBeep, useEndRide, usePlans, useZones } from '@/api/queries';
@@ -14,13 +15,14 @@ import { DEMO_CONTROLS_ENABLED } from '@/lib/demo';
 import { formatDistance, formatDuration } from '@/lib/format';
 import { pointInPolygon, polygonCentroid } from '@/lib/geo';
 import { useI18n } from '@/lib/i18n';
+import { MAP_STYLE_URL, RIDE_ZOOM } from '@/lib/map';
 import { colors, radius, spacing, typography } from '@/lib/theme';
 
 export default function RideScreen() {
   const { t, lang } = useI18n();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const mapRef = useRef<MapView>(null);
+  const cameraRef = useRef<CameraRef>(null);
 
   const activeRideQuery = useActiveRide();
   const zonesQuery = useZones();
@@ -64,11 +66,41 @@ export default function RideScreen() {
   const vehicleLon = ride?.vehicle.location.lon;
   useEffect(() => {
     if (vehicleLat === undefined || vehicleLon === undefined) return;
-    mapRef.current?.animateToRegion(
-      { latitude: vehicleLat, longitude: vehicleLon, latitudeDelta: 0.008, longitudeDelta: 0.008 },
-      900,
-    );
+    cameraRef.current?.easeTo({
+      center: [vehicleLon, vehicleLat],
+      zoom: RIDE_ZOOM,
+      duration: 900,
+    });
   }, [vehicleLat, vehicleLon]);
+
+  // Frame the rider and the nearest legal zone. Runs as an effect (one frame
+  // after the blocked card mounts) because the card shrinks the map — a fit
+  // issued from the error callback would be computed against the old height.
+  const nearestZone = blocked?.nearestParkingZone ?? null;
+  useEffect(() => {
+    if (nearestZone === null || ride === null) return;
+    const rider = devLocation ?? ride.vehicle.location;
+    const centre = polygonCentroid(nearestZone.geom);
+    // Grow tiny boxes to the old region clamp so a rider just outside a zone
+    // still gets a readable overview, not a max-zoom close-up.
+    const MIN_SPAN = 0.006;
+    const west = Math.min(rider.lon, centre.lon);
+    const south = Math.min(rider.lat, centre.lat);
+    const east = Math.max(rider.lon, centre.lon);
+    const north = Math.max(rider.lat, centre.lat);
+    const lonGrow = Math.max(0, (MIN_SPAN - (east - west)) / 2);
+    const latGrow = Math.max(0, (MIN_SPAN - (north - south)) / 2);
+    const frame = requestAnimationFrame(() => {
+      cameraRef.current?.fitBounds(
+        [west - lonGrow, south - latGrow, east + lonGrow, north + latGrow],
+        { padding: { top: 80, bottom: 80, left: 60, right: 60 }, duration: 600 },
+      );
+    });
+    return () => cancelAnimationFrame(frame);
+    // Deliberately keyed on the blocked zone only: the framing should use the
+    // rider position at the moment the end was rejected.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nearestZone]);
 
   if (ride === null) {
     return <SafeAreaView style={styles.loading} />;
@@ -105,20 +137,9 @@ export default function RideScreen() {
           if (error instanceof ApiRequestError) {
             const details = error.details as { check?: ParkingCheck } | null;
             if (details?.check !== undefined) {
+              // The camera framing happens in the effect above, after the
+              // blocked card has mounted and the map has its final size.
               setBlocked(details.check);
-              const nearest = details.check.nearestParkingZone;
-              if (nearest !== null) {
-                const centre = polygonCentroid(nearest.geom);
-                mapRef.current?.animateToRegion(
-                  {
-                    latitude: (riderLocation.lat + centre.lat) / 2,
-                    longitude: (riderLocation.lon + centre.lon) / 2,
-                    latitudeDelta: Math.max(Math.abs(riderLocation.lat - centre.lat) * 2.8, 0.006),
-                    longitudeDelta: Math.max(Math.abs(riderLocation.lon - centre.lon) * 2.8, 0.006),
-                  },
-                  600,
-                );
-              }
               return;
             }
             if (error.code === 'conflict') {
@@ -154,49 +175,39 @@ export default function RideScreen() {
 
   return (
     <View style={styles.container}>
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        initialRegion={{
-          latitude: ride.vehicle.location.lat,
-          longitude: ride.vehicle.location.lon,
-          latitudeDelta: 0.008,
-          longitudeDelta: 0.008,
-        }}
-        showsCompass={false}
-        toolbarEnabled={false}
-      >
+      <Map style={styles.map} mapStyle={MAP_STYLE_URL} compass={false}>
+        <Camera
+          ref={cameraRef}
+          initialViewState={{
+            center: [ride.vehicle.location.lon, ride.vehicle.location.lat],
+            zoom: RIDE_ZOOM,
+          }}
+        />
         <ZoneOverlays zones={zones} highlightedZoneId={nearest?.id ?? null} />
         {ride.path !== null && ride.path.coordinates.length >= 2 && (
-          <Polyline
-            coordinates={ride.path.coordinates.map(([lon, lat]) => ({
-              latitude: lat,
-              longitude: lon,
-            }))}
-            strokeColor={colors.info}
-            strokeWidth={4}
-          />
+          <GeoJSONSource
+            id="ride-path"
+            data={{ type: 'Feature', geometry: ride.path, properties: {} }}
+          >
+            <Layer
+              id="ride-path-line"
+              type="line"
+              paint={{ 'line-color': colors.info, 'line-width': 4 }}
+              layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+            />
+          </GeoJSONSource>
         )}
-        <Marker
-          coordinate={{
-            latitude: ride.vehicle.location.lat,
-            longitude: ride.vehicle.location.lon,
-          }}
-          anchor={{ x: 0.5, y: 0.5 }}
-        >
+        <Marker lngLat={[ride.vehicle.location.lon, ride.vehicle.location.lat]}>
           <View style={styles.vehiclePin}>
             <Text style={styles.vehiclePinGlyph}>🛴</Text>
           </View>
         </Marker>
         {devLocation !== null && (
-          <Marker
-            coordinate={{ latitude: devLocation.lat, longitude: devLocation.lon }}
-            anchor={{ x: 0.5, y: 0.5 }}
-          >
+          <Marker lngLat={[devLocation.lon, devLocation.lat]}>
             <View style={styles.riderPin} />
           </Marker>
         )}
-      </MapView>
+      </Map>
 
       <View style={[styles.header, { top: insets.top + spacing.s }]}>
         <View style={styles.headerCard}>
