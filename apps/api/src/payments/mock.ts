@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import type { ChargeResult, PaymentProviderName, Tiyin } from '@scoot/shared';
 import type { ChargeInput, PaymentProvider } from './provider.js';
 
@@ -20,7 +19,7 @@ export class MockPaymentProvider implements PaymentProvider {
     void input;
     return {
       ok: true,
-      providerRef: `mock_${randomUUID()}`,
+      providerRef: `mock_${crypto.randomUUID()}`,
       status: 'succeeded',
       failureReason: null,
     };
@@ -31,7 +30,7 @@ export class MockPaymentProvider implements PaymentProvider {
     void amount;
     return {
       ok: true,
-      providerRef: `mock_refund_${randomUUID()}`,
+      providerRef: `mock_refund_${crypto.randomUUID()}`,
       status: 'refunded',
       failureReason: null,
     };

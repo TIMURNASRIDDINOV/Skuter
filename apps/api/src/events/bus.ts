@@ -1,51 +1,65 @@
-import { EventEmitter } from 'node:events';
 import type { ServerEvent } from '@scoot/shared';
 import { logError } from '../lib/logger.js';
+import { runtimeStorage } from '../runtime.js';
 
 /**
  * In-process pub/sub feeding the admin panel's SSE stream.
  *
- * Single-process by design. A multi-instance deployment would swap this for
- * Postgres LISTEN/NOTIFY or Redis; the publish/subscribe surface stays the
- * same, so nothing calling it would change.
+ * Single-process by design. On Node the module singleton below is the one
+ * bus for the process. On Cloudflare Workers the runtime context supplies
+ * the sink instead: inside the FleetSimulator Durable Object it is the DO's
+ * own bus (which the SSE connections drain), while ordinary Worker requests
+ * get a sink that forwards publishes to the DO over RPC.
  */
-const CHANNEL = 'server-event';
 
-class ServerEventBus {
-  readonly #emitter = new EventEmitter();
+/** What a runtime context must provide as its event hub. */
+export interface EventSink {
+  publish(event: ServerEvent): void;
+  subscribe(listener: (event: ServerEvent) => void): () => void;
+  readonly subscriberCount: number;
+}
 
-  constructor() {
-    // One listener per connected admin browser, plus headroom. The default of
-    // 10 would print spurious leak warnings.
-    this.#emitter.setMaxListeners(200);
-  }
+/** A Set of listeners with error isolation — works on Node and Workers. */
+export class ServerEventBus implements EventSink {
+  readonly #listeners = new Set<(event: ServerEvent) => void>();
 
   publish(event: ServerEvent): void {
-    this.#emitter.emit(CHANNEL, event);
-  }
-
-  subscribe(listener: (event: ServerEvent) => void): () => void {
-    const wrapped = (event: ServerEvent): void => {
+    for (const listener of this.#listeners) {
       try {
         listener(event);
       } catch (error: unknown) {
         // A stalled SSE connection must never take the publisher down.
         logError('Server event listener threw', error);
       }
-    };
+    }
+  }
 
-    this.#emitter.on(CHANNEL, wrapped);
+  subscribe(listener: (event: ServerEvent) => void): () => void {
+    this.#listeners.add(listener);
     return () => {
-      this.#emitter.off(CHANNEL, wrapped);
+      this.#listeners.delete(listener);
     };
   }
 
   get subscriberCount(): number {
-    return this.#emitter.listenerCount(CHANNEL);
+    return this.#listeners.size;
   }
 }
 
-export const serverEvents = new ServerEventBus();
+const nodeBus = new ServerEventBus();
+
+function activeBus(): EventSink {
+  return runtimeStorage.getStore()?.events ?? nodeBus;
+}
+
+/** Stable facade — resolves the platform's bus on every call. */
+export const serverEvents: EventSink = {
+  publish: (event) => activeBus().publish(event),
+  subscribe: (listener) => activeBus().subscribe(listener),
+  get subscriberCount() {
+    return activeBus().subscriberCount;
+  },
+};
 
 /**
  * Distributes over the event union — a plain `Omit<ServerEvent, 'at'>` would

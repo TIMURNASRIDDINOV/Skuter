@@ -56,7 +56,7 @@ const vehicleRefSchema = z.object({
   vehicle: z.string().trim().min(1),
 });
 
-devRoutes.get('/simulate/status', (c) => c.json(control().snapshot()));
+devRoutes.get('/simulate/status', async (c) => c.json(await control().snapshot()));
 
 devRoutes.post('/simulate/reset', async (c) => {
   const result = await control().resetFleet();

@@ -100,7 +100,7 @@ export async function startRide(
   await repositories.vehicles.updateStatus(vehicle.id, 'in_use');
   // On simulated hardware this starts the vehicle moving. On real hardware
   // there is no equivalent — a person does the moving.
-  getSimulationControl()?.beginRide(vehicle.id, rideId);
+  await getSimulationControl()?.beginRide(vehicle.id, rideId);
 
   publishEvent({
     type: 'ride.started',
@@ -181,7 +181,7 @@ export async function endRide(
 
   // Take the distance the vehicle actually travelled, rather than recomputing
   // from a path that is still being written.
-  const finished = getSimulationControl()?.finishRide(ride.vehicleId) ?? null;
+  const finished = (await getSimulationControl()?.finishRide(ride.vehicleId)) ?? null;
   const distanceM = Math.round(
     finished?.distanceM ?? (ride.path === null ? ride.distanceM : lineStringLengthM(ride.path)),
   );

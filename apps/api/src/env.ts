@@ -1,7 +1,3 @@
-import { existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
 
 /**
@@ -9,15 +5,26 @@ import { z } from 'zod';
  * config rather than failing later with a confusing runtime error.
  *
  * A single root .env serves the whole monorepo; see .env.example for the
- * documented list of variables.
+ * documented list of variables. On Cloudflare Workers there is no .env —
+ * `nodejs_compat` populates process.env from the Worker's vars and secrets,
+ * and the node:fs branch below never runs.
  */
 
-const here = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(here, '../../..');
-const rootEnvPath = resolve(repoRoot, '.env');
+const isWorkers =
+  (globalThis as { navigator?: { userAgent?: string } }).navigator?.userAgent ===
+  'Cloudflare-Workers';
 
-if (existsSync(rootEnvPath)) {
-  loadDotenv({ path: rootEnvPath, quiet: true });
+if (!isWorkers) {
+  const { existsSync } = await import('node:fs');
+  const { dirname, resolve } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const { config: loadDotenv } = await import('dotenv');
+
+  const here = dirname(fileURLToPath(import.meta.url));
+  const rootEnvPath = resolve(here, '../../..', '.env');
+  if (existsSync(rootEnvPath)) {
+    loadDotenv({ path: rootEnvPath, quiet: true });
+  }
 }
 
 const envSchema = z.object({
@@ -38,7 +45,9 @@ const envSchema = z.object({
   OTP_TEST_PHONES: z.string().default(''),
   SIMULATOR_TICK_MS: z.coerce.number().int().min(250).max(60_000).default(3000),
   SIMULATOR_UNLOCK_FAILURE_RATE: z.coerce.number().min(0).max(1).default(0.08),
-  VEHICLE_GATEWAY: z.enum(['simulated', 'iot']).default('simulated'),
+  // `durable` = the Cloudflare Workers deployment, where the simulator lives
+  // in the FleetSimulator Durable Object and is reached over RPC.
+  VEHICLE_GATEWAY: z.enum(['simulated', 'iot', 'durable']).default('simulated'),
   // Explicit override for the dev affordances (fixed OTP code, /dev/simulate/*).
   // Unset = derived from NODE_ENV. The pre-release deployment runs with
   // NODE_ENV=production DEV_FEATURES=true: there is no SMS provider yet, so

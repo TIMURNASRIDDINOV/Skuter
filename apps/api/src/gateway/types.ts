@@ -39,13 +39,15 @@ export interface SimulationControl {
    * Attach an already-created ride to a vehicle so it starts moving along a
    * generated route. Called when a real rider starts a ride — on real hardware
    * this has no equivalent, because a person does the moving.
+   *
+   * Async because on Cloudflare these cross a Durable Object RPC boundary.
    */
-  beginRide(vehicleId: string, rideId: string): void;
+  beginRide(vehicleId: string, rideId: string): Promise<void>;
   /**
    * Detach a ride and report the distance travelled, so the ride settles
    * against what the vehicle actually did rather than a recomputed guess.
    */
-  finishRide(vehicleId: string): { distanceM: number; path: LatLon[] } | null;
+  finishRide(vehicleId: string): Promise<{ distanceM: number; path: LatLon[] } | null>;
   /** Put a vehicle on a generated street route as an active ride. */
   forceRide(vehicleId: string): Promise<{ rideId: string; routePoints: number }>;
   /** Drop a vehicle's battery to a given percentage. */
@@ -53,7 +55,7 @@ export interface SimulationControl {
   /** Force a vehicle into a status, e.g. `offline`. */
   setStatus(vehicleId: string, status: VehicleStatus): Promise<{ status: VehicleStatus }>;
   /** Current in-memory snapshot, for the dev endpoints to report. */
-  snapshot(): SimulationSnapshot;
+  snapshot(): Promise<SimulationSnapshot>;
 }
 
 export interface SimulationSnapshot {

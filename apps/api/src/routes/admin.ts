@@ -13,6 +13,7 @@ import {
   type DashboardStats,
   type RevenuePoint,
 } from '@scoot/shared';
+import { env } from '../env.js';
 import { publishEvent, serverEvents } from '../events/bus.js';
 import { notFound } from '../lib/errors.js';
 import { repositories } from '../repositories/index.js';
@@ -40,6 +41,23 @@ adminRoutes.get('/events', async (c) => {
   const claims = await readToken(token);
   if (claims.role !== 'admin') {
     return c.json({ error: { code: 'forbidden', message: 'Admin token required' } }, 403);
+  }
+
+  // On Workers the event hub lives in the FleetSimulator DO — hand the
+  // (already authenticated) connection to it and stream its response back.
+  if (env.VEHICLE_GATEWAY === 'durable') {
+    const bindings = c.env as { fleetStub?: { fetch: (r: Request) => Promise<Response> } };
+    if (bindings.fleetStub === undefined) {
+      return c.json({ error: { code: 'internal', message: 'Fleet stub missing' } }, 500);
+    }
+    const upstream = await bindings.fleetStub.fetch(new Request('https://fleet/events'));
+    return new Response(upstream.body, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Access-Control-Allow-Origin': '*',
+      },
+    });
   }
 
   return streamSSE(c, async (stream) => {

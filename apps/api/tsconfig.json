@@ -4,7 +4,16 @@
     "noEmit": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src/**/*.ts", "drizzle.config.ts"]
+  "include": [
+    "src/**/*.ts",
+    "drizzle.config.ts"
+  ],
+  "exclude": [
+    "src/worker.ts",
+    "src/gateway/durable-object.ts"
+  ]
 }

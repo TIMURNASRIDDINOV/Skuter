@@ -1,0 +1,12 @@
+{
+  // Typecheck for the two Cloudflare-only modules, which need the Workers
+  // type declarations that would conflict with @types/node in the main graph.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["@cloudflare/workers-types", "node"]
+  },
+  "include": ["src/worker.ts", "src/gateway/durable-object.ts"]
+}

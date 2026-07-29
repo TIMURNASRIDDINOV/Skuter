@@ -79,6 +79,7 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
   readonly #listeners = new Set<(t: Telemetry) => void>();
 
   #timer: NodeJS.Timeout | null = null;
+  #started = false;
   #ticks = 0;
   #lastTickAt: Date | null = null;
   #ticking = false;
@@ -91,24 +92,24 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
 
   // --- lifecycle ---------------------------------------------------------
 
-  async start(): Promise<void> {
-    if (this.#timer !== null) return;
-
+  /**
+   * Load fleet state without starting the Node interval — the Durable Object
+   * host drives ticks itself through `tickOnce()` on its alarm.
+   */
+  async prepare(): Promise<void> {
     await this.#loadFleet();
     await this.#cachePricing();
     await this.#reconcileActiveRides();
+    this.#started = true;
+  }
+
+  async start(): Promise<void> {
+    if (this.#timer !== null) return;
+
+    await this.prepare();
 
     this.#timer = setInterval(() => {
-      // Ticks are async; never let one overlap the next.
-      if (this.#ticking) return;
-      this.#ticking = true;
-      void this.#tick()
-        .catch((error: unknown) => {
-          logError('Simulator tick failed', error);
-        })
-        .finally(() => {
-          this.#ticking = false;
-        });
+      void this.tickOnce();
     }, env.SIMULATOR_TICK_MS);
 
     logInfo(
@@ -117,11 +118,25 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
     );
   }
 
+  /** One guarded tick — ticks are async and must never overlap. */
+  async tickOnce(): Promise<void> {
+    if (this.#ticking) return;
+    this.#ticking = true;
+    try {
+      await this.#tick();
+    } catch (error: unknown) {
+      logError('Simulator tick failed', error);
+    } finally {
+      this.#ticking = false;
+    }
+  }
+
   async stop(): Promise<void> {
     if (this.#timer !== null) {
       clearInterval(this.#timer);
       this.#timer = null;
     }
+    this.#started = false;
     this.#listeners.clear();
     await Promise.resolve();
   }
@@ -168,13 +183,15 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
     return { vehicles: this.#fleet.size };
   }
 
-  beginRide(vehicleId: string, rideId: string): void {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async beginRide(vehicleId: string, rideId: string): Promise<void> {
     const vehicle = this.#require(vehicleId);
     vehicle.ride = this.#buildRide(rideId, vehicle.position);
     vehicle.status = 'in_use';
   }
 
-  finishRide(vehicleId: string): { distanceM: number; path: LatLon[] } | null {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async finishRide(vehicleId: string): Promise<{ distanceM: number; path: LatLon[] } | null> {
     const vehicle = this.#fleet.get(vehicleId);
     if (vehicle?.ride == null) return null;
 
@@ -230,13 +247,14 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
     return { status };
   }
 
-  snapshot(): SimulationSnapshot {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async snapshot(): Promise<SimulationSnapshot> {
     let activeRides = 0;
     for (const vehicle of this.#fleet.values()) {
       if (vehicle.ride !== null) activeRides += 1;
     }
     return {
-      running: this.#timer !== null,
+      running: this.#started,
       tickMs: env.SIMULATOR_TICK_MS,
       ticks: this.#ticks,
       vehicles: this.#fleet.size,

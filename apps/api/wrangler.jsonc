@@ -1,0 +1,70 @@
+{
+  // The real API on Cloudflare Workers. Deploying this under the name
+  // "scoot-api" replaces the old tunnel proxy in place — same URL, so the
+  // installed APK, mini app and admin panel never need a rebuild.
+  //
+  // Cutover (see plan): create the Hyperdrive first —
+  //   wrangler hyperdrive create scoot-db --connection-string="<supabase session pooler url>"
+  // then fill in its id below, set secrets (JWT_SECRET, TELEGRAM_BOT_TOKEN,
+  //   TELEGRAM_WEBHOOK_SECRET), smoke-test via --env canary, DELETE the
+  // canary worker (two simulators must not drive one fleet), and
+  //   wrangler deploy.
+  "name": "scoot-api",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [{ "name": "FLEET", "class_name": "FleetSimulator" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["FleetSimulator"] }],
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "TODO_SET_AFTER_wrangler_hyperdrive_create"
+    }
+  ],
+  "vars": {
+    "NODE_ENV": "production",
+    // Pre-release runs with dev affordances on: the fixed OTP code is the
+    // only working phone login until an SMS provider exists, and the demo
+    // controls in the clients depend on /dev/simulate/*.
+    "DEV_FEATURES": "true",
+    "VEHICLE_GATEWAY": "durable",
+    "SIMULATOR_TICK_MS": "3000",
+    "SIMULATOR_UNLOCK_FAILURE_RATE": "0.08",
+    "OTP_TEST_PHONES": "+998882196446",
+    "DEV_OTP_CODE": "473591",
+    "JWT_EXPIRES_IN": "30d",
+    "TELEGRAM_BOT_USERNAME": "Scootrentuzbot",
+    // Placeholder: the real connection comes from the HYPERDRIVE binding;
+    // env.ts merely requires the var to be non-empty.
+    "DATABASE_URL": "hyperdrive"
+  },
+  "env": {
+    "canary": {
+      "name": "scoot-api-canary",
+      "durable_objects": {
+        "bindings": [{ "name": "FLEET", "class_name": "FleetSimulator" }]
+      },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["FleetSimulator"] }],
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "TODO_SET_AFTER_wrangler_hyperdrive_create"
+        }
+      ],
+      "vars": {
+        "NODE_ENV": "production",
+        "DEV_FEATURES": "true",
+        "VEHICLE_GATEWAY": "durable",
+        "SIMULATOR_TICK_MS": "3000",
+        "SIMULATOR_UNLOCK_FAILURE_RATE": "0.08",
+        "OTP_TEST_PHONES": "+998882196446",
+        "DEV_OTP_CODE": "473591",
+        "JWT_EXPIRES_IN": "30d",
+        "TELEGRAM_BOT_USERNAME": "Scootrentuzbot",
+        "DATABASE_URL": "hyperdrive"
+      }
+    }
+  }
+}

@@ -98,7 +98,7 @@ importers:
         version: 3.0.3
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.2(@types/pg@8.20.0)(pg@8.22.0)
+        version: 0.45.2(@cloudflare/workers-types@5.20260728.1)(@types/pg@8.20.0)(pg@8.22.0)
       hono:
         specifier: ^4.12.32
         version: 4.12.32
@@ -109,6 +109,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^5.20260728.1
+        version: 5.20260728.1
       '@types/node':
         specifier: ^22.19.1
         version: 22.20.1
@@ -733,6 +736,9 @@ packages:
   '@babel/types@7.29.7':
     resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
     engines: {node: '>=6.9.0'}
+
+  '@cloudflare/workers-types@5.20260728.1':
+    resolution: {integrity: sha512-rZqmesLEH40Xt67PpQSj+iJqwkYBzVr7U/UOa5twkToMsxO5pYsPw2QAaTKDdiCSiki9fWAgsWTj9OmFnbwLRQ==}
 
   '@ctrl/tinycolor@3.6.1':
     resolution: {integrity: sha512-SITSV6aIXsuVNV3f3O0f2n/cgyEDWoSqtZMYiAmcsYHydcKrOz3gUxB/iXd/Qf08+IZX4KpgNbvUdMBmWz+kcA==}
@@ -6204,6 +6210,8 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
+  '@cloudflare/workers-types@5.20260728.1': {}
+
   '@ctrl/tinycolor@3.6.1': {}
 
   '@drizzle-team/brocli@0.10.2': {}
@@ -8496,8 +8504,9 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.23.1
 
-  drizzle-orm@0.45.2(@types/pg@8.20.0)(pg@8.22.0):
+  drizzle-orm@0.45.2(@cloudflare/workers-types@5.20260728.1)(@types/pg@8.20.0)(pg@8.22.0):
     optionalDependencies:
+      '@cloudflare/workers-types': 5.20260728.1
       '@types/pg': 8.20.0
       pg: 8.22.0
 

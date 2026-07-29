@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Telegram login primitives. WebCrypto only (`globalThis.crypto`), so the
+ * Telegram login primitives. WebCrypto only (`crypto`), so the
  * same code runs on Node ≥20 and Cloudflare Workers with no dependencies.
  *
  * Mini App `initData` verification follows the documented scheme:
@@ -30,14 +30,14 @@ export interface TelegramIdentity {
 }
 
 async function hmacSha256(key: ArrayBuffer | Uint8Array, data: string): Promise<ArrayBuffer> {
-  const cryptoKey = await globalThis.crypto.subtle.importKey(
+  const cryptoKey = await crypto.subtle.importKey(
     'raw',
     key,
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign'],
   );
-  return globalThis.crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(data));
+  return crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(data));
 }
 
 function toHex(buffer: ArrayBuffer): string {
@@ -98,7 +98,7 @@ export async function verifyInitData(
 /** 32 random bytes, base64url — the native-app login nonce. */
 export function generateNonce(): string {
   const bytes = new Uint8Array(32);
-  globalThis.crypto.getRandomValues(bytes);
+  crypto.getRandomValues(bytes);
   let binary = '';
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
