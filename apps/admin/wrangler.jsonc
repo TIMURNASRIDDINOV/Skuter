@@ -1,0 +1,12 @@
+{
+  // Static hosting for the built admin panel on Cloudflare Workers.
+  // Build first (VITE_API_URL is baked in at build time), then deploy:
+  //   VITE_API_URL=https://scoot-api.timurnasriddinov56.workers.dev pnpm -F @scoot/admin build
+  //   npx wrangler deploy -c apps/admin/wrangler.jsonc
+  "name": "scoot-admin",
+  "compatibility_date": "2026-07-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
