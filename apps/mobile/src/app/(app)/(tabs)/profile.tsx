@@ -52,13 +52,9 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backGlyph}>←</Text>
-        </Pressable>
         <Text style={styles.headerTitle}>{t.profileTitle}</Text>
-        <View style={styles.backButton} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -174,15 +170,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.l,
     paddingVertical: spacing.s,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backGlyph: { fontSize: 18, color: colors.text },
   headerTitle: { ...typography.heading, color: colors.text, flex: 1, textAlign: 'center' },
   content: { padding: spacing.l, gap: spacing.m, paddingBottom: spacing.xxl },
   section: { gap: spacing.s },

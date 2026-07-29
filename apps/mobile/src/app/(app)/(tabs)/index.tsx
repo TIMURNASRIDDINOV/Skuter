@@ -136,9 +136,6 @@ export default function MapScreen() {
       </Map>
 
       <View style={[styles.topBar, { top: insets.top + spacing.s }]}>
-        <Pressable style={styles.roundButton} onPress={() => router.push('/profile')}>
-          <Text style={styles.roundGlyph}>👤</Text>
-        </Pressable>
         <Pressable style={styles.roundButton} onPress={locateMe}>
           <Text style={styles.roundGlyph}>📍</Text>
         </Pressable>
@@ -161,15 +158,6 @@ export default function MapScreen() {
           onPress={() => router.push('/ride')}
         />
       )}
-
-      <Pressable
-        style={[styles.scanButton, { bottom: SHEET_PEEK + spacing.l }]}
-        onPress={() => router.push('/scan')}
-        testID="scan-button"
-      >
-        <Text style={styles.scanGlyph}>▣</Text>
-        <Text style={styles.scanLabel}>{t.scan}</Text>
-      </Pressable>
 
       <BottomSheet
         ref={sheetRef}
@@ -303,24 +291,6 @@ const styles = StyleSheet.create({
   rideBannerDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
   rideBannerText: { ...typography.label, color: colors.textInverse, flex: 1 },
   rideBannerChevron: { ...typography.heading, color: colors.textInverse },
-  scanButton: {
-    position: 'absolute',
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s,
-    backgroundColor: colors.primary,
-    borderRadius: radius.full,
-    paddingHorizontal: spacing.xl,
-    height: 52,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 6,
-  },
-  scanGlyph: { fontSize: 18, color: colors.textInverse },
-  scanLabel: { ...typography.heading, color: colors.textInverse },
   sheetHandle: { backgroundColor: colors.border, width: 44 },
   sheetBackground: { backgroundColor: colors.surface, borderRadius: radius.xl },
 });

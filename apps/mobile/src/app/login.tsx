@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiRequestError, apiFetch } from '@/api/client';
+import { useTelegramLogin } from '@/api/telegram';
 import { Button } from '@/components/ui';
 import { useI18n } from '@/lib/i18n';
 import { colors, radius, spacing, typography } from '@/lib/theme';
@@ -25,6 +26,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const [digits, setDigits] = useState('');
   const phone = `+998${digits}`;
+  const telegram = useTelegramLogin();
 
   const request = useMutation({
     mutationFn: () =>
@@ -96,6 +98,29 @@ export default function LoginScreen() {
             disabled={!valid}
             loading={request.isPending}
           />
+
+          <View style={styles.separatorRow}>
+            <View style={styles.separatorLine} />
+            <Text style={styles.separatorText}>{t.orSeparator}</Text>
+            <View style={styles.separatorLine} />
+          </View>
+
+          {telegram.waiting ? (
+            <View style={styles.telegramWaiting}>
+              <Text style={styles.telegramWaitingText}>{t.telegramWaiting}</Text>
+              <Button label={t.telegramCancel} variant="ghost" onPress={telegram.cancel} />
+            </View>
+          ) : (
+            <Button
+              label={t.continueWithTelegram}
+              variant="secondary"
+              onPress={() => void telegram.start()}
+              testID="telegram-login"
+            />
+          )}
+          {telegram.failed && !telegram.waiting && (
+            <Text style={styles.error}>{t.telegramFailed}</Text>
+          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -125,4 +150,13 @@ const styles = StyleSheet.create({
   phonePrefix: { ...typography.heading, color: colors.text },
   phoneInput: { ...typography.heading, color: colors.text, flex: 1, paddingVertical: 0 },
   error: { ...typography.label, color: colors.danger },
+  separatorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.m },
+  separatorLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  separatorText: { ...typography.caption, color: colors.textSecondary },
+  telegramWaiting: { gap: spacing.s, alignItems: 'center' },
+  telegramWaitingText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
 });
