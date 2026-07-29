@@ -1,0 +1,348 @@
+/* Palette mirrors apps/mobile/src/lib/theme.ts — one colour, one meaning. */
+:root {
+  --primary: #10b981;
+  --primary-pressed: #0e9f6e;
+  --danger: #f5222d;
+  --danger-faint: #fff1f0;
+  --warning-faint: #fffbe6;
+  --text: #1f1f1f;
+  --text-secondary: #6b7280;
+  --surface: #ffffff;
+  --background: #f5f5f4;
+  --border: #e5e7eb;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color: var(--text);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* --- Login / receipt ----------------------------------------------------- */
+
+.login,
+.receipt {
+  justify-content: center;
+  align-items: stretch;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.login-hero,
+.receipt-hero {
+  font-size: 56px;
+}
+
+h1 {
+  font-size: 24px;
+}
+
+.muted {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+input {
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 20px;
+  padding: 14px 16px;
+  text-align: center;
+  outline: none;
+}
+
+input:focus {
+  border-color: var(--primary);
+}
+
+.btn {
+  border: none;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 14px 20px;
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.btn.primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn.primary:active {
+  background: var(--primary-pressed);
+}
+
+.btn.danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.btn.small {
+  font-size: 14px;
+  padding: 10px 14px;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+}
+
+.error-box {
+  background: var(--danger-faint);
+  color: var(--danger);
+  border-radius: 10px;
+  font-size: 14px;
+  padding: 10px 12px;
+}
+
+/* --- Map screens --------------------------------------------------------- */
+
+.map-screen,
+.ride-screen {
+  position: relative;
+}
+
+.map {
+  position: absolute;
+  inset: 0;
+}
+
+.map-topbar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  z-index: 2;
+}
+
+.chip {
+  background: var(--surface);
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+  padding: 8px 12px;
+}
+
+.chip-button {
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.error-banner {
+  position: absolute;
+  top: 56px;
+  left: 12px;
+  right: 12px;
+  background: var(--danger-faint);
+  color: var(--danger);
+  border-radius: 10px;
+  font-size: 14px;
+  padding: 10px 12px;
+  z-index: 2;
+}
+
+.link {
+  background: none;
+  border: none;
+  color: inherit;
+  text-decoration: underline;
+  font: inherit;
+  cursor: pointer;
+}
+
+.scan-fab {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+  z-index: 2;
+}
+
+.sheet,
+.panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  z-index: 3;
+}
+
+.sheet-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.sheet-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.close {
+  background: var(--background);
+  border: none;
+  border-radius: 999px;
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.stat-row {
+  display: flex;
+  gap: 8px;
+}
+
+.stat {
+  flex: 1;
+  background: var(--background);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 16px;
+}
+
+.stat .muted {
+  font-size: 12px;
+}
+
+.highlight {
+  color: var(--primary-pressed);
+}
+
+.tariff {
+  background: #ecfdf5;
+  color: #065f46;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 12px;
+}
+
+.pill-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pill {
+  background: var(--background);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+}
+
+.pill-ok {
+  background: #ecfdf5;
+  color: var(--primary-pressed);
+}
+
+.blocked-card {
+  background: var(--warning-faint);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  padding: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.row .btn {
+  flex: 1;
+}
+
+.ride-pin {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #1677ff;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.rider-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #1677ff;
+  border: 3px solid #fff;
+}
+
+/* --- Receipt ------------------------------------------------------------- */
+
+.receipt-card {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 15px;
+}
+
+.line.total {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  font-size: 17px;
+}
