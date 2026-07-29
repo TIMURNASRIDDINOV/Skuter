@@ -7,11 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSession } from '@/api/session';
 import { useRideHistory, useSubscriptions, useUpdateProfile } from '@/api/queries';
 import { EmptyState, ErrorState, ListSkeleton } from '@/components/states';
-import { Button, Card, Pill, Row } from '@/components/ui';
+import { Button, Card, Icon, Pill } from '@/components/ui';
 import { formatDate, formatDateTime, formatDistance, formatDuration, formatPhone } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
 import type { Language, Strings } from '@/lib/i18n';
-import { colors, radius, spacing, typography } from '@/lib/theme';
+import { colors, radius, shadows, spacing, typography } from '@/lib/theme';
 
 function subscriptionStatusMeta(status: SubscriptionDetail['status'], t: Strings) {
   switch (status) {
@@ -62,7 +62,17 @@ export default function ProfileScreen() {
           <Text style={styles.phone}>
             {user === null ? '' : user.phone !== null ? formatPhone(user.phone) : 'Telegram'}
           </Text>
-          <Row label={t.balance} value={user !== null ? formatSom(user.balance) : '—'} />
+          <View style={styles.balanceRow}>
+            <View style={styles.iconBadge}>
+              <Icon name="wallet" size={20} color={colors.primary} />
+            </View>
+            <View style={styles.balanceBody}>
+              <Text style={styles.balanceLabel}>{t.balance}</Text>
+              <Text style={styles.balanceValue}>
+                {user !== null ? formatSom(user.balance) : '—'}
+              </Text>
+            </View>
+          </View>
           <View style={styles.nameRow}>
             <TextInput
               style={styles.nameInput}
@@ -84,14 +94,14 @@ export default function ProfileScreen() {
 
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>{t.language}</Text>
-          <View style={styles.langRow}>
+          <View style={styles.segmentTrack}>
             {(['ru', 'uz'] as Language[]).map((code) => (
               <Pressable
                 key={code}
-                style={[styles.langOption, lang === code && styles.langOptionActive]}
+                style={[styles.segment, lang === code && styles.segmentActive]}
                 onPress={() => setLang(code)}
               >
-                <Text style={[styles.langLabel, lang === code && styles.langLabelActive]}>
+                <Text style={[styles.segmentLabel, lang === code && styles.segmentLabelActive]}>
                   {code === 'ru' ? 'Русский' : 'O‘zbekcha'}
                 </Text>
               </Pressable>
@@ -105,22 +115,29 @@ export default function ProfileScreen() {
         ) : subscriptionsQuery.isError ? (
           <ErrorState onRetry={() => void subscriptionsQuery.refetch()} />
         ) : subscriptionsQuery.data.items.length === 0 ? (
-          <EmptyState title={t.noSubscriptions} emoji="🎫" />
+          <EmptyState title={t.noSubscriptions} icon="ticket" />
         ) : (
           subscriptionsQuery.data.items.map((subscription) => {
             const meta = subscriptionStatusMeta(subscription.status, t);
             return (
               <Card key={subscription.id} style={styles.section}>
-                <View style={styles.subHeader}>
-                  <Text style={styles.subTitle}>{subscription.plan.name}</Text>
-                  <Pill label={meta.label} colour={meta.colour} faint={meta.faint} />
+                <View style={styles.subRow}>
+                  <View style={styles.iconBadge}>
+                    <Icon name="ticket" size={20} color={colors.primary} />
+                  </View>
+                  <View style={styles.subBody}>
+                    <View style={styles.subHeader}>
+                      <Text style={styles.subTitle}>{subscription.plan.name}</Text>
+                      <Pill label={meta.label} colour={meta.colour} faint={meta.faint} />
+                    </View>
+                    <Text style={styles.subMeta}>
+                      {subscription.vehicle.qrCode} · {subscription.vehicle.model}
+                    </Text>
+                    <Text style={styles.subMeta}>
+                      {t.until} {formatDate(subscription.expiresAt, lang)}
+                    </Text>
+                  </View>
                 </View>
-                <Text style={styles.subVehicle}>
-                  {subscription.vehicle.qrCode} · {subscription.vehicle.model}
-                </Text>
-                <Text style={styles.subExpiry}>
-                  {t.until} {formatDate(subscription.expiresAt, lang)}
-                </Text>
               </Card>
             );
           })
@@ -132,7 +149,7 @@ export default function ProfileScreen() {
         ) : ridesQuery.isError ? (
           <ErrorState onRetry={() => void ridesQuery.refetch()} />
         ) : ridesQuery.data.items.length === 0 ? (
-          <EmptyState title={t.noRides} />
+          <EmptyState title={t.noRides} icon="history" />
         ) : (
           <Card style={styles.rideList}>
             {ridesQuery.data.items.map((ride, i) => (
@@ -144,6 +161,9 @@ export default function ProfileScreen() {
                   router.push({ pathname: '/receipt', params: { rideId: ride.id } })
                 }
               >
+                <View style={styles.historyBadge}>
+                  <Icon name="history" size={20} color={colors.textSecondary} />
+                </View>
                 <View style={styles.rideBody}>
                   <Text style={styles.rideDate}>{formatDateTime(ride.startedAt, lang)}</Text>
                   <Text style={styles.rideMeta}>
@@ -151,12 +171,20 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
                 <Text style={styles.rideCost}>{formatSom(ride.cost)}</Text>
+                {ride.status === 'completed' && (
+                  <Icon name="chevronRight" size={14} color={colors.textSecondary} />
+                )}
               </Pressable>
             ))}
           </Card>
         )}
 
-        <Button label={t.logout} onPress={confirmLogout} variant="secondary" style={styles.logout} />
+        <Pressable accessibilityRole="button" style={styles.logoutRow} onPress={confirmLogout}>
+          <View style={styles.logoutBadge}>
+            <Icon name="logout" size={20} color={colors.danger} />
+          </View>
+          <Text style={styles.logoutLabel}>{t.logout}</Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -167,45 +195,69 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.l,
+    paddingHorizontal: 20,
     paddingVertical: spacing.s,
   },
   headerTitle: { ...typography.heading, color: colors.text, flex: 1, textAlign: 'center' },
-  content: { padding: spacing.l, gap: spacing.m, paddingBottom: spacing.xxl },
-  section: { gap: spacing.s },
-  phone: { ...typography.title, color: colors.text },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: spacing.s,
+    paddingBottom: spacing.xxl,
+    gap: spacing.m,
+  },
+  section: { gap: spacing.m },
+  phone: { ...typography.heading, color: colors.text },
+  balanceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.m },
+  balanceBody: { flex: 1, gap: 2 },
+  balanceLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  balanceValue: { ...typography.display, color: colors.text, fontVariant: ['tabular-nums'] },
+  iconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primaryFaint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   nameRow: { flexDirection: 'row', gap: spacing.s, alignItems: 'center' },
   nameInput: {
     ...typography.body,
     color: colors.text,
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.m,
-    borderWidth: 1,
-    borderColor: colors.border,
     paddingHorizontal: spacing.m,
-    height: 44,
+    height: 48,
   },
-  saveButton: { minHeight: 44, paddingVertical: 0, paddingHorizontal: spacing.l },
+  saveButton: { minHeight: 48, paddingVertical: 0, paddingHorizontal: spacing.l },
   sectionTitle: { ...typography.label, color: colors.textSecondary },
-  langRow: { flexDirection: 'row', gap: spacing.s },
-  langOption: {
+  segmentTrack: {
+    flexDirection: 'row',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.s,
+    padding: 3,
+  },
+  segment: {
     flex: 1,
-    height: 44,
-    borderRadius: radius.m,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    height: 40,
+    borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  langOptionActive: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
-  langLabel: { ...typography.body, color: colors.textSecondary },
-  langLabelActive: { color: colors.primaryPressed, fontWeight: '600' },
+  segmentActive: { backgroundColor: colors.surface, ...shadows.sm },
+  segmentLabel: { ...typography.label, color: colors.textSecondary },
+  segmentLabelActive: { color: colors.text },
   sectionHeading: { ...typography.heading, color: colors.text, marginTop: spacing.m },
+  subRow: { flexDirection: 'row', gap: spacing.m, alignItems: 'flex-start' },
+  subBody: { flex: 1, gap: spacing.xs },
   subHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   subTitle: { ...typography.heading, color: colors.text },
-  subVehicle: { ...typography.body, color: colors.text },
-  subExpiry: { ...typography.body, color: colors.textSecondary },
+  subMeta: { ...typography.label, color: colors.textSecondary },
   rideList: { paddingVertical: 0 },
   rideRow: {
     flexDirection: 'row',
@@ -214,9 +266,40 @@ const styles = StyleSheet.create({
     gap: spacing.m,
   },
   rideRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  historyBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   rideBody: { flex: 1, gap: 2 },
   rideDate: { ...typography.body, color: colors.text, fontWeight: '600' },
-  rideMeta: { ...typography.caption, color: colors.textSecondary },
-  rideCost: { ...typography.body, color: colors.text, fontWeight: '600' },
-  logout: { marginTop: spacing.l },
+  rideMeta: { ...typography.label, color: colors.textSecondary },
+  rideCost: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
+  logoutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.m,
+    backgroundColor: colors.surface,
+    borderRadius: radius.l,
+    padding: spacing.l,
+    marginTop: spacing.l,
+    ...shadows.sm,
+  },
+  logoutBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.dangerFaint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutLabel: { ...typography.body, fontWeight: '600', color: colors.danger },
 });

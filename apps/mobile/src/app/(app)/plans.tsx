@@ -9,11 +9,11 @@ import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { ApiRequestError } from '@/api/client';
 import { useBuySubscription, usePlans } from '@/api/queries';
 import { EmptyState, ErrorState, ListSkeleton } from '@/components/states';
-import { Button } from '@/components/ui';
+import { Button, Icon, IconButton } from '@/components/ui';
 import { formatDate } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
 import type { Strings } from '@/lib/i18n';
-import { colors, radius, spacing, typography } from '@/lib/theme';
+import { colors, radius, shadows, spacing, typography } from '@/lib/theme';
 
 function daysWord(days: number, t: Strings): string {
   if (days % 10 === 1 && days % 100 !== 11) return t.day;
@@ -42,7 +42,7 @@ export default function PlansScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <Header title={t.plansTitle} onBack={() => router.back()} />
-        <EmptyState title={t.pickVehicleFirst} style={styles.grow} />
+        <EmptyState title={t.pickVehicleFirst} icon="scooter" style={styles.grow} />
         <View style={styles.footer}>
           <Button label={t.toMap} onPress={() => router.replace('/')} variant="secondary" />
         </View>
@@ -54,8 +54,8 @@ export default function PlansScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={[styles.grow, styles.success]}>
-          <Animated.View entering={ZoomIn.springify()} style={styles.successBadge}>
-            <Text style={styles.successGlyph}>✓</Text>
+          <Animated.View entering={ZoomIn.springify()}>
+            <Icon name="check" size={72} color={colors.primary} />
           </Animated.View>
           <Text style={styles.successTitle}>{t.purchaseSuccessTitle}</Text>
           <Text style={styles.successHint}>
@@ -97,7 +97,7 @@ export default function PlansScreen() {
         ) : plansQuery.isError ? (
           <ErrorState onRetry={() => void plansQuery.refetch()} />
         ) : subscribable.length === 0 ? (
-          <EmptyState title={t.noPlans} />
+          <EmptyState title={t.noPlans} icon="ticket" />
         ) : (
           subscribable.map((plan, i) => {
             const active = plan.id === selectedPlanId;
@@ -168,11 +168,9 @@ function expiry(durationDays: number): string {
 function Header({ title, onBack }: { title: string; onBack: () => void }) {
   return (
     <View style={styles.header}>
-      <Pressable style={styles.backButton} onPress={onBack}>
-        <Text style={styles.backGlyph}>←</Text>
-      </Pressable>
+      <IconButton name="back" onPress={onBack} size={40} />
       <Text style={styles.headerTitle}>{title}</Text>
-      <View style={styles.backButton} />
+      <View style={styles.headerSpacer} />
     </View>
   );
 }
@@ -183,29 +181,22 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.l,
+    paddingHorizontal: 20,
     paddingVertical: spacing.s,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backGlyph: { fontSize: 18, color: colors.text },
+  headerSpacer: { width: 40, height: 40 },
   headerTitle: { ...typography.heading, color: colors.text, flex: 1, textAlign: 'center' },
-  list: { padding: spacing.l, gap: spacing.m },
+  list: { paddingHorizontal: 20, paddingVertical: spacing.l, gap: spacing.m },
   subtitle: { ...typography.heading, color: colors.text },
   note: { ...typography.body, color: colors.textSecondary, marginBottom: spacing.s },
   planCard: {
     backgroundColor: colors.surface,
     borderRadius: radius.l,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     padding: spacing.l,
     gap: spacing.xs,
+    ...shadows.sm,
   },
   planCardActive: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
   planHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -221,8 +212,12 @@ const styles = StyleSheet.create({
   },
   radioActive: { borderColor: colors.primary },
   radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.primary },
-  planPrice: { ...typography.title, color: colors.text },
-  planDuration: { ...typography.body, color: colors.textSecondary },
+  planPrice: {
+    ...typography.title,
+    color: colors.primaryPressed,
+    fontVariant: ['tabular-nums'],
+  },
+  planDuration: { ...typography.label, color: colors.textSecondary },
   errorCard: {
     backgroundColor: colors.dangerFaint,
     borderRadius: radius.m,
@@ -230,23 +225,15 @@ const styles = StyleSheet.create({
   },
   errorText: { ...typography.body, color: colors.danger },
   footer: {
-    padding: spacing.l,
+    padding: 20,
     gap: spacing.m,
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
+    ...shadows.lg,
   },
   expiryNote: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
   success: { alignItems: 'center', gap: spacing.m, padding: spacing.xl },
-  successBadge: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  successGlyph: { fontSize: 36, color: colors.textInverse, fontWeight: '700' },
   successTitle: { ...typography.title, color: colors.text, textAlign: 'center' },
   successHint: { ...typography.heading, color: colors.text },
   successNote: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },

@@ -1,23 +1,42 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
-import { Button, Skeleton } from '@/components/ui';
+import { Button, Icon, Skeleton } from '@/components/ui';
+import type { IconName } from '@/components/ui';
 import { useI18n } from '@/lib/i18n';
-import { colors, spacing, typography } from '@/lib/theme';
+import { colors, radius, spacing, typography } from '@/lib/theme';
+
+/**
+ * Leading glyph for empty/error states. When an icon name is given it renders
+ * a native symbol in a 72dp muted circle; otherwise it falls back to the
+ * legacy emoji string so existing call sites keep working.
+ */
+function StateGlyph({ icon, emoji }: { icon?: IconName; emoji: string }) {
+  if (icon !== undefined) {
+    return (
+      <View style={styles.iconCircle}>
+        <Icon name={icon} size={40} color={colors.textSecondary} />
+      </View>
+    );
+  }
+  return <Text style={styles.emoji}>{emoji}</Text>;
+}
 
 /** Something went wrong + retry. Never a raw error string on white. */
 export function ErrorState({
   onRetry,
   message,
+  icon = 'alert',
   style,
 }: {
   onRetry: () => void;
   message?: string;
+  icon?: IconName;
   style?: StyleProp<ViewStyle>;
 }) {
   const { t } = useI18n();
   return (
     <View style={[styles.centered, style]}>
-      <Text style={styles.emoji}>⚠️</Text>
+      <StateGlyph icon={icon} emoji="⚠️" />
       <Text style={styles.title}>{message ?? t.loadingError}</Text>
       <Text style={styles.hint}>{t.offlineHint}</Text>
       <Button label={t.tryAgain} onPress={onRetry} variant="secondary" style={styles.action} />
@@ -29,16 +48,18 @@ export function EmptyState({
   title,
   hint,
   emoji = '🛴',
+  icon,
   style,
 }: {
   title: string;
   hint?: string;
   emoji?: string;
+  icon?: IconName;
   style?: StyleProp<ViewStyle>;
 }) {
   return (
     <View style={[styles.centered, style]}>
-      <Text style={styles.emoji}>{emoji}</Text>
+      <StateGlyph icon={icon} emoji={emoji} />
       <Text style={styles.title}>{title}</Text>
       {hint !== undefined && <Text style={styles.hint}>{hint}</Text>}
     </View>
@@ -69,6 +90,15 @@ const styles = StyleSheet.create({
     padding: spacing.xxl,
     gap: spacing.s,
   },
+  iconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.s,
+  },
   emoji: { fontSize: 40, marginBottom: spacing.s },
   title: { ...typography.heading, color: colors.text, textAlign: 'center' },
   hint: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
@@ -77,6 +107,6 @@ const styles = StyleSheet.create({
   skeletonRow: { flexDirection: 'row', gap: spacing.m, alignItems: 'center' },
   skeletonAvatar: { width: 44, height: 44, borderRadius: 22 },
   skeletonLines: { flex: 1, gap: spacing.s },
-  skeletonLineWide: { height: 14, width: '70%' },
-  skeletonLineNarrow: { height: 12, width: '40%' },
+  skeletonLineWide: { height: 14, width: '70%', borderRadius: radius.m },
+  skeletonLineNarrow: { height: 12, width: '40%', borderRadius: radius.m },
 });

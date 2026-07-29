@@ -5,10 +5,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { useReceipt } from '@/api/queries';
 import { ErrorState, ListSkeleton } from '@/components/states';
-import { Button, Card, Pill, Row } from '@/components/ui';
+import { Button, Card, Icon, Pill, Row } from '@/components/ui';
 import { formatDateTime, formatDistance, formatDuration } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
 import { colors, spacing, typography } from '@/lib/theme';
+
+const SCREEN_PADDING = 20;
 
 export default function ReceiptScreen() {
   const { t, lang } = useI18n();
@@ -40,10 +42,15 @@ export default function ReceiptScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.body}>
-        <Animated.View entering={ZoomIn.springify()} style={styles.badge}>
-          <Text style={styles.badgeGlyph}>✓</Text>
-        </Animated.View>
-        <Text style={styles.title}>{t.receiptTitle}</Text>
+        <View style={styles.headerBlock}>
+          <Animated.View entering={ZoomIn.springify()} style={styles.badge}>
+            <Icon name="check" size={40} color={colors.primary} />
+          </Animated.View>
+          <Text style={styles.title}>{t.receiptTitle}</Text>
+          {ride.endedAt !== null && (
+            <Text style={styles.meta}>{formatDateTime(ride.endedAt, lang)}</Text>
+          )}
+        </View>
 
         <Animated.View entering={FadeInDown.delay(150)}>
           <Text style={styles.total}>{formatSom(breakdown.total)}</Text>
@@ -101,23 +108,32 @@ export default function ReceiptScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  body: { flex: 1, padding: spacing.xl, gap: spacing.l, alignItems: 'stretch' },
+  body: { flex: 1, padding: SCREEN_PADDING, gap: spacing.l, alignItems: 'stretch' },
+  headerBlock: { alignItems: 'center', gap: spacing.s, marginTop: spacing.l },
   badge: {
-    alignSelf: 'center',
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: spacing.l,
   },
-  badgeGlyph: { fontSize: 36, color: colors.textInverse, fontWeight: '700' },
-  title: { ...typography.heading, color: colors.textSecondary, textAlign: 'center' },
-  total: { ...typography.title, fontSize: 40, color: colors.text, textAlign: 'center' },
+  title: { ...typography.heading, color: colors.text, textAlign: 'center' },
+  meta: { ...typography.label, color: colors.textSecondary, textAlign: 'center' },
+  total: {
+    ...typography.display,
+    color: colors.text,
+    textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+  },
   covered: { alignItems: 'center', marginTop: spacing.s },
   card: { gap: 0 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: spacing.s },
-  totalRowValue: { ...typography.heading, color: colors.text },
-  footer: { padding: spacing.xl },
+  divider: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderStyle: 'dashed',
+    borderColor: colors.border,
+    marginVertical: spacing.s,
+  },
+  totalRowValue: { ...typography.heading, color: colors.text, fontVariant: ['tabular-nums'] },
+  footer: { padding: SCREEN_PADDING },
 });

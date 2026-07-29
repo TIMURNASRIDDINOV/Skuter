@@ -10,14 +10,18 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Vehicle } from '@scoot/shared';
 import { queryKeys } from '@/api/queries';
 import type { ListResponse } from '@/api/client';
-import { EmptyState } from '@/components/states';
-import { Button } from '@/components/ui';
+import { Button, Icon, IconButton } from '@/components/ui';
 import { DEMO_CONTROLS_ENABLED } from '@/lib/demo';
 import { useI18n } from '@/lib/i18n';
-import { colors, radius, spacing, typography } from '@/lib/theme';
+import { colors, radius, shadows, spacing, typography } from '@/lib/theme';
 
 /** With no successful read after this long, suggest typing the code. */
 const SCAN_TROUBLE_MS = 6000;
+
+/** Screen-edge padding — matches the rest of the app's chrome. */
+const EDGE = 20;
+
+const VIEWFINDER_SIZE = 250;
 
 export default function ScanScreen() {
   const { t } = useI18n();
@@ -111,8 +115,16 @@ export default function ScanScreen() {
   if (!permission?.granted) {
     return (
       <SafeAreaView style={styles.denied}>
-        <CloseButton onPress={() => router.back()} dark />
-        <EmptyState emoji="📷" title={t.cameraDenied} hint={t.cameraDeniedHint} />
+        <View style={styles.deniedTop}>
+          <IconButton name="close" onPress={() => router.back()} />
+        </View>
+        <View style={styles.deniedBody}>
+          <View style={styles.deniedBadge}>
+            <Icon name="scan" size={30} color={colors.textSecondary} />
+          </View>
+          <Text style={styles.deniedTitle}>{t.cameraDenied}</Text>
+          <Text style={styles.deniedHint}>{t.cameraDeniedHint}</Text>
+        </View>
         <View style={styles.deniedActions}>
           <Button label={t.grantCamera} onPress={() => void requestPermission()} />
           <Button
@@ -142,17 +154,27 @@ export default function ScanScreen() {
 
       <SafeAreaView style={styles.overlay}>
         <View style={styles.topRow}>
-          <CloseButton onPress={() => router.back()} />
-          <Pressable
-            style={[styles.torchButton, torch && styles.torchOn]}
+          <IconButton
+            name="close"
+            onPress={() => router.back()}
+            color={colors.textInverse}
+            background="rgba(255,255,255,0.2)"
+          />
+          <IconButton
+            name="flash"
             onPress={() => setTorch((on) => !on)}
-          >
-            <Text style={styles.torchGlyph}>🔦</Text>
-          </Pressable>
+            color={colors.textInverse}
+            background={torch ? colors.warning : 'rgba(255,255,255,0.2)'}
+          />
         </View>
 
         <View style={styles.viewfinderArea}>
-          <View style={[styles.viewfinder, invalid && styles.viewfinderInvalid]} />
+          <View style={styles.viewfinder}>
+            <View style={[styles.corner, styles.cornerTL, invalid && styles.cornerInvalid]} />
+            <View style={[styles.corner, styles.cornerTR, invalid && styles.cornerInvalid]} />
+            <View style={[styles.corner, styles.cornerBL, invalid && styles.cornerInvalid]} />
+            <View style={[styles.corner, styles.cornerBR, invalid && styles.cornerInvalid]} />
+          </View>
           <Text style={styles.hintTitle}>{invalid ? t.scanInvalid : t.scanTitle}</Text>
           {!invalid && (
             <Text style={styles.hintBody}>{trouble ? t.scanTrouble : t.scanHint}</Text>
@@ -161,10 +183,11 @@ export default function ScanScreen() {
 
         <View style={styles.bottomRow}>
           <Pressable
-            style={styles.manualButton}
+            style={({ pressed }) => [styles.manualButton, pressed && { opacity: 0.85 }]}
             onPress={() => sheetRef.current?.snapToIndex(0)}
             testID="manual-entry"
           >
+            <Icon name="keypad" size={18} color={colors.text} />
             <Text style={styles.manualButtonLabel}>{t.enterCodeManually}</Text>
           </Pressable>
           {DEMO_CONTROLS_ENABLED && (
@@ -180,71 +203,72 @@ export default function ScanScreen() {
   );
 }
 
-function CloseButton({ onPress, dark = false }: { onPress: () => void; dark?: boolean }) {
-  return (
-    <Pressable
-      style={[styles.closeButton, dark && { backgroundColor: colors.surfaceMuted }]}
-      onPress={onPress}
-    >
-      <Text style={[styles.closeGlyph, dark && { color: colors.text }]}>✕</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
-  overlay: { flex: 1, justifyContent: 'space-between', padding: spacing.l },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  closeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: spacing.s,
-    marginTop: spacing.s,
+  overlay: { flex: 1, justifyContent: 'space-between', padding: EDGE },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: spacing.s,
   },
-  closeGlyph: { fontSize: 16, color: '#FFF' },
-  torchButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.s,
-    marginTop: spacing.s,
-  },
-  torchOn: { backgroundColor: colors.warning },
-  torchGlyph: { fontSize: 18 },
   viewfinderArea: { alignItems: 'center', gap: spacing.l },
-  viewfinder: {
-    width: 240,
-    height: 240,
-    borderRadius: radius.xl,
-    borderWidth: 3,
-    borderColor: '#FFF',
-    backgroundColor: 'transparent',
+  viewfinder: { width: VIEWFINDER_SIZE, height: VIEWFINDER_SIZE },
+  corner: {
+    position: 'absolute',
+    width: 26,
+    height: 26,
+    borderColor: colors.textInverse,
   },
-  viewfinderInvalid: { borderColor: colors.warning },
+  cornerTL: {
+    top: 0,
+    left: 0,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderTopLeftRadius: radius.m,
+  },
+  cornerTR: {
+    top: 0,
+    right: 0,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderTopRightRadius: radius.m,
+  },
+  cornerBL: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderBottomLeftRadius: radius.m,
+  },
+  cornerBR: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderBottomRightRadius: radius.m,
+  },
+  cornerInvalid: { borderColor: colors.warning },
   hintTitle: {
     ...typography.heading,
-    color: '#FFF',
+    color: colors.textInverse,
     textAlign: 'center',
     paddingHorizontal: spacing.xl,
   },
-  hintBody: { ...typography.body, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
+  hintBody: { ...typography.body, color: 'rgba(255,255,255,0.72)', textAlign: 'center' },
   bottomRow: { alignItems: 'center', gap: spacing.m, minHeight: 52 },
   manualButton: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     borderRadius: radius.full,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.m,
+    ...shadows.md,
   },
-  manualButtonLabel: { ...typography.label, color: '#FFF' },
+  manualButtonLabel: { ...typography.label, color: colors.text },
   devButton: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: radius.full,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.m,
@@ -252,14 +276,41 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.4)',
     borderStyle: 'dashed',
   },
-  devButtonLabel: { ...typography.label, color: '#FFF' },
-  denied: { flex: 1, backgroundColor: colors.surface, justifyContent: 'space-between' },
-  deniedActions: { padding: spacing.xl, gap: spacing.m },
+  devButtonLabel: { ...typography.label, color: 'rgba(255,255,255,0.85)' },
+  denied: { flex: 1, backgroundColor: colors.background, justifyContent: 'space-between' },
+  deniedTop: {
+    flexDirection: 'row',
+    paddingHorizontal: EDGE,
+    paddingTop: spacing.s,
+  },
+  deniedBody: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xxl,
+    gap: spacing.s,
+  },
+  deniedBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.s,
+  },
+  deniedTitle: { ...typography.heading, color: colors.text, textAlign: 'center' },
+  deniedHint: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
+  deniedActions: { padding: EDGE, gap: spacing.m },
   sheetHandle: { backgroundColor: colors.border, width: 44 },
-  sheetBackground: { backgroundColor: colors.surface, borderRadius: radius.xl },
+  sheetBackground: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    ...shadows.lg,
+  },
   sheetContent: {
-    padding: spacing.l,
-    gap: spacing.m,
+    paddingHorizontal: EDGE,
+    paddingTop: spacing.s,
+    gap: spacing.l,
     alignItems: 'stretch',
   },
   sheetTitle: { ...typography.heading, color: colors.text, textAlign: 'center' },
@@ -283,5 +334,6 @@ const styles = StyleSheet.create({
     minWidth: 120,
     letterSpacing: 4,
     textAlign: 'center',
+    fontVariant: ['tabular-nums'],
   },
 });

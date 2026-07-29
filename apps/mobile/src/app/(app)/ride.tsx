@@ -10,13 +10,15 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ApiRequestError } from '@/api/client';
 import { useActiveRide, useBeep, useEndRide, usePlans, useZones } from '@/api/queries';
 import { ZoneOverlays } from '@/components/ZoneOverlays';
-import { Button, Pill } from '@/components/ui';
+import { Button, Icon, Pill } from '@/components/ui';
 import { DEMO_CONTROLS_ENABLED } from '@/lib/demo';
 import { formatDistance, formatDuration } from '@/lib/format';
 import { pointInPolygon, polygonCentroid } from '@/lib/geo';
 import { useI18n } from '@/lib/i18n';
 import { MAP_STYLE_URL, RIDE_ZOOM } from '@/lib/map';
-import { colors, radius, spacing, typography } from '@/lib/theme';
+import { ZONE_KIND_COLOUR, colors, radius, shadows, spacing, typography } from '@/lib/theme';
+
+const SCREEN_PADDING = 20;
 
 export default function RideScreen() {
   const { t, lang } = useI18n();
@@ -199,7 +201,7 @@ export default function RideScreen() {
         )}
         <Marker lngLat={[ride.vehicle.location.lon, ride.vehicle.location.lat]}>
           <View style={styles.vehiclePin}>
-            <Text style={styles.vehiclePinGlyph}>🛴</Text>
+            <Icon name="scooter" size={22} color={colors.textInverse} />
           </View>
         </Marker>
         {devLocation !== null && (
@@ -211,6 +213,7 @@ export default function RideScreen() {
 
       <View style={[styles.header, { top: insets.top + spacing.s }]}>
         <View style={styles.headerCard}>
+          <View style={styles.liveDot} />
           <Text style={styles.headerTitle}>{t.rideTitle}</Text>
           <Text style={styles.headerCode}>{ride.vehicle.qrCode}</Text>
         </View>
@@ -222,9 +225,11 @@ export default function RideScreen() {
       </View>
 
       <View style={[styles.panel, { paddingBottom: insets.bottom + spacing.l }]}>
-        <View style={styles.statsRow}>
+        <View style={styles.statsCard}>
           <Stat label={t.duration} value={formatDuration(durationS)} />
+          <View style={styles.statDivider} />
           <Stat label={t.distance} value={formatDistance(ride.distanceM, lang)} />
+          <View style={styles.statDivider} />
           <Stat label={t.cost} value={formatSom(liveCost)} highlight />
         </View>
 
@@ -234,8 +239,14 @@ export default function RideScreen() {
             colour={inParking ? colors.primary : colors.textSecondary}
             faint={inParking ? colors.primaryFaint : colors.surfaceMuted}
           />
-          <Pressable style={styles.beepButton} onPress={sendBeep} disabled={beep.isPending}>
-            <Text style={styles.beepLabel}>🔔 {t.beep}</Text>
+          <Pressable
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.beepButton, pressed && styles.beepButtonPressed]}
+            onPress={sendBeep}
+            disabled={beep.isPending}
+          >
+            <Icon name="bell" size={16} color={colors.text} />
+            <Text style={styles.beepLabel}>{t.beep}</Text>
           </Pressable>
         </View>
 
@@ -244,10 +255,13 @@ export default function RideScreen() {
             <Text style={styles.blockedTitle}>{t.cantEndHereTitle}</Text>
             <Text style={styles.blockedBody}>{blockedReasonText}</Text>
             {nearest !== null && (
-              <Text style={styles.blockedZone}>
-                {t.nearestParking}: {nearest.name} —{' '}
-                {formatDistance(nearest.distanceM, lang)} {t.walkAway}
-              </Text>
+              <View style={styles.blockedZoneRow}>
+                <Icon name="parking" size={18} color={ZONE_KIND_COLOUR.parking} />
+                <Text style={styles.blockedZone}>
+                  {t.nearestParking}: {nearest.name} —{' '}
+                  {formatDistance(nearest.distanceM, lang)} {t.walkAway}
+                </Text>
+              </View>
             )}
             <View style={styles.blockedActions}>
               {DEMO_CONTROLS_ENABLED && nearest !== null && (
@@ -287,7 +301,7 @@ function Stat({ label, value, highlight = false }: { label: string; value: strin
   return (
     <View style={styles.stat}>
       <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, highlight && { color: colors.primaryPressed }]}>{value}</Text>
+      <Text style={[styles.statValue, highlight && styles.statValueHighlight]}>{value}</Text>
     </View>
   );
 }
@@ -296,7 +310,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   loading: { flex: 1, backgroundColor: colors.background },
   map: { flex: 1 },
-  header: { position: 'absolute', left: spacing.l, right: spacing.l, gap: spacing.s },
+  header: { position: 'absolute', left: SCREEN_PADDING, right: SCREEN_PADDING, gap: spacing.s },
   headerCard: {
     alignSelf: 'flex-start',
     backgroundColor: colors.surface,
@@ -306,12 +320,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.s,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
+    ...shadows.md,
   },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
   headerTitle: { ...typography.label, color: colors.textSecondary },
   headerCode: { ...typography.label, color: colors.text, fontWeight: '700' },
   beepToast: {
@@ -320,6 +331,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.m,
     paddingHorizontal: spacing.m,
     paddingVertical: spacing.s,
+    ...shadows.md,
   },
   beepToastText: { ...typography.label, color: colors.textInverse },
   vehiclePin: {
@@ -331,13 +343,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 3,
     borderColor: colors.surface,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
+    ...shadows.md,
   },
-  vehiclePinGlyph: { fontSize: 20 },
   riderPin: {
     width: 20,
     height: 20,
@@ -350,32 +357,52 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
-    padding: spacing.l,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: spacing.l,
     gap: spacing.l,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: -4 },
-    elevation: 10,
+    ...shadows.lg,
   },
-  statsRow: { flexDirection: 'row', gap: spacing.m },
-  stat: {
-    flex: 1,
-    backgroundColor: colors.background,
-    borderRadius: radius.m,
-    padding: spacing.m,
-    gap: 2,
+  statsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.l,
+    paddingVertical: spacing.l,
+    ...shadows.lg,
+  },
+  stat: { flex: 1, alignItems: 'center', gap: spacing.xs },
+  statDivider: {
+    width: StyleSheet.hairlineWidth,
+    alignSelf: 'stretch',
+    backgroundColor: colors.border,
+    marginVertical: spacing.xs,
   },
   statLabel: { ...typography.caption, color: colors.textSecondary },
-  statValue: { ...typography.heading, color: colors.text, fontVariant: ['tabular-nums'] },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  statValueHighlight: {
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    color: colors.primaryPressed,
+  },
   parkingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   beepButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.surface,
     borderRadius: radius.full,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     paddingHorizontal: spacing.l,
     paddingVertical: spacing.s,
   },
+  beepButtonPressed: { backgroundColor: colors.surfaceMuted },
   beepLabel: { ...typography.label, color: colors.text },
   blockedCard: {
     backgroundColor: colors.warningFaint,
@@ -385,7 +412,8 @@ const styles = StyleSheet.create({
   },
   blockedTitle: { ...typography.heading, color: colors.text },
   blockedBody: { ...typography.body, color: colors.textSecondary },
-  blockedZone: { ...typography.body, color: colors.text, fontWeight: '600' },
+  blockedZoneRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.s },
+  blockedZone: { ...typography.body, color: colors.text, fontWeight: '600', flex: 1 },
   blockedActions: { flexDirection: 'row', gap: spacing.s, marginTop: spacing.xs },
   blockedAction: { flex: 1, minHeight: 44 },
 });

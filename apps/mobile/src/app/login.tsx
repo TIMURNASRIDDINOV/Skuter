@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -12,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiRequestError, apiFetch } from '@/api/client';
 import { useTelegramLogin } from '@/api/telegram';
-import { Button } from '@/components/ui';
+import { Button, Icon } from '@/components/ui';
 import { useI18n } from '@/lib/i18n';
 import { colors, radius, spacing, typography } from '@/lib/theme';
 
@@ -25,6 +26,7 @@ export default function LoginScreen() {
   const { t } = useI18n();
   const router = useRouter();
   const [digits, setDigits] = useState('');
+  const [focused, setFocused] = useState(false);
   const phone = `+998${digits}`;
   const telegram = useTelegramLogin();
 
@@ -72,18 +74,28 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.hero}>
-          <Text style={styles.logo}>🛴</Text>
+          <View style={styles.brandMark}>
+            <Icon name="scooter" size={44} color={colors.primary} />
+          </View>
           <Text style={styles.title}>{t.loginTitle}</Text>
           <Text style={styles.subtitle}>{t.loginSubtitle}</Text>
         </View>
 
         <View style={styles.form}>
-          <View style={[styles.phoneField, failed && styles.phoneFieldError]}>
+          <View
+            style={[
+              styles.phoneField,
+              focused && styles.phoneFieldFocused,
+              failed && styles.phoneFieldError,
+            ]}
+          >
             <Text style={styles.phonePrefix}>+998</Text>
             <TextInput
               style={styles.phoneInput}
               value={digits}
               onChangeText={(text) => setDigits(text.replace(/\D/g, '').slice(0, 9))}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
               keyboardType="number-pad"
               placeholder={t.phonePlaceholder}
               placeholderTextColor={colors.textSecondary}
@@ -111,12 +123,20 @@ export default function LoginScreen() {
               <Button label={t.telegramCancel} variant="ghost" onPress={telegram.cancel} />
             </View>
           ) : (
-            <Button
-              label={t.continueWithTelegram}
-              variant="secondary"
-              onPress={() => void telegram.start()}
+            // Button has no icon slot — this mirrors its secondary variant exactly,
+            // with a leading Telegram send glyph.
+            <Pressable
+              accessibilityRole="button"
               testID="telegram-login"
-            />
+              onPress={() => void telegram.start()}
+              style={({ pressed }) => [
+                styles.telegramButton,
+                pressed && styles.telegramButtonPressed,
+              ]}
+            >
+              <Icon name="send" size={18} color={colors.info} />
+              <Text style={styles.telegramLabel}>{t.continueWithTelegram}</Text>
+            </Pressable>
           )}
           {telegram.failed && !telegram.waiting && (
             <Text style={styles.error}>{t.telegramFailed}</Text>
@@ -129,9 +149,17 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surface },
-  container: { flex: 1, padding: spacing.xl, justifyContent: 'center', gap: spacing.xxl },
+  container: { flex: 1, padding: 20, justifyContent: 'center', gap: spacing.xxl },
   hero: { alignItems: 'center', gap: spacing.s },
-  logo: { fontSize: 56 },
+  brandMark: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: colors.primaryFaint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.s,
+  },
   title: { ...typography.title, color: colors.text },
   subtitle: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
   form: { gap: spacing.l },
@@ -139,24 +167,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.background,
-    borderRadius: radius.l,
-    borderWidth: 1,
+    borderRadius: radius.m,
+    borderWidth: 1.5,
     borderColor: colors.border,
     paddingHorizontal: spacing.l,
-    height: 56,
+    height: 60,
     gap: spacing.s,
   },
+  phoneFieldFocused: { borderColor: colors.primary },
   phoneFieldError: { borderColor: colors.danger },
-  phonePrefix: { ...typography.heading, color: colors.text },
-  phoneInput: { ...typography.heading, color: colors.text, flex: 1, paddingVertical: 0 },
+  phonePrefix: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    color: colors.textSecondary,
+  },
+  phoneInput: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    fontVariant: ['tabular-nums'],
+    color: colors.text,
+    flex: 1,
+    paddingVertical: 0,
+  },
   error: { ...typography.label, color: colors.danger },
   separatorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.m },
-  separatorLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  separatorLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
   separatorText: { ...typography.caption, color: colors.textSecondary },
   telegramWaiting: { gap: spacing.s, alignItems: 'center' },
   telegramWaitingText: {
     ...typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  telegramButton: {
+    minHeight: 56,
+    borderRadius: radius.m,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.s,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.m,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  telegramButtonPressed: { backgroundColor: colors.surfaceMuted },
+  telegramLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    color: colors.text,
   },
 });

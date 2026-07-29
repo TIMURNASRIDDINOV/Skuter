@@ -4,7 +4,8 @@ import type { Vehicle } from '@scoot/shared';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Supercluster from 'supercluster';
-import { colors, VEHICLE_STATUS_COLOUR } from '@/lib/theme';
+import { Icon } from '@/components/ui';
+import { colors, shadows, VEHICLE_STATUS_COLOUR } from '@/lib/theme';
 
 interface VehicleMarkersProps {
   vehicles: Vehicle[];
@@ -72,6 +73,7 @@ export function VehicleMarkers({
 
         const vehicle = feature.properties.vehicle;
         const selected = vehicle.id === selectedId;
+        const statusColour = VEHICLE_STATUS_COLOUR[vehicle.status];
         return (
           <Marker
             key={vehicle.id}
@@ -81,11 +83,11 @@ export function VehicleMarkers({
             <View
               style={[
                 styles.pin,
-                { backgroundColor: VEHICLE_STATUS_COLOUR[vehicle.status] },
+                { borderColor: statusColour },
                 selected && styles.pinSelected,
               ]}
             >
-              <Text style={styles.pinGlyph}>🛴</Text>
+              <Icon name="scooter" size={18} color={statusColour} />
             </View>
           </Marker>
         );
@@ -105,6 +107,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2.5,
     borderColor: colors.surface,
+    ...shadows.md,
   },
   clusterCount: { color: colors.textInverse, fontSize: 14, fontWeight: '700' },
   pin: {
@@ -113,17 +116,12 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2.5,
-    borderColor: colors.surface,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    backgroundColor: colors.surface,
+    borderWidth: 3,
+    ...shadows.md,
   },
   pinSelected: {
-    transform: [{ scale: 1.25 }],
+    transform: [{ scale: 1.2 }],
     borderColor: colors.text,
   },
-  pinGlyph: { fontSize: 16 },
 });

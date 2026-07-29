@@ -13,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { ApiRequestError, apiFetch } from '@/api/client';
 import { useSession } from '@/api/session';
+import { IconButton } from '@/components/ui';
 import { formatPhone } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
 import { colors, radius, spacing, typography } from '@/lib/theme';
@@ -95,9 +96,7 @@ export default function VerifyScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <Pressable style={styles.back} onPress={() => router.back()}>
-        <Text style={styles.backGlyph}>←</Text>
-      </Pressable>
+      <IconButton name="back" onPress={() => router.back()} style={styles.back} />
 
       <View style={styles.container}>
         <Text style={styles.title}>{t.verifyTitle}</Text>
@@ -157,24 +156,14 @@ export default function VerifyScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surface },
-  back: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: spacing.l,
-    marginTop: spacing.s,
-  },
-  backGlyph: { fontSize: 18, color: colors.text },
-  container: { flex: 1, padding: spacing.xl, gap: spacing.l, paddingTop: spacing.xxl },
+  back: { alignSelf: 'flex-start', marginLeft: 20, marginTop: spacing.s },
+  container: { flex: 1, padding: 20, gap: spacing.l, paddingTop: spacing.xxl },
   title: { ...typography.title, color: colors.text },
   subtitle: { ...typography.body, color: colors.textSecondary },
   cells: { flexDirection: 'row', gap: spacing.s, marginTop: spacing.l },
   cell: {
     flex: 1,
-    height: 56,
+    height: 60,
     borderRadius: radius.m,
     borderWidth: 1.5,
     borderColor: colors.border,
@@ -182,9 +171,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cellActive: { borderColor: colors.primary },
+  cellActive: { borderColor: colors.primary, backgroundColor: colors.surface },
   cellError: { borderColor: colors.danger },
-  cellDigit: { ...typography.title, color: colors.text },
+  cellDigit: {
+    ...typography.title,
+    fontVariant: ['tabular-nums'],
+    color: colors.text,
+  },
   hiddenInput: { position: 'absolute', opacity: 0, height: 1, width: 1 },
   error: { ...typography.label, color: colors.danger },
   devHint: { ...typography.caption, color: colors.textSecondary },

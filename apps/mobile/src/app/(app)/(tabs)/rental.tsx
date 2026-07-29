@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePlans, useSubscriptions } from '@/api/queries';
-import { Button, Card, Pill } from '@/components/ui';
+import { Button, Card, Icon, Pill } from '@/components/ui';
 import { ErrorState, ListSkeleton } from '@/components/states';
 import { formatDateTime } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
@@ -49,16 +49,27 @@ export default function RentalScreen() {
         ) : (
           subscriptions.map((sub: SubscriptionDetail) => (
             <Card key={sub.id} style={styles.card}>
-              <View style={styles.rowBetween}>
-                <Text style={styles.cardTitle}>{sub.plan.name}</Text>
-                <Pill label={t.active} colour={colors.primaryPressed} faint={colors.primaryFaint} />
+              <View style={styles.subRow}>
+                <View style={styles.iconBadge}>
+                  <Icon name="ticket" size={20} color={colors.primary} />
+                </View>
+                <View style={styles.subBody}>
+                  <View style={styles.rowBetween}>
+                    <Text style={styles.cardTitle}>{sub.plan.name}</Text>
+                    <Pill
+                      label={t.active}
+                      colour={colors.primaryPressed}
+                      faint={colors.primaryFaint}
+                    />
+                  </View>
+                  <Text style={styles.metaText}>
+                    {sub.vehicle.qrCode} · {sub.vehicle.model}
+                  </Text>
+                  <Text style={styles.metaText}>
+                    {t.subscriptionUntil} {formatDateTime(sub.expiresAt, lang)}
+                  </Text>
+                </View>
               </View>
-              <Text style={styles.mutedText}>
-                {sub.vehicle.qrCode} · {sub.vehicle.model}
-              </Text>
-              <Text style={styles.mutedText}>
-                {t.subscriptionUntil} {formatDateTime(sub.expiresAt, lang)}
-              </Text>
             </Card>
           ))
         )}
@@ -70,7 +81,7 @@ export default function RentalScreen() {
               <Text style={styles.cardTitle}>{plan.name}</Text>
               <Text style={styles.price}>{formatSom(plan.price)}</Text>
             </View>
-            <Text style={styles.mutedText}>
+            <Text style={styles.metaText}>
               {plan.durationDays === 1
                 ? t.rentalDailyHint
                 : `${t.rentalWeeklyHint} ${String(plan.durationDays ?? 0)} ${t.rentalDays}`}
@@ -90,7 +101,12 @@ export default function RentalScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.l, gap: spacing.m, paddingBottom: spacing.xxl },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: spacing.l,
+    paddingBottom: spacing.xxl,
+    gap: spacing.m,
+  },
   title: { ...typography.title, color: colors.text, marginBottom: spacing.s },
   sectionTitle: {
     ...typography.caption,
@@ -100,9 +116,20 @@ const styles = StyleSheet.create({
     marginTop: spacing.s,
   },
   card: { gap: spacing.xs },
+  subRow: { flexDirection: 'row', gap: spacing.m, alignItems: 'flex-start' },
+  subBody: { flex: 1, gap: spacing.xs },
+  iconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primaryFaint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardTitle: { ...typography.heading, color: colors.text },
-  price: { ...typography.heading, color: colors.primaryPressed },
+  price: { ...typography.title, color: colors.primaryPressed, fontVariant: ['tabular-nums'] },
+  metaText: { ...typography.label, color: colors.textSecondary },
   mutedText: { ...typography.body, color: colors.textSecondary },
   cta: { marginTop: spacing.s },
 });

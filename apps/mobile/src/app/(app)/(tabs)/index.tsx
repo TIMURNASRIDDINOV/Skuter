@@ -9,13 +9,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useActiveRide, useVehicles, useZones, usePlans } from '@/api/queries';
+import { Icon, IconButton } from '@/components/ui';
 import { NearbyList, VehicleDetail } from '@/components/VehicleSheet';
 import { VehicleMarkers } from '@/components/VehicleMarkers';
 import { ZoneOverlays } from '@/components/ZoneOverlays';
 import { formatDuration } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
 import { CITY_ZOOM, FOCUS_ZOOM, INITIAL_BOUNDS, MAP_STYLE_URL } from '@/lib/map';
-import { colors, radius, spacing, typography } from '@/lib/theme';
+import { colors, radius, shadows, spacing, typography } from '@/lib/theme';
 
 type Viewport = Pick<ViewStateChangeEvent, 'center' | 'zoom' | 'bounds'>;
 
@@ -25,7 +26,7 @@ const INITIAL_VIEWPORT: Viewport = {
   bounds: INITIAL_BOUNDS,
 };
 
-const SHEET_PEEK = 120;
+const SHEET_PEEK = 148;
 
 export default function MapScreen() {
   const { t } = useI18n();
@@ -136,13 +137,12 @@ export default function MapScreen() {
       </Map>
 
       <View style={[styles.topBar, { top: insets.top + spacing.s }]}>
-        <Pressable style={styles.roundButton} onPress={locateMe}>
-          <Text style={styles.roundGlyph}>📍</Text>
-        </Pressable>
+        <IconButton name="locate" onPress={() => void locateMe()} />
       </View>
 
       {showError && (
         <View style={[styles.errorBanner, { top: insets.top + 64 }]}>
+          <Icon name="alert" size={18} color={colors.danger} />
           <Text style={styles.errorText}>{t.loadingError}</Text>
           <Pressable onPress={() => void vehiclesQuery.refetch()}>
             <Text style={styles.errorRetry}>{t.tryAgain}</Text>
@@ -227,54 +227,44 @@ function ActiveRideBanner({
   return (
     <Pressable style={[styles.rideBanner, { top }]} onPress={onPress}>
       <View style={styles.rideBannerDot} />
-      <Text style={styles.rideBannerText}>
-        {t.activeRideBanner} · {formatDuration(elapsedS)} · {formatSom(currentCost)}
+      <Text style={styles.rideBannerText} numberOfLines={1}>
+        {t.activeRideBanner} · {formatDuration(elapsedS)}
       </Text>
-      <Text style={styles.rideBannerChevron}>›</Text>
+      <Text style={styles.rideBannerCost}>{formatSom(currentCost)}</Text>
+      <Icon name="chevronRight" size={13} color={colors.textInverse} />
     </Pressable>
   );
 }
+
+const SCREEN_EDGE = 20;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   topBar: {
     position: 'absolute',
-    left: spacing.l,
-    right: spacing.l,
+    left: SCREEN_EDGE,
+    right: SCREEN_EDGE,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  roundButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-  },
-  roundGlyph: { fontSize: 18 },
   errorBanner: {
     position: 'absolute',
-    left: spacing.l,
-    right: spacing.l,
+    left: SCREEN_EDGE,
+    right: SCREEN_EDGE,
     backgroundColor: colors.dangerFaint,
     borderRadius: radius.m,
     padding: spacing.m,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: spacing.s,
+    ...shadows.md,
   },
   errorText: { ...typography.label, color: colors.danger, flex: 1 },
   errorRetry: { ...typography.label, color: colors.danger, textDecorationLine: 'underline' },
   rideBanner: {
     position: 'absolute',
-    left: spacing.l,
-    right: spacing.l,
+    left: SCREEN_EDGE,
+    right: SCREEN_EDGE,
     backgroundColor: colors.text,
     borderRadius: radius.full,
     paddingHorizontal: spacing.l,
@@ -282,15 +272,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.s,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 6,
+    ...shadows.lg,
   },
   rideBannerDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
   rideBannerText: { ...typography.label, color: colors.textInverse, flex: 1 },
-  rideBannerChevron: { ...typography.heading, color: colors.textInverse },
+  rideBannerCost: {
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+    color: colors.textInverse,
+    fontVariant: ['tabular-nums'],
+  },
   sheetHandle: { backgroundColor: colors.border, width: 44 },
-  sheetBackground: { backgroundColor: colors.surface, borderRadius: radius.xl },
+  sheetBackground: { backgroundColor: colors.surface, borderRadius: radius.xl, ...shadows.lg },
 });

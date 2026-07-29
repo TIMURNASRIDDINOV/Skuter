@@ -1,8 +1,10 @@
 import { Tabs, useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
+import type { ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Icon, type IconName } from '@/components/ui';
 import { useI18n } from '@/lib/i18n';
-import { colors, spacing, typography } from '@/lib/theme';
+import { colors, shadows, spacing, typography } from '@/lib/theme';
 
 /**
  * Uzum-style bottom navigation: Карта / Аренда / raised circular Скан /
@@ -34,14 +36,14 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: t.tabMap,
-          tabBarIcon: ({ focused }) => <TabGlyph glyph="🗺" focused={focused} />,
+          tabBarIcon: ({ color }) => <TabIcon name="map" color={color} />,
         }}
       />
       <Tabs.Screen
         name="rental"
         options={{
           title: t.tabRental,
-          tabBarIcon: ({ focused }) => <TabGlyph glyph="🎟" focused={focused} />,
+          tabBarIcon: ({ color }) => <TabIcon name="ticket" color={color} />,
         }}
       />
       <Tabs.Screen
@@ -55,15 +57,16 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: t.tabProfile,
-          tabBarIcon: ({ focused }) => <TabGlyph glyph="👤" focused={focused} />,
+          tabBarIcon: ({ color }) => <TabIcon name="person" color={color} />,
         }}
       />
     </Tabs>
   );
 }
 
-function TabGlyph({ glyph, focused }: { glyph: string; focused: boolean }) {
-  return <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.55 }}>{glyph}</Text>;
+/** Tabs hands tints over as ColorValue; the tab tints are plain hex strings. */
+function TabIcon({ name, color }: { name: IconName; color: ColorValue }) {
+  return <Icon name={name} size={22} color={color as string} />;
 }
 
 /** The raised centre button — pushes the scanner instead of switching tabs. */
@@ -71,30 +74,29 @@ function ScanTabButton() {
   const router = useRouter();
   return (
     <Pressable
-      style={styles.scanButton}
+      style={({ pressed }) => [
+        styles.scanButton,
+        { backgroundColor: pressed ? colors.primaryPressed : colors.primary },
+      ]}
       onPress={() => router.push('/scan')}
       testID="scan-button"
     >
-      <Text style={styles.scanGlyph}>▣</Text>
+      <Icon name="scan" size={26} color={colors.textInverse} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   scanButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     marginTop: -spacing.xl,
     alignSelf: 'center',
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 6,
+    borderWidth: 3,
+    borderColor: colors.surface,
+    ...shadows.lg,
   },
-  scanGlyph: { fontSize: 24, color: colors.textInverse },
 });

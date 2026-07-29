@@ -1,3 +1,4 @@
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -9,7 +10,101 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { colors, radius, spacing, typography } from '@/lib/theme';
+import { colors, radius, shadows, spacing, typography } from '@/lib/theme';
+
+/**
+ * The app's icon vocabulary — native SF Symbols on iOS, Material Symbols on
+ * Android (both ship with expo-symbols; no icon font of our own). Screens
+ * never name platform symbols directly: they pick from this curated map so
+ * the same concept always renders the same glyph.
+ */
+const ICONS = {
+  map: { ios: 'map.fill', android: 'map' },
+  ticket: { ios: 'ticket.fill', android: 'confirmation_number' },
+  person: { ios: 'person.fill', android: 'person' },
+  scan: { ios: 'qrcode.viewfinder', android: 'qr_code_scanner' },
+  scooter: { ios: 'scooter', android: 'electric_scooter' },
+  locate: { ios: 'location.fill', android: 'my_location' },
+  close: { ios: 'xmark', android: 'close' },
+  back: { ios: 'chevron.left', android: 'arrow_back' },
+  chevronRight: { ios: 'chevron.right', android: 'chevron_right' },
+  flash: { ios: 'bolt.fill', android: 'flash_on' },
+  bolt: { ios: 'bolt.fill', android: 'bolt' },
+  bell: { ios: 'bell.fill', android: 'notifications' },
+  check: { ios: 'checkmark.circle.fill', android: 'check_circle' },
+  alert: { ios: 'exclamationmark.triangle.fill', android: 'warning' },
+  send: { ios: 'paperplane.fill', android: 'send' },
+  wallet: { ios: 'creditcard.fill', android: 'account_balance_wallet' },
+  clock: { ios: 'clock.fill', android: 'schedule' },
+  walk: { ios: 'figure.walk', android: 'directions_walk' },
+  keypad: { ios: 'keyboard', android: 'keyboard' },
+  language: { ios: 'globe', android: 'language' },
+  logout: { ios: 'rectangle.portrait.and.arrow.right', android: 'logout' },
+  history: { ios: 'clock.arrow.circlepath', android: 'history' },
+  parking: { ios: 'p.circle.fill', android: 'local_parking' },
+  info: { ios: 'info.circle.fill', android: 'info' },
+} as const satisfies Record<string, SymbolViewProps['name']>;
+
+export type IconName = keyof typeof ICONS;
+
+export function Icon({
+  name,
+  size = 22,
+  color = colors.text,
+  style,
+}: {
+  name: IconName;
+  size?: number;
+  color?: string;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return <SymbolView name={ICONS[name]} size={size} tintColor={color} style={style} />;
+}
+
+/** Floating circular icon button — map controls, close/torch chrome. */
+export function IconButton({
+  name,
+  onPress,
+  color = colors.text,
+  background = colors.surface,
+  size = 44,
+  accessibilityLabel,
+  style,
+  testID,
+}: {
+  name: IconName;
+  onPress: () => void;
+  color?: string;
+  background?: string;
+  size?: number;
+  accessibilityLabel?: string;
+  style?: StyleProp<ViewStyle>;
+  testID?: string;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      testID={testID}
+      onPress={onPress}
+      style={({ pressed }) => [
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: background,
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: pressed ? 0.85 : 1,
+        },
+        shadows.md,
+        style,
+      ]}
+    >
+      <Icon name={name} size={size * 0.45} color={color} />
+    </Pressable>
+  );
+}
 
 interface ButtonProps {
   label: string;
@@ -126,8 +221,8 @@ export function Skeleton({ style }: { style?: StyleProp<ViewStyle> }) {
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 52,
-    borderRadius: radius.l,
+    minHeight: 56,
+    borderRadius: radius.m,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
@@ -135,17 +230,21 @@ const styles = StyleSheet.create({
   },
   buttonSecondary: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
   },
-  buttonDisabled: { opacity: 0.5 },
-  buttonLabel: { ...typography.heading, color: colors.textInverse } as TextStyle,
+  buttonDisabled: { opacity: 0.45 },
+  buttonLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    color: colors.textInverse,
+  } as TextStyle,
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.l,
     padding: spacing.l,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    ...shadows.sm,
   },
   row: {
     flexDirection: 'row',

@@ -17,9 +17,11 @@ import Animated, {
 import { ApiRequestError, apiFetch } from '@/api/client';
 import { usePlans, useStartRide, useSubscriptions } from '@/api/queries';
 import { ErrorState, ListSkeleton } from '@/components/states';
-import { Button, Pill, Row } from '@/components/ui';
+import { Button, Card, Icon, Pill, Row } from '@/components/ui';
 import { useI18n } from '@/lib/i18n';
 import { batteryColour, colors, radius, spacing, typography } from '@/lib/theme';
+
+const SCREEN_PADDING = 20;
 
 export default function UnlockScreen() {
   const { t } = useI18n();
@@ -101,9 +103,12 @@ export default function UnlockScreen() {
 
         <ScooterFigure unlocking={startRide.isPending} failed={retryable} />
 
-        <View style={styles.card}>
+        <Card style={styles.card}>
           <View style={styles.cardHeader}>
-            <View>
+            <View style={styles.vehicleBadge}>
+              <Icon name="scooter" size={22} color={colors.primary} />
+            </View>
+            <View style={styles.vehicleInfo}>
               <Text style={styles.vehicleCode}>{vehicle.qrCode}</Text>
               <Text style={styles.vehicleModel}>{vehicle.model}</Text>
             </View>
@@ -120,13 +125,16 @@ export default function UnlockScreen() {
               <Row label={t.unlockFee} value={formatSom(perMinutePlan.unlockFee)} />
             </>
           ) : null}
-        </View>
+        </Card>
 
         {error !== null && (
           <View style={styles.errorCard}>
-            <Text style={styles.errorTitle}>
-              {alreadyActive ? t.rideAlreadyActive : t.unlockFailedTitle}
-            </Text>
+            <View style={styles.errorHeader}>
+              <Icon name="alert" size={18} color={colors.danger} />
+              <Text style={styles.errorTitle}>
+                {alreadyActive ? t.rideAlreadyActive : t.unlockFailedTitle}
+              </Text>
+            </View>
             {/* The gateway's failure reason is demo-relevant: it rotates
                 through realistic hardware faults. Show it verbatim. */}
             {!alreadyActive && <Text style={styles.errorBody}>{error.message}</Text>}
@@ -143,6 +151,7 @@ export default function UnlockScreen() {
             onPress={unlock}
             loading={startRide.isPending}
             disabled={effectivePlanId === null}
+            variant={retryable ? 'danger' : 'primary'}
             testID="unlock-button"
           />
         )}
@@ -192,15 +201,19 @@ function ScooterFigure({ unlocking, failed }: { unlocking: boolean; failed: bool
     <View style={styles.figureArea}>
       <Animated.View style={[styles.ring, ringStyle]} />
       <Animated.View style={[styles.figure, failed && styles.figureFailed, figureStyle]}>
-        <Text style={styles.figureGlyph}>{failed ? '🔒' : '🛴'}</Text>
+        <Icon
+          name={failed ? 'alert' : 'scooter'}
+          size={48}
+          color={failed ? colors.danger : colors.primary}
+        />
       </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  body: { flex: 1, padding: spacing.xl, gap: spacing.l },
+  safe: { flex: 1, backgroundColor: colors.background },
+  body: { flex: 1, padding: SCREEN_PADDING, gap: spacing.l },
   title: { ...typography.title, color: colors.text, textAlign: 'center' },
   figureArea: {
     height: 160,
@@ -209,39 +222,43 @@ const styles = StyleSheet.create({
   },
   ring: {
     position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 112,
+    height: 112,
+    borderRadius: 56,
     borderWidth: 3,
     borderColor: colors.primary,
   },
   figure: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   figureFailed: { backgroundColor: colors.dangerFaint },
-  figureGlyph: { fontSize: 44 },
-  card: {
-    backgroundColor: colors.background,
-    borderRadius: radius.l,
-    padding: spacing.l,
-    gap: spacing.m,
+  card: { gap: spacing.m },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.m },
+  vehicleBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primaryFaint,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  vehicleInfo: { flex: 1 },
   vehicleCode: { ...typography.heading, color: colors.text },
-  vehicleModel: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
-  batteryValue: { ...typography.heading },
+  vehicleModel: { ...typography.label, color: colors.textSecondary, marginTop: 2 },
+  batteryValue: { ...typography.heading, fontVariant: ['tabular-nums'] },
   errorCard: {
     backgroundColor: colors.dangerFaint,
-    borderRadius: radius.m,
+    borderRadius: radius.l,
     padding: spacing.l,
-    gap: spacing.xs,
+    gap: spacing.s,
   },
-  errorTitle: { ...typography.label, color: colors.danger },
+  errorHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.s },
+  errorTitle: { ...typography.label, color: colors.danger, flex: 1 },
   errorBody: { ...typography.body, color: colors.text },
-  footer: { padding: spacing.xl, gap: spacing.s },
+  footer: { padding: SCREEN_PADDING, gap: spacing.s },
 });

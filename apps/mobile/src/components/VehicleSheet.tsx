@@ -4,11 +4,14 @@ import { formatSom, haversineDistanceM } from '@scoot/shared';
 import { useMemo } from 'react';
 import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { EmptyState } from '@/components/states';
-import { BatteryBar, Button, Pill } from '@/components/ui';
+import { BatteryBar, Button, Icon, IconButton, Pill } from '@/components/ui';
 import { formatDistance } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
 import type { Strings } from '@/lib/i18n';
 import { batteryColour, colors, radius, spacing, typography, VEHICLE_STATUS_COLOUR } from '@/lib/theme';
+
+/** Screen-edge inset — a touch wider than spacing.l so the sheet never feels cramped. */
+const EDGE = 20;
 
 export function statusLabel(status: VehicleStatus, t: Strings): string {
   switch (status) {
@@ -66,6 +69,7 @@ export function NearbyList({ vehicles, centre, refreshing, onRefresh, onSelect }
         </Text>
       }
       ListEmptyComponent={<EmptyState title={t.emptyVehicles} hint={t.emptyVehiclesHint} />}
+      ItemSeparatorComponent={() => <View style={styles.separator} />}
       contentContainerStyle={styles.listContent}
       renderItem={({ item }) => (
         <Pressable
@@ -73,9 +77,12 @@ export function NearbyList({ vehicles, centre, refreshing, onRefresh, onSelect }
           onPress={() => onSelect(item.vehicle)}
         >
           <View
-            style={[styles.rowPin, { backgroundColor: VEHICLE_STATUS_COLOUR[item.vehicle.status] }]}
+            style={[
+              styles.rowBadge,
+              { backgroundColor: `${VEHICLE_STATUS_COLOUR[item.vehicle.status]}1A` },
+            ]}
           >
-            <Text style={styles.rowPinGlyph}>🛴</Text>
+            <Icon name="scooter" size={22} color={VEHICLE_STATUS_COLOUR[item.vehicle.status]} />
           </View>
           <View style={styles.rowBody}>
             <Text style={styles.rowTitle}>{item.vehicle.qrCode}</Text>
@@ -87,6 +94,7 @@ export function NearbyList({ vehicles, centre, refreshing, onRefresh, onSelect }
             </Text>
             <Text style={styles.rowDistance}>{formatDistance(item.distanceM, lang)}</Text>
           </View>
+          <Icon name="chevronRight" size={16} color={colors.textSecondary} />
         </Pressable>
       )}
     />
@@ -119,9 +127,14 @@ export function VehicleDetail({
           <Text style={styles.detailTitle}>{vehicle.qrCode}</Text>
           <Text style={styles.detailSubtitle}>{vehicle.model}</Text>
         </View>
-        <Pressable accessibilityRole="button" onPress={onClose} style={styles.closeButton}>
-          <Text style={styles.closeGlyph}>✕</Text>
-        </Pressable>
+        <IconButton
+          name="close"
+          onPress={onClose}
+          size={36}
+          background={colors.surfaceMuted}
+          color={colors.textSecondary}
+          style={styles.closeButton}
+        />
       </View>
 
       <Pill
@@ -157,8 +170,14 @@ export function VehicleDetail({
       )}
 
       <View style={styles.actions}>
-        <Button label={t.unlock} onPress={onUnlock} disabled={!rideable} style={styles.actionMain} />
-        <Button label={t.subscribe} onPress={onSubscribe} variant="secondary" disabled={!rideable} />
+        <Button label={t.unlock} onPress={onUnlock} disabled={!rideable} style={styles.action} />
+        <Button
+          label={t.subscribe}
+          onPress={onSubscribe}
+          variant="secondary"
+          disabled={!rideable}
+          style={styles.action}
+        />
       </View>
     </BottomSheetView>
   );
@@ -166,48 +185,46 @@ export function VehicleDetail({
 
 const styles = StyleSheet.create({
   listTitle: {
-    ...typography.heading,
+    ...typography.title,
     color: colors.text,
-    paddingHorizontal: spacing.l,
-    paddingBottom: spacing.s,
+    fontVariant: ['tabular-nums'],
+    paddingHorizontal: EDGE,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.m,
   },
   listContent: { paddingBottom: spacing.xxl },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginLeft: EDGE + 44 + spacing.m,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.m,
-    paddingHorizontal: spacing.l,
+    paddingHorizontal: EDGE,
     paddingVertical: spacing.m,
   },
-  rowPin: {
+  rowBadge: {
     width: 44,
     height: 44,
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowPinGlyph: { fontSize: 20 },
   rowBody: { flex: 1 },
-  rowTitle: { ...typography.body, fontWeight: '600', color: colors.text },
-  rowSubtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+  rowTitle: { fontSize: 16, fontWeight: '700', letterSpacing: -0.2, color: colors.text },
+  rowSubtitle: { fontSize: 13, fontWeight: '400', color: colors.textSecondary, marginTop: 2 },
   rowMeta: { alignItems: 'flex-end', gap: 2 },
-  rowBattery: { ...typography.label },
-  rowDistance: { ...typography.caption, color: colors.textSecondary },
-  detail: { paddingHorizontal: spacing.l, paddingBottom: spacing.xl, gap: spacing.m },
+  rowBattery: { fontSize: 15, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  rowDistance: { fontSize: 13, fontWeight: '400', color: colors.textSecondary },
+  detail: { paddingHorizontal: EDGE, paddingBottom: spacing.xl, gap: spacing.l },
   detailHeader: { flexDirection: 'row', alignItems: 'flex-start' },
   detailHeading: { flex: 1 },
   detailTitle: { ...typography.title, color: colors.text },
-  detailSubtitle: { ...typography.body, color: colors.textSecondary, marginTop: 2 },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeGlyph: { fontSize: 14, color: colors.textSecondary },
-  detailStats: { flexDirection: 'row', gap: spacing.l },
+  detailSubtitle: { fontSize: 13, fontWeight: '400', color: colors.textSecondary, marginTop: 2 },
+  closeButton: { shadowOpacity: 0, elevation: 0 },
+  detailStats: { flexDirection: 'row', gap: spacing.m },
   stat: {
     flex: 1,
     backgroundColor: colors.background,
@@ -216,15 +233,19 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   statLabel: { ...typography.caption, color: colors.textSecondary },
-  statValue: { ...typography.heading, color: colors.text },
+  statValue: { ...typography.heading, color: colors.text, fontVariant: ['tabular-nums'] },
   pricing: {
     backgroundColor: colors.primaryFaint,
     borderRadius: radius.m,
-    padding: spacing.m,
+    padding: spacing.l,
     gap: spacing.xs,
   },
-  pricingValue: { ...typography.heading, color: colors.primaryPressed },
+  pricingValue: {
+    ...typography.heading,
+    color: colors.primaryPressed,
+    fontVariant: ['tabular-nums'],
+  },
   pricingHint: { ...typography.caption, color: colors.textSecondary },
-  actions: { flexDirection: 'row', gap: spacing.m, marginTop: spacing.s },
-  actionMain: { flex: 1 },
+  actions: { flexDirection: 'row', gap: spacing.m, marginTop: spacing.xs },
+  action: { flex: 1 },
 });
