@@ -18,6 +18,7 @@ import { publishEvent, serverEvents } from '../events/bus.js';
 import { notFound } from '../lib/errors.js';
 import { repositories } from '../repositories/index.js';
 import { isSimulatorRider } from '../seed/riders.js';
+import { forceEndRide } from '../services/rides.js';
 import { adminOf, requireAdmin, requireAdminRole, type AppEnv } from '../middleware/auth.js';
 
 export const adminRoutes = new Hono<AppEnv>();
@@ -149,6 +150,29 @@ adminRoutes.get('/revenue', async (c) => {
 adminRoutes.get('/rides', zValidator('query', listRidesQuerySchema), async (c) => {
   const items = await repositories.rides.listAll(c.req.valid('query'));
   return c.json({ items, total: items.length });
+});
+
+/**
+ * Operator force-end for stuck or abandoned rides. Settles wherever the
+ * vehicle is (no parking check) and charges the rider for the time used.
+ */
+adminRoutes.post('/rides/:id/end', requireAdminRole('operator'), async (c) => {
+  const { adminId } = adminOf(c.get('auth'));
+
+  const outcome = await forceEndRide(repositories, c.req.param('id'));
+
+  await repositories.audit.append({
+    adminId,
+    action: 'ride.force_end',
+    entity: 'ride',
+    entityId: outcome.receipt.ride.id,
+    payload: {
+      cost: outcome.receipt.breakdown.total,
+      durationS: outcome.receipt.breakdown.durationS,
+    },
+  });
+
+  return c.json(outcome.receipt);
 });
 
 adminRoutes.get('/users', async (c) => {

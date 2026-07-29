@@ -179,6 +179,34 @@ export async function endRide(
     throw conflict(code, parkingMessage(parking.reason), { check: parking });
   }
 
+  return settleRide(repositories, ride, parking.zoneId);
+}
+
+/**
+ * Operator force-end: settles the ride wherever the vehicle happens to be.
+ * No parking check — this is the recovery path for stuck or abandoned rides,
+ * and the operator is the authority. The rider is still charged for the time
+ * used; `endZoneId` stays null because no legal zone was involved.
+ */
+export async function forceEndRide(
+  repositories: Repositories,
+  rideId: string,
+): Promise<EndRideOutcome> {
+  const ride = await repositories.rides.findById(rideId);
+  if (ride === null) throw notFound('No such ride');
+  if (ride.status !== 'active') {
+    throw conflict(API_ERROR_CODES.CONFLICT, 'This ride has already ended');
+  }
+
+  return settleRide(repositories, ride, null);
+}
+
+/** The one settlement pipeline — charge, persist, free the vehicle, notify. */
+async function settleRide(
+  repositories: Repositories,
+  ride: Ride,
+  endZoneId: string | null,
+): Promise<EndRideOutcome> {
   // Take the distance the vehicle actually travelled, rather than recomputing
   // from a path that is still being written.
   const finished = (await getSimulationControl()?.finishRide(ride.vehicleId)) ?? null;
@@ -212,7 +240,7 @@ export async function endRide(
     distanceM,
     durationS,
     cost: breakdown.total,
-    endZoneId: parking.zoneId,
+    endZoneId,
     path: finished?.path ?? null,
   });
 
@@ -229,7 +257,7 @@ export async function endRide(
     durationS,
   });
 
-  return { receipt: await buildReceipt(repositories, ride.id, breakdown, parking.zoneId) };
+  return { receipt: await buildReceipt(repositories, ride.id, breakdown, endZoneId) };
 }
 
 export async function buildReceipt(

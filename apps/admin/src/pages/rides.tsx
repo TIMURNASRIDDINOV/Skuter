@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Badge, Card, Segmented, Space, Table, Typography } from 'antd';
+import { App as AntApp, Badge, Button, Card, Popconfirm, Segmented, Space, Table, Typography } from 'antd';
+import { StopOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import type { Ride, RideStatus } from '@scoot/shared';
+import type { Ride, RideReceipt, RideStatus } from '@scoot/shared';
 import { apiFetch, type ListResponse } from '../lib/api.js';
 import { useServerEvents } from '../lib/events.js';
 import { formatDateTime, formatDistance, formatDuration } from '../lib/format.js';
@@ -19,10 +20,12 @@ interface RideRow extends Ride {
  * without a refresh, and its duration, distance and cost tick as it runs.
  */
 export function RidesPage(): React.ReactElement {
+  const { message } = AntApp.useApp();
   const [rides, setRides] = useState<RideRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<RideStatus | 'all'>('all');
+  const [endingId, setEndingId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     const query = filter === 'all' ? '' : `?status=${filter}`;
@@ -62,6 +65,28 @@ export function RidesPage(): React.ReactElement {
       );
     }, []),
     ['ride.updated'],
+  );
+
+  // The operator's recovery lever for stuck or abandoned rides: settles the
+  // ride wherever the scooter is, charging the rider for the time used.
+  const forceEnd = useCallback(
+    async (ride: RideRow) => {
+      setEndingId(ride.id);
+      try {
+        const receipt = await apiFetch<RideReceipt>(`/admin/rides/${ride.id}/end`, {
+          method: 'POST',
+        });
+        message.success(
+          `Поездка ${ride.vehicleQrCode} завершена — ${formatSom(receipt.breakdown.total)}`,
+        );
+        load();
+      } catch (cause: unknown) {
+        message.error(cause instanceof Error ? cause.message : 'Не удалось завершить поездку');
+      } finally {
+        setEndingId(null);
+      }
+    },
+    [load, message],
   );
 
   const columns: ColumnsType<RideRow> = [
@@ -136,6 +161,33 @@ export function RidesPage(): React.ReactElement {
         </Typography.Text>
       ),
     },
+    {
+      title: '',
+      key: 'actions',
+      width: 130,
+      render: (_, ride) =>
+        ride.status === 'active' ? (
+          <Popconfirm
+            title="Завершить поездку?"
+            description="Поездка будет остановлена там, где находится самокат. Пользователь оплатит использованное время."
+            okText="Завершить"
+            cancelText="Отмена"
+            okButtonProps={{ danger: true }}
+            onConfirm={() => {
+              void forceEnd(ride);
+            }}
+          >
+            <Button
+              size="small"
+              danger
+              icon={<StopOutlined />}
+              loading={endingId === ride.id}
+            >
+              Завершить
+            </Button>
+          </Popconfirm>
+        ) : null,
+    },
   ];
 
   if (error !== null) return <ErrorState message={error} onRetry={load} />;
@@ -179,7 +231,7 @@ export function RidesPage(): React.ReactElement {
           dataSource={rides}
           columns={columns}
           pagination={{ pageSize: 20, size: 'small' }}
-          scroll={{ x: 1050 }}
+          scroll={{ x: 1180 }}
         />
       )}
     </Card>
