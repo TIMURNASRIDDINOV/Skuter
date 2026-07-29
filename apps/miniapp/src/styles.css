@@ -363,11 +363,13 @@ input:focus {
 }
 
 .tabbar {
+  position: relative;
   display: flex;
   align-items: stretch;
   background: var(--surface);
   border-top: 1px solid var(--border);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding: 6px 0 calc(8px + env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 16px rgba(11, 15, 20, 0.05);
   z-index: 5;
 }
 
@@ -376,41 +378,63 @@ input:focus {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  justify-content: flex-end;
+  gap: 3px;
   background: none;
   border: none;
   color: var(--text-secondary);
   font-size: 11px;
   font-weight: 600;
-  padding: 8px 0 10px;
+  letter-spacing: -0.1px;
+  padding: 4px 0 2px;
   cursor: pointer;
+  transition: color 0.15s ease;
 }
 
 .tab.active {
   color: var(--primary-pressed);
 }
 
-.tab-icon {
-  font-size: 20px;
+.tab svg {
+  transition: fill 0.15s ease;
+}
+
+/* The raised centre slot: same width as a tab, button pops over the content. */
+.scan-slot {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  padding: 4px 0 2px;
 }
 
 .scan-tab {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  border: none;
+  border: 3px solid var(--surface);
   background: var(--primary);
-  color: #fff;
-  font-size: 24px;
-  margin: -20px 8px 8px;
-  align-self: flex-start;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: -34px;
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
   cursor: pointer;
-  flex-shrink: 0;
+  transition: transform 0.1s ease;
 }
 
 .scan-tab:active {
   background: var(--primary-pressed);
+  transform: scale(0.96);
+}
+
+.scan-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  color: var(--text-secondary);
 }
 
 /* --- Manual code sheet ------------------------------------------------------ */
