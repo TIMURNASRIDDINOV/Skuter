@@ -63,7 +63,9 @@ export default function ProfileScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <Card style={styles.section}>
-          <Text style={styles.phone}>{user !== null ? formatPhone(user.phone) : ''}</Text>
+          <Text style={styles.phone}>
+            {user === null ? '' : user.phone !== null ? formatPhone(user.phone) : 'Telegram'}
+          </Text>
           <Row label={t.balance} value={user !== null ? formatSom(user.balance) : '—'} />
           <View style={styles.nameRow}>
             <TextInput
