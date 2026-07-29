@@ -1,9 +1,12 @@
-import type { UserProfile } from '@scoot/shared';
-import { useState } from 'react';
+import type { RiderSession } from '@scoot/shared';
+import { useEffect, useRef, useState } from 'react';
 import { ApiRequestError, apiFetch, setToken } from '../api';
+import { getInitData } from '../telegram';
 
 /**
- * Phone → OTP, same two endpoints the native app uses. In development the
+ * Inside Telegram the user is already authenticated — the signed initData
+ * logs them in without any input (verified server-side against the bot
+ * token). The phone OTP form remains for plain browsers; in development the
  * API returns the fixed code with the request, so the field pre-fills and
  * the demo never depends on an SMS provider.
  */
@@ -13,6 +16,38 @@ export function Login({ onLoggedIn }: { onLoggedIn: () => void }) {
   const [stage, setStage] = useState<'phone' | 'code'>('phone');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [telegramPending, setTelegramPending] = useState(() => getInitData() !== '');
+  const attempted = useRef(false);
+
+  useEffect(() => {
+    const initData = getInitData();
+    if (initData === '' || attempted.current) return;
+    attempted.current = true;
+    apiFetch<RiderSession>('/auth/telegram/webapp', {
+      method: 'POST',
+      body: { initData },
+      anonymous: true,
+    })
+      .then((session) => {
+        setToken(session.token);
+        onLoggedIn();
+      })
+      .catch(() => {
+        // Fall back to the phone form — initData may be stale or the
+        // endpoint not configured.
+        setTelegramPending(false);
+      });
+  }, [onLoggedIn]);
+
+  if (telegramPending) {
+    return (
+      <div className="screen login">
+        <div className="login-hero">🛴</div>
+        <h1>Scoot</h1>
+        <p className="muted">Входим через Telegram…</p>
+      </div>
+    );
+  }
 
   const requestCode = async () => {
     setBusy(true);
@@ -35,7 +70,7 @@ export function Login({ onLoggedIn }: { onLoggedIn: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      const result = await apiFetch<{ token: string; user: UserProfile }>('/auth/otp/verify', {
+      const result = await apiFetch<RiderSession>('/auth/otp/verify', {
         method: 'POST',
         body: { phone: phone.trim(), code: code.trim() },
         anonymous: true,

@@ -5,6 +5,8 @@ import type {
   Plan,
   Ride,
   RideReceipt,
+  SubscriptionDetail,
+  UserProfile,
   Vehicle,
   Zone,
 } from '@scoot/shared';
@@ -13,18 +15,29 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import type { ListResponse } from './api';
 import { ApiRequestError, apiFetch, clearToken, hasToken, registerUnauthorizedHandler } from './api';
+import { ManualCodeSheet } from './components/ManualCodeSheet';
+import { TabBar, type Tab } from './components/TabBar';
 import { Login } from './screens/Login';
 import { MapScreen } from './screens/MapScreen';
+import { ProfileScreen } from './screens/ProfileScreen';
 import { ReceiptScreen } from './screens/ReceiptScreen';
+import { RentScreen } from './screens/RentScreen';
 import { RideScreen } from './screens/RideScreen';
-import { haptic } from './telegram';
+import { canScanQr, haptic, scanQr } from './telegram';
 
 export function App() {
   const [authed, setAuthed] = useState(hasToken());
+  const [tab, setTab] = useState<Tab>('map');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<RideReceipt | null>(null);
   const [blocked, setBlocked] = useState<ParkingCheck | null>(null);
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const [beepNote, setBeepNote] = useState<string | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualError, setManualError] = useState<string | null>(null);
+  /** Set while the scan flow is buying a pass rather than starting a ride. */
+  const [pendingPlan, setPendingPlan] = useState<Plan | null>(null);
+  const [rentNotice, setRentNotice] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -58,6 +71,16 @@ export function App() {
     refetchInterval: SIMULATOR_TICK_MS,
     enabled: authed,
   });
+  const subscriptionsQuery = useQuery({
+    queryKey: ['subscriptions'],
+    queryFn: () => apiFetch<ListResponse<SubscriptionDetail>>('/subscriptions'),
+    enabled: authed,
+  });
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: () => apiFetch<UserProfile>('/me'),
+    enabled: authed,
+  });
 
   const startRide = useMutation({
     mutationFn: (body: { qrCode: string; planId: string }) =>
@@ -89,6 +112,7 @@ export function App() {
       setReceipt(result);
       void queryClient.invalidateQueries({ queryKey: ['activeRide'] });
       void queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      void queryClient.invalidateQueries({ queryKey: ['me'] });
     },
     onError: (error) => {
       haptic('error');
@@ -115,6 +139,65 @@ export function App() {
       setTimeout(() => setBeepNote(null), 2500);
     },
   });
+
+  const buySubscription = useMutation({
+    mutationFn: (body: { planId: string; vehicleId: string }) =>
+      apiFetch<{ subscription: unknown }>('/subscriptions', { method: 'POST', body }),
+    onSuccess: () => {
+      haptic('success');
+      setRentNotice('Абонемент оформлен — самокат закреплён за вами');
+      setTimeout(() => setRentNotice(null), 5000);
+      void queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+      void queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      void queryClient.invalidateQueries({ queryKey: ['me'] });
+    },
+    onError: (error) => {
+      haptic('error');
+      setRentNotice(
+        error instanceof ApiRequestError ? error.message : 'Не удалось оформить абонемент',
+      );
+      setTimeout(() => setRentNotice(null), 5000);
+    },
+  });
+
+  const vehicles = vehiclesQuery.data?.items ?? [];
+
+  /** A scanned or typed code lands here from either entry point. */
+  const resolveCode = (raw: string): boolean => {
+    const match = raw.toUpperCase().match(/SCOOT-\d{4}/);
+    const vehicle = match === null ? undefined : vehicles.find((v) => v.qrCode === match[0]);
+    if (vehicle === undefined) {
+      haptic('error');
+      setManualError('Самокат не найден — проверьте код');
+      setManualOpen(true);
+      return false;
+    }
+    setManualOpen(false);
+    setManualError(null);
+    if (pendingPlan !== null) {
+      buySubscription.mutate({ planId: pendingPlan.id, vehicleId: vehicle.id });
+      setPendingPlan(null);
+      setTab('rent');
+      return true;
+    }
+    setTab('map');
+    setSelectedId(vehicle.id);
+    return true;
+  };
+
+  /** Central scan button: Telegram's native QR popup, manual-entry fallback. */
+  const openScan = (plan: Plan | null = null) => {
+    setPendingPlan(plan);
+    setManualError(null);
+    if (canScanQr()) {
+      void scanQr('Наведите камеру на QR-код самоката').then((text) => {
+        if (text !== null && resolveCode(text)) return;
+        if (text === null) setManualOpen(true);
+      });
+    } else {
+      setManualOpen(true);
+    }
+  };
 
   if (!authed) {
     return (
@@ -153,23 +236,63 @@ export function App() {
   }
 
   return (
-    <MapScreen
-      vehicles={vehiclesQuery.data?.items ?? []}
-      zones={zones}
-      perMinutePlan={perMinutePlan}
-      unlocking={startRide.isPending}
-      unlockError={unlockError}
-      onUnlock={(vehicle: Vehicle) => {
-        if (perMinutePlan === null) return;
-        startRide.mutate({ qrCode: vehicle.qrCode, planId: perMinutePlan.id });
-      }}
-      onClearUnlockError={() => setUnlockError(null)}
-      onRefresh={() => {
-        void vehiclesQuery.refetch();
-        void zonesQuery.refetch();
-      }}
-      refreshing={vehiclesQuery.isRefetching || zonesQuery.isRefetching}
-      loadError={vehiclesQuery.isError && vehiclesQuery.data === undefined}
-    />
+    <div className="shell">
+      <div className="tab-content">
+        <div className={tab === 'map' ? 'tab-panel' : 'tab-panel hidden'}>
+          <MapScreen
+            vehicles={vehicles}
+            zones={zones}
+            perMinutePlan={perMinutePlan}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            unlocking={startRide.isPending}
+            unlockError={unlockError}
+            onUnlock={(vehicle: Vehicle) => {
+              if (perMinutePlan === null) return;
+              startRide.mutate({ qrCode: vehicle.qrCode, planId: perMinutePlan.id });
+            }}
+            onClearUnlockError={() => setUnlockError(null)}
+            onRefresh={() => {
+              void vehiclesQuery.refetch();
+              void zonesQuery.refetch();
+            }}
+            refreshing={vehiclesQuery.isRefetching || zonesQuery.isRefetching}
+            loadError={vehiclesQuery.isError && vehiclesQuery.data === undefined}
+          />
+        </div>
+        <div className={tab === 'rent' ? 'tab-panel' : 'tab-panel hidden'}>
+          <RentScreen
+            plans={plans}
+            subscriptions={subscriptionsQuery.data?.items ?? []}
+            loading={subscriptionsQuery.isLoading}
+            buying={buySubscription.isPending}
+            notice={rentNotice}
+            onBuy={(plan) => openScan(plan)}
+          />
+        </div>
+        <div className={tab === 'profile' ? 'tab-panel' : 'tab-panel hidden'}>
+          <ProfileScreen
+            user={meQuery.data ?? null}
+            onLogout={() => {
+              clearToken();
+              setAuthed(false);
+            }}
+          />
+        </div>
+      </div>
+
+      <TabBar tab={tab} onTab={setTab} onScan={() => openScan(null)} />
+
+      <ManualCodeSheet
+        open={manualOpen}
+        error={manualError}
+        onSubmit={resolveCode}
+        onClose={() => {
+          setManualOpen(false);
+          setManualError(null);
+          setPendingPlan(null);
+        }}
+      />
+    </div>
   );
 }

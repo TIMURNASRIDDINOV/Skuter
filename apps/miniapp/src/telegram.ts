@@ -7,8 +7,11 @@ interface TelegramWebApp {
   ready(): void;
   expand(): void;
   colorScheme: 'light' | 'dark';
+  /** Signed payload proving the user's Telegram identity — see /auth/telegram/webapp. */
+  initData: string;
   showScanQrPopup(params: { text?: string }, callback: (text: string) => boolean): void;
   closeScanQrPopup(): void;
+  showConfirm?(message: string, callback: (ok: boolean) => void): void;
   HapticFeedback?: {
     notificationOccurred(type: 'error' | 'success' | 'warning'): void;
   };
@@ -56,4 +59,24 @@ export function scanQr(prompt: string): Promise<string | null> {
 
 export function haptic(type: 'error' | 'success' | 'warning'): void {
   webApp()?.HapticFeedback?.notificationOccurred(type);
+}
+
+/** Raw initData for server-side verification; '' outside Telegram. */
+export function getInitData(): string {
+  return webApp()?.initData ?? '';
+}
+
+/** Native Telegram confirm popup, window.confirm outside Telegram. */
+export function confirmDialog(message: string): Promise<boolean> {
+  const app = webApp();
+  if (app?.showConfirm !== undefined) {
+    return new Promise((resolve) => {
+      try {
+        app.showConfirm?.(message, resolve);
+      } catch {
+        resolve(window.confirm(message));
+      }
+    });
+  }
+  return Promise.resolve(window.confirm(message));
 }

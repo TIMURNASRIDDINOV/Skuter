@@ -11,12 +11,14 @@ import {
   ZONE_KIND_COLOUR,
   formatDistance,
 } from '../lib';
-import { canScanQr, haptic, scanQr } from '../telegram';
 
 interface MapScreenProps {
   vehicles: Vehicle[];
   zones: Zone[];
   perMinutePlan: Plan | null;
+  /** Selection lives in App — the shared scan flow also selects vehicles. */
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
   unlocking: boolean;
   unlockError: string | null;
   onUnlock: (vehicle: Vehicle) => void;
@@ -53,6 +55,8 @@ export function MapScreen({
   vehicles,
   zones,
   perMinutePlan,
+  selectedId,
+  onSelect,
   unlocking,
   unlockError,
   onUnlock,
@@ -64,19 +68,32 @@ export function MapScreen({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Click handlers need the current fleet without re-binding map listeners.
   const vehiclesRef = useRef(vehicles);
   vehiclesRef.current = vehicles;
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
 
   const selected = vehicles.find((v) => v.id === selectedId) ?? null;
 
   // The selected vehicle can be unlocked by someone else and leave the
   // public list — drop the stale selection, same rule as the native app.
   useEffect(() => {
-    if (selectedId !== null && selected === null) setSelectedId(null);
-  }, [selectedId, selected]);
+    if (selectedId !== null && selected === null) onSelect(null);
+  }, [selectedId, selected, onSelect]);
+
+  // A selection arriving from the scan flow should focus the map on it.
+  useEffect(() => {
+    if (selected === null) return;
+    mapRef.current?.easeTo({
+      center: [selected.location.lon, selected.location.lat],
+      zoom: 15.2,
+      duration: 350,
+    });
+    // Deliberately only when the id changes — the vehicle jitters every poll.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -196,14 +213,8 @@ export function MapScreen({
       map.on('click', 'vehicle-pins', (e) => {
         const id = e.features?.[0]?.properties?.['id'] as string | undefined;
         if (id === undefined) return;
-        const vehicle = vehiclesRef.current.find((v) => v.id === id);
-        if (vehicle === undefined) return;
-        setSelectedId(id);
-        map.easeTo({
-          center: [vehicle.location.lon, vehicle.location.lat],
-          zoom: 15.2,
-          duration: 350,
-        });
+        // The selection-focus effect handles easing the camera over.
+        onSelectRef.current(id);
       });
 
       ['clusters', 'vehicle-pins'].forEach((layer) => {
@@ -237,24 +248,6 @@ export function MapScreen({
     mapRef.current?.getSource<maplibregl.GeoJSONSource>('zones')?.setData(zonesToGeoJSON(zones));
   }, [mapReady, zones]);
 
-  const scanAndSelect = async () => {
-    const text = await scanQr('Наведите камеру на QR-код самоката');
-    if (text === null) return;
-    const match = text.toUpperCase().match(/SCOOT-\d{4}/);
-    const vehicle =
-      match === null ? undefined : vehiclesRef.current.find((v) => v.qrCode === match[0]);
-    if (vehicle === undefined) {
-      haptic('error');
-      return;
-    }
-    setSelectedId(vehicle.id);
-    mapRef.current?.easeTo({
-      center: [vehicle.location.lon, vehicle.location.lat],
-      zoom: 15.2,
-      duration: 350,
-    });
-  };
-
   const tariffLine = useMemo(() => {
     if (perMinutePlan === null) return null;
     return `${formatSom(perMinutePlan.price)}/мин · разблокировка ${formatSom(perMinutePlan.unlockFee)}`;
@@ -280,12 +273,6 @@ export function MapScreen({
         </div>
       )}
 
-      {canScanQr() && selected === null && (
-        <button className="btn primary scan-fab" onClick={() => void scanAndSelect()}>
-          ▣ Сканировать QR
-        </button>
-      )}
-
       {selected !== null && (
         <div className="sheet">
           <div className="sheet-head">
@@ -296,7 +283,7 @@ export function MapScreen({
             <button
               className="close"
               onClick={() => {
-                setSelectedId(null);
+                onSelect(null);
                 onClearUnlockError();
               }}
             >

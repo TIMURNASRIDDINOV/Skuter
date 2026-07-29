@@ -11,6 +11,7 @@ import {
   pointInPolygon,
   polygonCentroid,
 } from '../lib';
+import { confirmDialog } from '../telegram';
 
 interface RideScreenProps {
   ride: ActiveRide;
@@ -182,8 +183,9 @@ export function RideScreen({
     riderMarkerRef.current.setLngLat([devLocation.lon, devLocation.lat]);
   }, [devLocation]);
 
-  // Frame rider + nearest zone when an end attempt is rejected.
-  useEffect(() => {
+  // Frame rider + nearest zone — on rejection, and again from the
+  // "Показать парковку" button.
+  const frameBlocked = (): void => {
     if (nearest === null) return;
     const rider = devLocation ?? ride.vehicle.location;
     const centre = polygonCentroid(nearest.geom);
@@ -198,9 +200,20 @@ export function RideScreen({
       [west - lonGrow, south - latGrow, east + lonGrow, north + latGrow],
       { padding: { top: 60, bottom: 60, left: 40, right: 40 }, duration: 600 },
     );
+  };
+
+  useEffect(() => {
+    frameBlocked();
     // Framing uses the rider position at the moment of rejection.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nearest]);
+
+  // A billed ride must not end on an accidental tap.
+  const confirmEnd = async (): Promise<void> => {
+    if (await confirmDialog('Завершить поездку?')) {
+      onEnd(riderLocation);
+    }
+  };
 
   const riderLocation = devLocation ?? ride.vehicle.location;
   const parkingZones = zones.filter((zone) => zone.kind === 'parking');
@@ -272,6 +285,11 @@ export function RideScreen({
               </div>
             )}
             <div className="row">
+              {nearest !== null && (
+                <button className="btn small" onClick={frameBlocked}>
+                  Показать парковку
+                </button>
+              )}
               {DEMO_CONTROLS_ENABLED && nearest !== null && (
                 <button
                   className="btn small"
@@ -293,7 +311,7 @@ export function RideScreen({
         <button
           className={inParking ? 'btn primary' : 'btn danger'}
           disabled={ending}
-          onClick={() => onEnd(riderLocation)}
+          onClick={() => void confirmEnd()}
         >
           {ending ? 'Завершение…' : 'Завершить поездку'}
         </button>
