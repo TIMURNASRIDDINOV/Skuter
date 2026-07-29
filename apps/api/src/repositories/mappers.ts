@@ -62,8 +62,9 @@ export function toAdminVehicle(row: VehicleRow): Vehicle & { imei: string } {
 
 export interface UserRow {
   id: string;
-  phone: string;
+  phone: string | null;
   name: string | null;
+  telegramId: number | null;
   status: User['status'];
   balance: number;
   createdAt: Date;
@@ -74,6 +75,7 @@ export function toUser(row: UserRow): User {
     id: row.id,
     phone: row.phone,
     name: row.name,
+    telegramId: row.telegramId,
     status: row.status,
     balance: row.balance,
     createdAt: toIso(row.createdAt),

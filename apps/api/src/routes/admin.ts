@@ -16,6 +16,7 @@ import {
 import { publishEvent, serverEvents } from '../events/bus.js';
 import { notFound } from '../lib/errors.js';
 import { repositories } from '../repositories/index.js';
+import { isSimulatorRider } from '../seed/riders.js';
 import { adminOf, requireAdmin, requireAdminRole, type AppEnv } from '../middleware/auth.js';
 
 export const adminRoutes = new Hono<AppEnv>();
@@ -133,7 +134,10 @@ adminRoutes.get('/rides', zValidator('query', listRidesQuerySchema), async (c) =
 });
 
 adminRoutes.get('/users', async (c) => {
-  const items = await repositories.users.listAll();
+  // The simulator's reserved rider accounts are plumbing, not customers.
+  const items = (await repositories.users.listAll()).filter(
+    (user) => user.phone === null || !isSimulatorRider(user.phone),
+  );
   return c.json({ items, total: items.length });
 });
 

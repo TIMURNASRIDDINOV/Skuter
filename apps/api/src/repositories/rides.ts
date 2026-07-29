@@ -8,7 +8,7 @@ import { toIso, toIsoOrNull } from './mappers.js';
 /** A ride joined with the labels the admin tables actually display. */
 export interface RideWithContext extends Ride {
   vehicleQrCode: string;
-  userPhone: string;
+  userPhone: string | null;
 }
 
 /**

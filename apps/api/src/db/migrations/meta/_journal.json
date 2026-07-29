@@ -8,6 +8,13 @@
       "when": 1785219197670,
       "tag": "0000_crazy_electro",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785329314230,
+      "tag": "0001_useful_kree",
+      "breakpoints": true
     }
   ]
 }

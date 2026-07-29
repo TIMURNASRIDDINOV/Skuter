@@ -26,7 +26,8 @@ export type Subscription = z.infer<typeof subscriptionSchema>;
 export const subscriptionDetailSchema = subscriptionSchema.extend({
   plan: planSchema,
   vehicle: vehicleSchema.pick({ id: true, qrCode: true, model: true, status: true }),
-  userPhone: z.string(),
+  /** Null when the subscriber signed up via Telegram and has no phone. */
+  userPhone: z.string().nullable(),
 });
 export type SubscriptionDetail = z.infer<typeof subscriptionDetailSchema>;
 

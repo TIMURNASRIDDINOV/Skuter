@@ -349,7 +349,8 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
   async #pickAvailableRider(): Promise<string> {
     const users = await this.#repositories.users.listAll();
     for (const user of users) {
-      if (user.status !== 'active' || !isSimulatorRider(user.phone)) continue;
+      if (user.status !== 'active' || user.phone === null || !isSimulatorRider(user.phone))
+        continue;
       const active = await this.#repositories.rides.findActiveByUser(user.id);
       if (active === null) return user.id;
     }

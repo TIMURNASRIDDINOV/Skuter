@@ -33,6 +33,35 @@ export const riderSessionSchema = z.object({
 });
 export type RiderSession = z.infer<typeof riderSessionSchema>;
 
+/**
+ * Telegram Mini App login: the raw `window.Telegram.WebApp.initData` string.
+ * The API verifies its HMAC against the bot token — no OTP round-trip.
+ */
+export const telegramWebAppLoginRequestSchema = z.object({
+  initData: z.string().min(1),
+});
+export type TelegramWebAppLoginRequest = z.infer<typeof telegramWebAppLoginRequestSchema>;
+
+/**
+ * Native-app Telegram login, step 1: the app gets a one-time nonce and a
+ * deep link into the bot. The user taps Start; the bot's webhook completes
+ * the nonce; the app polls until it turns into a session.
+ */
+export const telegramLoginStartResponseSchema = z.object({
+  nonce: z.string(),
+  deepLink: z.url(),
+  expiresInS: z.int().positive(),
+  pollIntervalMs: z.int().positive(),
+});
+export type TelegramLoginStartResponse = z.infer<typeof telegramLoginStartResponseSchema>;
+
+/** Step 2: poll result — pending until the bot has seen /start <nonce>. */
+export const telegramLoginPollResponseSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('pending') }),
+  z.object({ status: z.literal('complete'), token: z.string(), user: userProfileSchema }),
+]);
+export type TelegramLoginPollResponse = z.infer<typeof telegramLoginPollResponseSchema>;
+
 export const adminLoginRequestSchema = z.object({
   email: z.email(),
   password: z.string().min(8).max(200),

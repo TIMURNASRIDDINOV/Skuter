@@ -85,14 +85,20 @@ export const users = pgTable(
   'users',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    phone: text('phone').notNull(),
+    /** Null for accounts created via Telegram login — no phone known yet. */
+    phone: text('phone'),
     name: text('name'),
+    /** Telegram account id for users who signed in via the bot / mini app. */
+    telegramId: bigint('telegram_id', { mode: 'number' }),
     status: userStatusEnum('status').notNull().default('active'),
     /** Wallet balance in tiyin. */
     balance: bigint('balance', { mode: 'number' }).notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex('users_phone_key').on(t.phone)],
+  (t) => [
+    uniqueIndex('users_phone_key').on(t.phone),
+    uniqueIndex('users_telegram_id_key').on(t.telegramId),
+  ],
 );
 
 export const vehicles = pgTable(
@@ -301,6 +307,31 @@ export const otpCodes = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('otp_codes_phone_idx').on(t.phone), index('otp_codes_expires_idx').on(t.expiresAt)],
+);
+
+/**
+ * One-time nonces for "login via Telegram" from the native app. The app opens
+ * t.me/<bot>?start=<nonce>; the bot webhook fills in the Telegram identity;
+ * the app polls until the nonce completes, then it is consumed. Nonces are
+ * 32 random bytes — unguessable, so stored in plain text (unlike OTP codes).
+ */
+export const telegramLoginNonces = pgTable(
+  'telegram_login_nonces',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    nonce: text('nonce').notNull(),
+    /** Set by the webhook once the user taps Start in the bot. */
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    telegramId: bigint('telegram_id', { mode: 'number' }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('telegram_login_nonces_nonce_key').on(t.nonce),
+    index('telegram_login_nonces_expires_idx').on(t.expiresAt),
+  ],
 );
 
 // --- relations -----------------------------------------------------------

@@ -39,6 +39,15 @@ const envSchema = z.object({
   SIMULATOR_TICK_MS: z.coerce.number().int().min(250).max(60_000).default(3000),
   SIMULATOR_UNLOCK_FAILURE_RATE: z.coerce.number().min(0).max(1).default(0.08),
   VEHICLE_GATEWAY: z.enum(['simulated', 'iot']).default('simulated'),
+  // Explicit override for the dev affordances (fixed OTP code, /dev/simulate/*).
+  // Unset = derived from NODE_ENV. The pre-release deployment runs with
+  // NODE_ENV=production DEV_FEATURES=true: there is no SMS provider yet, so
+  // the fixed OTP code is the only way phone login can work.
+  DEV_FEATURES: z.enum(['true', 'false']).optional(),
+  // Telegram login. Unset = the /auth/telegram/* endpoints answer 501.
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_BOT_USERNAME: z.string().default('Scootrentuzbot'),
+  TELEGRAM_WEBHOOK_SECRET: z.string().min(16).optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -56,10 +65,15 @@ export const isDevelopment = env.NODE_ENV === 'development';
 export const isProduction = env.NODE_ENV === 'production';
 
 /**
- * Dev-only affordances: the fixed OTP code and the /dev/simulate/* endpoints
- * used to trigger fleet states live during the demo. Never on in production.
+ * Dev affordances: the fixed OTP code and the /dev/simulate/* endpoints used
+ * to trigger fleet states live during the demo. Derived from NODE_ENV unless
+ * DEV_FEATURES overrides it explicitly (the pre-release deployment).
  */
-export const devFeaturesEnabled = !isProduction;
+export const devFeaturesEnabled =
+  env.DEV_FEATURES !== undefined ? env.DEV_FEATURES === 'true' : !isProduction;
+
+/** Telegram login is available only when the bot token is configured. */
+export const telegramAuthEnabled = env.TELEGRAM_BOT_TOKEN !== undefined;
 
 /** Parsed OTP_TEST_PHONES. Non-empty = sign-in restricted to these numbers. */
 export const otpTestPhones: readonly string[] = env.OTP_TEST_PHONES.split(',')

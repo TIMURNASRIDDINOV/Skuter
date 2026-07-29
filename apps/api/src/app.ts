@@ -14,6 +14,7 @@ import { adminRoutes } from './routes/admin.js';
 import { devRoutes } from './routes/dev.js';
 import { rideRoutes } from './routes/rides.js';
 import { subscriptionRoutes } from './routes/subscriptions.js';
+import { telegramWebhookRoutes } from './routes/telegram-webhook.js';
 import { meRoutes } from './routes/me.js';
 import { adminVehicleRoutes, vehicleRoutes } from './routes/vehicles.js';
 
@@ -49,6 +50,8 @@ export function createApp(): Hono<AppEnv> {
 
   // Rider surface.
   app.route('/auth', authRoutes);
+  // Telegram bot updates (gated by the webhook secret, not a bearer token).
+  app.route('/telegram', telegramWebhookRoutes);
   app.route('/me', meRoutes);
   app.route('/vehicles', vehicleRoutes);
   app.route('/catalog', catalogRoutes);

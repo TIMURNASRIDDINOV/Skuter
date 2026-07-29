@@ -8,15 +8,17 @@ const columns = {
   id: users.id,
   phone: users.phone,
   name: users.name,
+  telegramId: users.telegramId,
   status: users.status,
   balance: users.balance,
   createdAt: users.createdAt,
 } as const;
 
 export interface NewUser {
-  phone: string;
+  phone: string | null;
   name: string | null;
   balance: number;
+  telegramId?: number;
 }
 
 export function createUsersRepository(db: Database) {
@@ -51,6 +53,35 @@ export function createUsersRepository(db: Database) {
       if (row === undefined) {
         const raced = await this.findByPhone(phone);
         if (raced === null) throw new Error(`Failed to create or find user for ${phone}`);
+        return raced;
+      }
+      return toUser(row as UserRow);
+    },
+
+    async findByTelegramId(telegramId: number): Promise<User | null> {
+      const [row] = await db
+        .select(columns)
+        .from(users)
+        .where(eq(users.telegramId, telegramId))
+        .limit(1);
+      return row === undefined ? null : toUser(row as UserRow);
+    },
+
+    /** Riders are created on their first Telegram login — no phone yet. */
+    async findOrCreateByTelegram(telegramId: number, name: string | null): Promise<User> {
+      const existing = await this.findByTelegramId(telegramId);
+      if (existing !== null) return existing;
+
+      const [row] = await db
+        .insert(users)
+        .values({ phone: null, telegramId, name })
+        .onConflictDoNothing({ target: users.telegramId })
+        .returning(columns);
+
+      // A concurrent login for the same Telegram account can win; re-read.
+      if (row === undefined) {
+        const raced = await this.findByTelegramId(telegramId);
+        if (raced === null) throw new Error(`Failed to create or find user for tg:${telegramId}`);
         return raced;
       }
       return toUser(row as UserRow);

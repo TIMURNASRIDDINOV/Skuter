@@ -7,6 +7,7 @@ import { createPaymentsRepository } from './payments.js';
 import { createPlansRepository } from './plans.js';
 import { createRidesRepository } from './rides.js';
 import { createSubscriptionsRepository } from './subscriptions.js';
+import { createTelegramNoncesRepository } from './telegram-nonces.js';
 import { createUsersRepository } from './users.js';
 import { createVehiclesRepository } from './vehicles.js';
 import { createAreasRepository, createZonesRepository } from './zones.js';
@@ -30,6 +31,7 @@ export function createRepositories(db: Database = defaultDb) {
     plans: createPlansRepository(db),
     rides: createRidesRepository(db),
     subscriptions: createSubscriptionsRepository(db),
+    telegramNonces: createTelegramNoncesRepository(db),
     users: createUsersRepository(db),
     vehicles: createVehiclesRepository(db),
     zones: createZonesRepository(db),
@@ -48,6 +50,7 @@ export type { PaymentsRepository } from './payments.js';
 export type { PlansRepository } from './plans.js';
 export type { RideWithContext, RidesRepository } from './rides.js';
 export type { SubscriptionsRepository } from './subscriptions.js';
+export type { TelegramNoncesRepository } from './telegram-nonces.js';
 export type { UsersRepository } from './users.js';
 export type { VehiclesRepository } from './vehicles.js';
 export type { AreasRepository, ZonesRepository } from './zones.js';

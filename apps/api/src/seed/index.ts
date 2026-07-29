@@ -199,13 +199,6 @@ async function main(): Promise<void> {
     { email: ADMIN_EMAIL, passwordHash: await hashSecret(ADMIN_PASSWORD), role: 'owner' },
   ]);
 
-  // --- demo riders -------------------------------------------------------
-  await repositories.users.insertMany([
-    { phone: '+998901234567', name: 'Азиз Каримов', balance: somToTiyin(120_000) },
-    { phone: '+998935556677', name: 'Дилноза Юсупова', balance: somToTiyin(45_000) },
-    { phone: '+998977778899', name: 'Тимур Насриддинов', balance: somToTiyin(500_000) },
-  ]);
-
   // Riders reserved for the fleet simulator. A rider may only have one ride in
   // flight (enforced by a partial unique index), so simulated rides need their
   // own accounts — otherwise they occupy the demo accounts and whoever logs in
@@ -244,7 +237,7 @@ async function main(): Promise<void> {
   );
   write(`  QR codes      ${qrCodeFor(0)} … ${qrCodeFor(FLEET_SIZE - 1)}`);
   write(`  Admin         ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
-  write(`  Riders        3 demo accounts + ${SIMULATOR_RIDER_COUNT} reserved for the simulator`);
+  write(`  Riders        ${SIMULATOR_RIDER_COUNT} reserved for the simulator (real users sign up themselves)`);
   write('');
   write('Seed complete.');
 }

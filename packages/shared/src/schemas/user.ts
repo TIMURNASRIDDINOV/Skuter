@@ -16,8 +16,11 @@ export type Phone = z.infer<typeof phoneSchema>;
 
 export const userSchema = z.object({
   id: idSchema,
-  phone: phoneSchema,
+  /** Null for accounts created through Telegram login (no phone yet). */
+  phone: phoneSchema.nullable(),
   name: z.string().nullable(),
+  /** Telegram account id for users who signed in via the bot / mini app. */
+  telegramId: z.int().nullable(),
   status: userStatusSchema,
   /** Wallet balance in tiyin. */
   balance: tiyinSchema,
@@ -30,6 +33,7 @@ export const userProfileSchema = userSchema.pick({
   id: true,
   phone: true,
   name: true,
+  telegramId: true,
   status: true,
   balance: true,
   createdAt: true,
