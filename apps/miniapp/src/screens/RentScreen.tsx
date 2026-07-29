@@ -26,8 +26,6 @@ export function RentScreen({
 
   return (
     <div className="screen rent-screen">
-      <h1>Аренда</h1>
-
       <section>
         <h2 className="section-title">Мои абонементы</h2>
         {loading ? (

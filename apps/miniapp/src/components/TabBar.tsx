@@ -1,11 +1,12 @@
 import { TabIcon } from './icons';
 
-export type Tab = 'map' | 'rent' | 'profile';
+export type Tab = 'map' | 'profile';
 
 /**
- * Uzum-style bottom navigation: three content tabs and a raised circular
+ * Uzum-style bottom navigation: two content tabs and a raised circular
  * scan button in its own slot. Hidden while a ride or receipt is on screen —
  * those flows own the whole viewport. Mirrors the native app's tab bar.
+ * Аренда lives in the top SectionTabs switcher, not here.
  */
 export function TabBar({
   tab,
@@ -21,10 +22,6 @@ export function TabBar({
       <button className={tab === 'map' ? 'tab active' : 'tab'} onClick={() => onTab('map')}>
         <TabIcon name="map" />
         <span>Карта</span>
-      </button>
-      <button className={tab === 'rent' ? 'tab active' : 'tab'} onClick={() => onTab('rent')}>
-        <TabIcon name="ticket" />
-        <span>Аренда</span>
       </button>
       <div className="scan-slot">
         <button className="scan-tab" onClick={onScan} aria-label="Сканировать">

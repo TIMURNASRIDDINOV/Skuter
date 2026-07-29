@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react';
 import type { ListResponse } from './api';
 import { ApiRequestError, apiFetch, clearToken, hasToken, registerUnauthorizedHandler } from './api';
 import { ManualCodeSheet } from './components/ManualCodeSheet';
+import { SectionTabs, type Section } from './components/SectionTabs';
 import { TabBar, type Tab } from './components/TabBar';
 import { Login } from './screens/Login';
 import { MapScreen } from './screens/MapScreen';
@@ -28,6 +29,7 @@ import { canScanQr, haptic, scanQr } from './telegram';
 export function App() {
   const [authed, setAuthed] = useState(hasToken());
   const [tab, setTab] = useState<Tab>('map');
+  const [section, setSection] = useState<Section>('general');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<RideReceipt | null>(null);
   const [blocked, setBlocked] = useState<ParkingCheck | null>(null);
@@ -177,10 +179,12 @@ export function App() {
     if (pendingPlan !== null) {
       buySubscription.mutate({ planId: pendingPlan.id, vehicleId: vehicle.id });
       setPendingPlan(null);
-      setTab('rent');
+      setTab('map');
+      setSection('rent');
       return true;
     }
     setTab('map');
+    setSection('general');
     setSelectedId(vehicle.id);
     return true;
   };
@@ -237,8 +241,12 @@ export function App() {
 
   return (
     <div className="shell">
+      {tab === 'map' && <SectionTabs section={section} onSection={setSection} />}
+
       <div className="tab-content">
-        <div className={tab === 'map' ? 'tab-panel' : 'tab-panel hidden'}>
+        <div
+          className={tab === 'map' && section === 'general' ? 'tab-panel' : 'tab-panel hidden'}
+        >
           <MapScreen
             vehicles={vehicles}
             zones={zones}
@@ -260,7 +268,7 @@ export function App() {
             loadError={vehiclesQuery.isError && vehiclesQuery.data === undefined}
           />
         </div>
-        <div className={tab === 'rent' ? 'tab-panel' : 'tab-panel hidden'}>
+        <div className={tab === 'map' && section === 'rent' ? 'tab-panel' : 'tab-panel hidden'}>
           <RentScreen
             plans={plans}
             subscriptions={subscriptionsQuery.data?.items ?? []}

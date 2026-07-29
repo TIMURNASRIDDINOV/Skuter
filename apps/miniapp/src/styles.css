@@ -336,6 +336,40 @@ input:focus {
   height: 100%;
 }
 
+/* Folder-style Общий / Аренда switcher pinned above the map area. */
+.section-tabs {
+  display: flex;
+  flex-shrink: 0;
+  background: var(--background);
+  padding: 6px 0 0;
+  z-index: 4;
+}
+
+.section-tab {
+  flex: 1;
+  border: none;
+  border-radius: 18px 18px 0 0;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.2px;
+  padding: 13px 0;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.section-tab.active {
+  background: linear-gradient(180deg, #eef0f3 0%, var(--surface) 100%);
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(11, 15, 20, 0.08);
+}
+
 .tab-content {
   position: relative;
   flex: 1;
