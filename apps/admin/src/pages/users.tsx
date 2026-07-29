@@ -33,7 +33,8 @@ export function UsersPage(): React.ReactElement {
       title: 'Телефон',
       dataIndex: 'phone',
       width: 170,
-      render: (value: string) => <Typography.Text strong>{value}</Typography.Text>,
+      render: (value: string | null) =>
+        value !== null ? <Typography.Text strong>{value}</Typography.Text> : <Tag>Telegram</Tag>,
     },
     {
       title: 'Имя',
@@ -73,13 +74,7 @@ export function UsersPage(): React.ReactElement {
   return (
     <Card
       size="small"
-      title={`Пользователи — ${String(items.length)}`}
-      extra={
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          Аккаунты «Симуляция» используются генератором парка
-        </Typography.Text>
-      }
-    >
+      title={`Пользователи — ${String(items.length)}`}>
       {isLoading ? (
         <TableSkeleton rows={6} />
       ) : items.length === 0 ? (

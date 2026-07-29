@@ -11,7 +11,7 @@ import { EmptyState, ErrorState, TableSkeleton } from '../components/states.js';
 
 interface RideRow extends Ride {
   vehicleQrCode: string;
-  userPhone: string;
+  userPhone: string | null;
 }
 
 /**
@@ -76,7 +76,12 @@ export function RidesPage(): React.ReactElement {
         </Space>
       ),
     },
-    { title: 'Пользователь', dataIndex: 'userPhone', width: 150 },
+    {
+      title: 'Пользователь',
+      dataIndex: 'userPhone',
+      width: 150,
+      render: (value: string | null) => value ?? 'Telegram',
+    },
     {
       title: 'Статус',
       dataIndex: 'status',

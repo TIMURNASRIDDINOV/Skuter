@@ -40,7 +40,8 @@ export function SubscriptionsPage(): React.ReactElement {
       title: 'Телефон',
       dataIndex: 'userPhone',
       width: 160,
-      render: (value: string) => <Typography.Text strong>{value}</Typography.Text>,
+      render: (value: string | null) =>
+        value !== null ? <Typography.Text strong>{value}</Typography.Text> : 'Telegram',
     },
     {
       title: 'Самокат',
