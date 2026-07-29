@@ -5,11 +5,11 @@
   --danger: #f5222d;
   --danger-faint: #fff1f0;
   --warning-faint: #fffbe6;
-  --text: #1f1f1f;
-  --text-secondary: #6b7280;
+  --text: #0b0f14;
+  --text-secondary: #6e7781;
   --surface: #ffffff;
-  --background: #f5f5f4;
-  --border: #e5e7eb;
+  --background: #f7f8fa;
+  --border: #eceef1;
 }
 
 * {
@@ -55,7 +55,9 @@ body {
 }
 
 h1 {
-  font-size: 24px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
 }
 
 .muted {
@@ -79,9 +81,11 @@ input:focus {
 
 .btn {
   border: none;
-  border-radius: 999px;
+  border-radius: 14px;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  min-height: 52px;
   padding: 14px 20px;
   cursor: pointer;
   background: var(--surface);
@@ -216,7 +220,8 @@ input:focus {
 
 .sheet-title {
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: -0.3px;
 }
 
 .close {

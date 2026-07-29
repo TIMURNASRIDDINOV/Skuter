@@ -80,6 +80,11 @@ a bug.
 `apps/admin/src/components/status.tsx`. A colour never means two things across
 the two apps.
 
+**Icons come from the `Icon` vocabulary in `components/ui.tsx`** (native SF
+Symbols on iOS, Material Symbols on Android via expo-symbols). No emoji as UI
+chrome; shadows come from the `shadows` tokens in `lib/theme.ts`, never
+hand-rolled.
+
 **Strings go through `lib/i18n.tsx`** (RU default, UZ toggle in Profile).
 No hardcoded user-facing text in screens.
 
