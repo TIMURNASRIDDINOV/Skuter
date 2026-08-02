@@ -40,6 +40,19 @@ export function formatDuration(seconds: number): string {
   return h > 0 ? `${String(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 }
 
+/**
+ * Russian noun agreement: 1 самокат, 2–4 самоката, 5+ самокатов. The back
+ * office is Russian-only, so counted nouns have to decline or the summary
+ * lines read as machine output.
+ */
+export function plural(count: number, one: string, few: string, many: string): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
+
 export function formatDistance(metres: number): string {
   return metres >= 1000 ? `${(metres / 1000).toFixed(1)} км` : `${Math.round(metres)} м`;
 }

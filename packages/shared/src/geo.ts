@@ -68,6 +68,43 @@ export function haversineDistanceM(a: LatLon, b: LatLon): number {
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
+/**
+ * Whether a point falls inside a polygon, honouring interior rings (holes).
+ *
+ * Ray casting on the raw lon/lat plane. Like `haversineDistanceM` this is a
+ * client-side approximation used to flag things in the UI — the authoritative
+ * geofence checks run in PostGIS. At city scale the planar error is far below
+ * the GPS noise the simulator already produces.
+ */
+export function isPointInPolygon(point: LatLon, polygon: GeoPolygon): boolean {
+  const [outer, ...holes] = polygon.coordinates;
+  if (outer === undefined) return false;
+  if (!isInsideRing(point, outer)) return false;
+  return !holes.some((hole) => isInsideRing(point, hole));
+}
+
+function isInsideRing(point: LatLon, ring: readonly Position[]): boolean {
+  let inside = false;
+
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const curr = ring[i];
+    const prev = ring[j];
+    if (curr === undefined || prev === undefined) continue;
+
+    const [currLon, currLat] = curr;
+    const [prevLon, prevLat] = prev;
+
+    // Only edges that straddle the ray's latitude can cross it.
+    if (currLat > point.lat === prevLat > point.lat) continue;
+
+    const lonAtPointLat =
+      ((prevLon - currLon) * (point.lat - currLat)) / (prevLat - currLat) + currLon;
+    if (point.lon < lonAtPointLat) inside = !inside;
+  }
+
+  return inside;
+}
+
 /** Total length in metres of a GeoJSON LineString. */
 export function lineStringLengthM(line: GeoLineString): number {
   let total = 0;

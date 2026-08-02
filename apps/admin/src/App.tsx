@@ -25,7 +25,19 @@ export function App(): React.ReactElement {
         locale={ruRU}
         theme={{
           ...RefineThemes.Blue,
-          token: { ...RefineThemes.Blue.token, borderRadius: 4, fontSize: 13 },
+          token: {
+            ...RefineThemes.Blue.token,
+            borderRadius: 4,
+            fontSize: 13,
+            // AntD ships 0.3s ease-in-out. Motion here is a state-change cue on
+            // a self-updating panel, so it is shorter and eases out — quick to
+            // start, gentle to settle.
+            motionDurationFast: '0.15s',
+            motionDurationMid: '0.2s',
+            motionDurationSlow: '0.25s',
+            motionEaseOut: 'cubic-bezier(0.22, 1, 0.36, 1)',
+            motionEaseInOut: 'cubic-bezier(0.22, 1, 0.36, 1)',
+          },
           components: {
             // Dense back office, not a landing page.
             Table: { cellPaddingBlockSM: 6, headerBg: '#fafafa' },

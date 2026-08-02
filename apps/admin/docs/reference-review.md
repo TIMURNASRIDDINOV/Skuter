@@ -387,7 +387,59 @@ until someone decides to model it.
 
 *Filled in as each screen lands.*
 
-### 3.1 Dashboard — pending
+### 3.1 Dashboard
+
+**Before:** twelve `Card` + `Statistic` tiles in two rows of six — total,
+available, in use, low battery, offline, average battery, active rides, rides
+today, subscriptions, users, revenue today, revenue this week — all identical
+in size and weight, then a map and two charts. We had built the stat-card wall
+ourselves, independently of the reference. Nothing on the screen said which
+scooter was stranded or which ride had run long; there was no anomaly concept
+at all.
+
+**After:** two figures large (available-of-total, rides in progress), then an
+attention queue, then the map. Everything that used to be a card is now one
+compact secondary line beneath.
+
+| Change | Why |
+|---|---|
+| 12 stat cards → 2 hero numbers + 1 secondary line | *"The most important 2–3 numbers large and immediate, everything else one click away."* The other ten still exist; they just stopped competing. |
+| New attention queue as the first content | *"What needs my attention right now"* before *"here is all the data."* Ranked by severity, each row links to the screen that fixes it. |
+| Severity axis added to `status.tsx` | Status says what a vehicle is; severity says how much it should worry you. Now the dashboard, tables and map rank problems identically instead of each re-deciding. |
+| Repeated anomalies collapse into one row | See below — this was the real design problem. |
+| Threshold selector inline in the panel | Taken from the reference: the operator decides what "too long" means, at the point of use, not in a settings screen. |
+| Two charts → one | The rides line duplicated the revenue bars' shape. One chart, full width. |
+| Count-up on the hero numbers, 250 ms ease-out | A KPI that ticks while you look elsewhere still registers peripherally. |
+| AntD motion tokens overridden | Stock is `0.3s` ease-in-out; the brief calls for 150–250 ms ease-out. Set once in `App.tsx` so every AntD component inherits it. |
+
+**The thing worth recording:** the first working version rendered *44 separate
+alarm rows*, 27 of them reading "outside the service area". The check was
+correct — the seed genuinely scatters vehicles beyond the service polygon — but
+the result was the reference panel's wall of counters in list form. Naming each
+vehicle only helps while there are few; past a handful the useful fact is the
+count and that the problem is systemic. Rows of the same kind now collapse
+above three (`GROUP_ABOVE` in `lib/anomalies.ts`), so the screen reads:
+
+```
+● 27 самокатов за пределами зоны обслуживания
+● 7 самокатов не выходят на связь
+● 8 самокатов с низким зарядом
+● SCOOT-0039  на обслуживании
+```
+
+That is legible in about a second, which was the stated bar.
+
+**Implementation notes.** Anomalies are derived on the client in
+`lib/anomalies.ts` from data the dashboard already loads — no new endpoints, no
+data-layer changes. Out-of-zone needed a point-in-polygon test, added to
+`packages/shared/src/geo.ts` next to `haversineDistanceM` and carrying the same
+caveat: a client-side approximation for flagging, with PostGIS still
+authoritative.
+
+**No Framer Motion.** The brief allowed it, but count-up, row flash and drawer
+slide are one rAF hook plus three keyframes (`components/motion.tsx`), which
+gives tighter control over the 150–250 ms spec than a new dependency would.
+Everything collapses to an instant swap under `prefers-reduced-motion`.
 ### 3.2 Vehicle list + detail — pending
 ### 3.3 Ride list — pending
 ### 3.4 Zone editor — pending

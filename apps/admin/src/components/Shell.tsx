@@ -15,6 +15,7 @@ import { useCallback, useState } from 'react';
 import { useLogout } from '@refinedev/core';
 import { Link, useLocation } from 'react-router';
 import { useLiveConnection, useServerEvents } from '../lib/events.js';
+import { MotionStyles } from './motion.js';
 
 const ITEMS = [
   { key: '/', icon: <DashboardOutlined />, label: 'Обзор' },
@@ -43,6 +44,7 @@ export function Shell({ children }: { children: React.ReactNode }): React.ReactE
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
+      <MotionStyles />
       <Layout.Sider
         collapsible
         collapsed={collapsed}
