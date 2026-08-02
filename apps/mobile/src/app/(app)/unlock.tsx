@@ -19,6 +19,7 @@ import { usePlans, useStartRide, useSubscriptions } from '@/api/queries';
 import { ErrorState, ListSkeleton } from '@/components/states';
 import { Button, Card, Icon, Pill, Row } from '@/components/ui';
 import { useI18n } from '@/lib/i18n';
+import { DURATION, useMotion } from '@/lib/motion';
 import { batteryColour, colors, radius, spacing, typography } from '@/lib/theme';
 
 const SCREEN_PADDING = 20;
@@ -169,25 +170,29 @@ export default function UnlockScreen() {
 function ScooterFigure({ unlocking, failed }: { unlocking: boolean; failed: boolean }) {
   const ring = useSharedValue(0);
   const shake = useSharedValue(0);
+  const { reduced, duration } = useMotion();
 
   useEffect(() => {
-    if (unlocking) {
+    // The pulsing ring is an ongoing-state indicator rather than a transition,
+    // so it keeps its 900ms loop — but it must not loop at all when the OS
+    // asks for reduced motion.
+    if (unlocking && !reduced) {
       ring.value = 0;
       ring.value = withRepeat(withTiming(1, { duration: 900 }), -1);
     } else {
       cancelAnimation(ring);
-      ring.value = withTiming(0, { duration: 200 });
+      ring.value = withTiming(0, { duration: duration(DURATION.base) });
     }
-  }, [unlocking, ring]);
+  }, [unlocking, reduced, duration, ring]);
 
   useEffect(() => {
-    if (failed) {
+    if (failed && !reduced) {
       shake.value = 0;
       shake.value = withSpring(1, { damping: 2, stiffness: 400 }, () => {
         shake.value = 0;
       });
     }
-  }, [failed, shake]);
+  }, [failed, reduced, shake]);
 
   const ringStyle = useAnimatedStyle(() => ({
     opacity: unlocking ? 1 - ring.value : 0,

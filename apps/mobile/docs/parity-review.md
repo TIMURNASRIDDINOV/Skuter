@@ -277,7 +277,58 @@ and Ant Design hex are presentation, not classification.
 deployed Cloudflare Worker. Metro was started with a `http://localhost:8787`
 override for this session so the app read the locally seeded fleet — the only
 place the three stranded scooters exist. The file was not modified.
-### 5.2 Scan → unlock — pending
-### 5.3 Active ride — pending
-### 5.4 End ride, success and block — pending
+### 5.2 Scan → unlock
+
+**Before:** a successful read called `router.replace` immediately. The camera
+vanished with nothing on screen confirming the code had registered — the dead
+air the brief calls out.
+
+**After:** the read holds a filled tick for 420 ms, with a success haptic,
+before the unlock screen takes over. Under reduced motion the pause collapses
+and the transition is immediate.
+
+**The confirmation is an overlay, not part of the viewfinder.** The first
+version drew it inside the camera frame, which the simulator immediately
+exposed as wrong: a scan can be confirmed from three places — a camera read, a
+typed code, and the dev button — and two of those are reachable *without* a
+camera. That is the state on a simulator and on the demo path, where there are
+no physical stickers. Drawing it in the viewfinder would have fixed one of the
+three and left the demo route with the dead air it was meant to remove.
+
+Reduced motion now also gates the unlock ring and the failure shake, which
+looped and sprang regardless of the OS setting.
+
+### 5.3 Active ride
+
+| Change | Why |
+|---|---|
+| Cost counts up over 250 ms | It is charged per whole minute, so it jumps by a full fare rather than creeping. Snapping read as a glitch on the number the rider is watching. |
+| Cost no longer wraps | "32 000 so'm" broke onto a second line and pushed the stat row out of alignment. Shrinks to fit instead — the figure has to stay one glanceable thing. |
+
+**Hook-order bug caught before it shipped.** `useCountUp` was first placed
+after this screen's early `return` for "no active ride", which is a conditional
+hook call and would have crashed on the transition from no ride to riding. The
+cost is now computed above the return, with the ride-less case yielding zero.
+
+### 5.4 End ride, success and block
+
+The block was already implemented — the API's `ParkingCheck` was rendered with
+the nearest zone and walking distance, and the camera already framed the rider
+and that zone together. What it did not do was *read* as a block.
+
+**Before:** an amber card below the stats. That is the visual language of form
+validation — something to correct and move past — for a refusal the rider
+cannot argue with.
+
+**After:** red fill, red border, alert icon, red title, entering on a 250 ms
+`FadeInDown`. The dev "step into zone" label was shortened because it wrapped
+onto two lines inside the card.
+
+**Verified on the simulator:** scan → confirmation → unlock → live ride with
+the cost ticking → end refused outside a parking zone, with the nearest one
+named and its walking distance shown.
+
+**Not verified:** the success path (ending inside a parking zone) and the
+receipt. Neither was changed beyond the cost-shrink, but neither was exercised
+end to end in this session, and saying otherwise would be a guess.
 ### 5.5 Plan purchase — pending

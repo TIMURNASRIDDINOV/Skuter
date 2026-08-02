@@ -7,16 +7,21 @@ import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { ZoomIn } from 'react-native-reanimated';
 import type { Vehicle } from '@scoot/shared';
 import { queryKeys } from '@/api/queries';
 import type { ListResponse } from '@/api/client';
 import { Button, Icon, IconButton } from '@/components/ui';
 import { DEMO_CONTROLS_ENABLED } from '@/lib/demo';
 import { useI18n } from '@/lib/i18n';
+import { DURATION, useMotion } from '@/lib/motion';
 import { colors, radius, shadows, spacing, typography } from '@/lib/theme';
 
 /** With no successful read after this long, suggest typing the code. */
 const SCAN_TROUBLE_MS = 6000;
+
+/** How long the confirmation tick holds before the unlock screen takes over. */
+const SCAN_CONFIRM_MS = 420;
 
 /** Screen-edge padding — matches the rest of the app's chrome. */
 const EDGE = 20;
@@ -33,7 +38,18 @@ export default function ScanScreen() {
   const [invalid, setInvalid] = useState(false);
   const [trouble, setTrouble] = useState(false);
   const [digits, setDigits] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
+  const { reduced } = useMotion();
   const handled = useRef(false);
+  const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (confirmTimer.current !== null) clearTimeout(confirmTimer.current);
+    },
+    [],
+  );
+
   const sheetRef = useRef<BottomSheet>(null);
   const manualSnapPoints = useMemo(() => ['42%'], []);
 
@@ -42,11 +58,30 @@ export default function ScanScreen() {
     return () => clearTimeout(timer);
   }, []);
 
+  /**
+   * Confirm the read before leaving the screen.
+   *
+   * Navigating straight off the scanner left a beat where the code had been
+   * read but nothing on screen said so — the camera simply vanished. The
+   * viewfinder now snaps to a filled tick for a moment first, so the scan
+   * visibly registers before the unlock screen takes over. Under reduced
+   * motion the pause collapses and the transition is immediate.
+   */
   const proceed = (qrCode: string) => {
     if (handled.current) return;
     handled.current = true;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.replace({ pathname: '/unlock', params: { qr: qrCode } });
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setConfirmed(true);
+
+    const go = () => {
+      router.replace({ pathname: '/unlock', params: { qr: qrCode } });
+    };
+
+    if (reduced) {
+      go();
+      return;
+    }
+    confirmTimer.current = setTimeout(go, SCAN_CONFIRM_MS);
   };
 
   const onScanned = (data: string) => {
@@ -74,6 +109,28 @@ export default function ScanScreen() {
     const candidate = cached?.items.find((vehicle) => vehicle.status === 'available');
     if (candidate !== undefined) proceed(candidate.qrCode);
   };
+
+  /**
+   * Rendered over whichever variant of this screen is showing.
+   *
+   * The scan can be confirmed from three places — a camera read, a typed code,
+   * and the dev button — and two of those are reachable when the camera is
+   * unavailable, which is exactly the case on a simulator and on the demo
+   * path. Putting the confirmation inside the viewfinder would have covered
+   * only one of them and left the other two with the dead air this was meant
+   * to remove.
+   */
+  const confirmOverlay = confirmed ? (
+    <View style={styles.confirmOverlay} pointerEvents="none">
+      <Animated.View
+        entering={reduced ? undefined : ZoomIn.duration(DURATION.base)}
+        style={styles.confirmBadge}
+      >
+        <Icon name="check" size={44} color={colors.textInverse} />
+      </Animated.View>
+      <Text style={styles.confirmLabel}>{t.scanConfirmed}</Text>
+    </View>
+  ) : null;
 
   const manualSheet = (
     <BottomSheet
@@ -137,6 +194,7 @@ export default function ScanScreen() {
           )}
         </View>
         {manualSheet}
+        {confirmOverlay}
       </SafeAreaView>
     );
   }
@@ -199,6 +257,7 @@ export default function ScanScreen() {
       </SafeAreaView>
 
       {manualSheet}
+      {confirmOverlay}
     </View>
   );
 }
@@ -212,6 +271,26 @@ const styles = StyleSheet.create({
     paddingTop: spacing.s,
   },
   viewfinderArea: { alignItems: 'center', gap: spacing.l },
+  confirmOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.l,
+    backgroundColor: 'rgba(11, 15, 20, 0.55)',
+  },
+  confirmBadge: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmLabel: { ...typography.heading, color: colors.textInverse },
   viewfinder: { width: VIEWFINDER_SIZE, height: VIEWFINDER_SIZE },
   corner: {
     position: 'absolute',

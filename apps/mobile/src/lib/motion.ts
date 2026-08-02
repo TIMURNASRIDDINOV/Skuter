@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Easing, useReducedMotion } from 'react-native-reanimated';
 
 /**
@@ -38,4 +39,52 @@ export function useMotion(): {
     reduced,
     duration: (ms: number) => (reduced ? 0 : ms),
   };
+}
+
+/**
+ * Counts from the previous value to the next instead of snapping.
+ *
+ * The ride cost is charged per whole minute, so it does not creep — it jumps
+ * by a full minute's fare once a minute. Snapping reads as a glitch on a
+ * number the rider is watching; sliding over 250 ms reads as it being charged.
+ * Same principle as the back office's live KPIs.
+ */
+export function useCountUp(value: number, ms: number = DURATION.slow): number {
+  const { reduced } = useMotion();
+  const [shown, setShown] = useState(value);
+  const from = useRef(value);
+  const frame = useRef<number | null>(null);
+
+  useEffect(() => {
+    const origin = from.current;
+    const delta = value - origin;
+
+    if (reduced || delta === 0) {
+      from.current = value;
+      setShown(value);
+      return;
+    }
+
+    const start = Date.now();
+    const step = () => {
+      const t = Math.min(1, (Date.now() - start) / ms);
+      const eased = 1 - (1 - t) ** 3;
+      setShown(origin + delta * eased);
+      if (t < 1) {
+        frame.current = requestAnimationFrame(step);
+      } else {
+        from.current = value;
+        frame.current = null;
+      }
+    };
+    frame.current = requestAnimationFrame(step);
+
+    return () => {
+      if (frame.current !== null) cancelAnimationFrame(frame.current);
+      // Land on the target so an interrupted run never leaves a stale figure.
+      from.current = value;
+    };
+  }, [value, ms, reduced]);
+
+  return shown;
 }

@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ApiRequestError } from '@/api/client';
 import { useActiveRide, useBeep, useEndRide, usePlans, useZones } from '@/api/queries';
 import { ZoneOverlays } from '@/components/ZoneOverlays';
@@ -16,6 +17,7 @@ import { formatDistance, formatDuration } from '@/lib/format';
 import { polygonCentroid } from '@/lib/geo';
 import { useI18n } from '@/lib/i18n';
 import { MAP_STYLE_URL, RIDE_ZOOM } from '@/lib/map';
+import { DURATION, useCountUp, useMotion } from '@/lib/motion';
 import { ZONE_KIND_COLOUR, colors, radius, shadows, spacing, typography } from '@/lib/theme';
 
 const SCREEN_PADDING = 20;
@@ -25,6 +27,7 @@ export default function RideScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<CameraRef>(null);
+  const { reduced } = useMotion();
 
   const activeRideQuery = useActiveRide();
   const zonesQuery = useZones();
@@ -104,6 +107,27 @@ export default function RideScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nearestZone]);
 
+  const plan = plansQuery.data?.items.find((item) => item.id === ride?.planId) ?? null;
+  const durationS =
+    ride === null ? 0 : Math.max(0, (now - new Date(ride.startedAt).getTime()) / 1000);
+  // Same pure function the API charges with — the ticker cannot disagree
+  // with the receipt. Fall back to the server's number until plans load.
+  const liveCost =
+    ride === null
+      ? 0
+      : plan !== null
+        ? calculateRideCost({
+            plan: { kind: plan.kind, unlockFee: plan.unlockFee, price: plan.price },
+            durationS,
+            distanceM: ride.distanceM,
+          }).total
+        : ride.currentCost;
+
+  // Charged per whole minute, so this jumps rather than creeps — slide it.
+  // Computed above the early return below: hooks cannot run conditionally, and
+  // this screen legitimately renders with no ride while the poll settles.
+  const shownCost = useCountUp(liveCost);
+
   if (ride === null) {
     return <SafeAreaView style={styles.loading} />;
   }
@@ -112,19 +136,6 @@ export default function RideScreen() {
   // position, unless the dev control has placed them somewhere specific.
   const riderLocation = devLocation ?? ride.vehicle.location;
   const inParking = parkingZones.some((zone) => isPointInPolygon(riderLocation, zone.geom));
-
-  const plan = plansQuery.data?.items.find((item) => item.id === ride.planId) ?? null;
-  const durationS = Math.max(0, (now - new Date(ride.startedAt).getTime()) / 1000);
-  // Same pure function the API charges with — the ticker cannot disagree
-  // with the receipt. Fall back to the server's number until plans load.
-  const liveCost =
-    plan !== null
-      ? calculateRideCost({
-          plan: { kind: plan.kind, unlockFee: plan.unlockFee, price: plan.price },
-          durationS,
-          distanceM: ride.distanceM,
-        }).total
-      : ride.currentCost;
 
   const submitEnd = (location: LatLon) => {
     endRide.mutate(
@@ -230,7 +241,7 @@ export default function RideScreen() {
           <View style={styles.statDivider} />
           <Stat label={t.distance} value={formatDistance(ride.distanceM, lang)} />
           <View style={styles.statDivider} />
-          <Stat label={t.cost} value={formatSom(liveCost)} highlight />
+          <Stat label={t.cost} value={formatSom(Math.round(shownCost))} highlight />
         </View>
 
         <View style={styles.parkingRow}>
@@ -251,8 +262,14 @@ export default function RideScreen() {
         </View>
 
         {blocked !== null && (
-          <View style={styles.blockedCard}>
-            <Text style={styles.blockedTitle}>{t.cantEndHereTitle}</Text>
+          <Animated.View
+            entering={reduced ? undefined : FadeInDown.duration(DURATION.slow)}
+            style={styles.blockedCard}
+          >
+            <View style={styles.blockedTitleRow}>
+              <Icon name="alert" size={20} color={colors.danger} />
+              <Text style={styles.blockedTitle}>{t.cantEndHereTitle}</Text>
+            </View>
             <Text style={styles.blockedBody}>{blockedReasonText}</Text>
             {nearest !== null && (
               <View style={styles.blockedZoneRow}>
@@ -282,7 +299,7 @@ export default function RideScreen() {
                 style={styles.blockedAction}
               />
             </View>
-          </View>
+          </Animated.View>
         )}
 
         <Button
@@ -301,7 +318,17 @@ function Stat({ label, value, highlight = false }: { label: string; value: strin
   return (
     <View style={styles.stat}>
       <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, highlight && styles.statValueHighlight]}>{value}</Text>
+      {/* The cost is the widest of the three and grows as the ride runs —
+          "6 000 so'm" wrapped onto a second line and broke the row. Shrink to
+          fit rather than wrap: the number has to stay one glanceable thing. */}
+      <Text
+        style={[styles.statValue, highlight && styles.statValueHighlight]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+      >
+        {value}
+      </Text>
     </View>
   );
 }
@@ -404,13 +431,19 @@ const styles = StyleSheet.create({
   },
   beepButtonPressed: { backgroundColor: colors.surfaceMuted },
   beepLabel: { ...typography.label, color: colors.text },
+  // A refusal, not a hint. The amber card this replaced read like form
+  // validation — something to fix and move on from — when the ride genuinely
+  // cannot end here. Red, bordered, with the stop icon in the title.
   blockedCard: {
-    backgroundColor: colors.warningFaint,
+    backgroundColor: colors.dangerFaint,
     borderRadius: radius.l,
+    borderWidth: 1,
+    borderColor: colors.danger,
     padding: spacing.l,
     gap: spacing.s,
   },
-  blockedTitle: { ...typography.heading, color: colors.text },
+  blockedTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.s },
+  blockedTitle: { ...typography.heading, color: colors.danger, flex: 1 },
   blockedBody: { ...typography.body, color: colors.textSecondary },
   blockedZoneRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.s },
   blockedZone: { ...typography.body, color: colors.text, fontWeight: '600', flex: 1 },
