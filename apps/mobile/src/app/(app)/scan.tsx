@@ -3,7 +3,7 @@ import { qrCodeSchema } from '@scoot/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +32,8 @@ export default function ScanScreen() {
   const { t } = useI18n();
   const router = useRouter();
   const queryClient = useQueryClient();
+  // Opened from Аренда to buy a pass rather than from the map to ride.
+  const { intent } = useLocalSearchParams<{ intent?: string }>();
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const [torch, setTorch] = useState(false);
@@ -74,7 +76,11 @@ export default function ScanScreen() {
     setConfirmed(true);
 
     const go = () => {
-      router.replace({ pathname: '/unlock', params: { qr: qrCode } });
+      router.replace(
+        intent === 'subscribe'
+          ? { pathname: '/plans', params: { qr: qrCode } }
+          : { pathname: '/unlock', params: { qr: qrCode } },
+      );
     };
 
     if (reduced) {

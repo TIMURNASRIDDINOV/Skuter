@@ -1,12 +1,13 @@
-import type { Plan } from '@scoot/shared';
+import type { Plan, Vehicle } from '@scoot/shared';
 import { formatSom } from '@scoot/shared';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
-import { ApiRequestError } from '@/api/client';
+import { ApiRequestError, apiFetch } from '@/api/client';
 import { useBuySubscription, usePlans } from '@/api/queries';
 import { EmptyState, ErrorState, ListSkeleton } from '@/components/states';
 import { Button, Icon, IconButton } from '@/components/ui';
@@ -31,14 +32,36 @@ export default function PlansScreen() {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [purchased, setPurchased] = useState(false);
 
+  // Reached from the map, the caller already knows the vehicle. Reached by
+  // scanning from the Аренда screen, it knows only the code on the sticker —
+  // so resolve it here rather than making every caller look it up first.
+  const scannedQuery = useQuery({
+    queryKey: ['vehicleByQr', params.qr],
+    queryFn: () => apiFetch<Vehicle>(`/vehicles/by-qr/${params.qr ?? ''}`),
+    enabled: params.vehicleId === undefined && (params.qr ?? '').length > 0,
+  });
+
+  const vehicleId = params.vehicleId ?? scannedQuery.data?.id;
+  const vehicleQr = params.qr ?? scannedQuery.data?.qrCode ?? '';
+  const vehicleModel = params.model ?? scannedQuery.data?.model ?? '';
+
   const subscribable = (plansQuery.data?.items ?? []).filter(
     (plan): plan is Plan & { durationDays: number } =>
       plan.kind !== 'per_minute' && plan.durationDays !== null,
   );
   const selected = subscribable.find((plan) => plan.id === selectedPlanId) ?? null;
 
+  if (scannedQuery.isPending && params.vehicleId === undefined && (params.qr ?? '') !== '') {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <Header title={t.plansTitle} onBack={() => router.back()} />
+        <ListSkeleton rows={3} />
+      </SafeAreaView>
+    );
+  }
+
   // Deep-linked here without a scooter — a subscription binds to one.
-  if (params.vehicleId === undefined) {
+  if (vehicleId === undefined) {
     return (
       <SafeAreaView style={styles.safe}>
         <Header title={t.plansTitle} onBack={() => router.back()} />
@@ -59,7 +82,7 @@ export default function PlansScreen() {
           </Animated.View>
           <Text style={styles.successTitle}>{t.purchaseSuccessTitle}</Text>
           <Text style={styles.successHint}>
-            {params.qr} — {t.until} {formatDate(expiry(selected.durationDays), lang)}
+            {vehicleQr} — {t.until} {formatDate(expiry(selected.durationDays), lang)}
           </Text>
           <Text style={styles.successNote}>{t.purchaseSuccessHint}</Text>
         </View>
@@ -87,8 +110,8 @@ export default function PlansScreen() {
 
       <ScrollView contentContainerStyle={styles.list}>
         <Text style={styles.subtitle}>
-          {t.choosePlanFor} {params.qr}
-          {params.model !== undefined ? ` · ${params.model}` : ''}
+          {t.choosePlanFor} {vehicleQr}
+          {vehicleModel !== '' ? ` · ${vehicleModel}` : ''}
         </Text>
         <Text style={styles.note}>{t.plansSubtitle}</Text>
 
@@ -134,14 +157,14 @@ export default function PlansScreen() {
       {selected !== null && (
         <View style={styles.footer}>
           <Text style={styles.expiryNote}>
-            {params.qr} — {t.until} {formatDate(expiry(selected.durationDays), lang)}
+            {vehicleQr} — {t.until} {formatDate(expiry(selected.durationDays), lang)}
           </Text>
           <Button
             label={`${t.buyFor} ${formatSom(selected.price)}`}
             loading={buy.isPending}
             onPress={() => {
               buy.mutate(
-                { planId: selected.id, vehicleId: params.vehicleId ?? '' },
+                { planId: selected.id, vehicleId },
                 {
                   onSuccess: async () => {
                     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

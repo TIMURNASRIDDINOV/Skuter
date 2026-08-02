@@ -11,9 +11,12 @@ import { useI18n } from '@/lib/i18n';
 import { colors, spacing, typography } from '@/lib/theme';
 
 /**
- * Аренда tab: active passes and the daily/weekly plans. A pass binds to one
- * scooter, so buying starts at the scanner — the unlock screen then offers
- * the plan choice, exactly like the map flow.
+ * Аренда: active passes and the daily/weekly plans.
+ *
+ * A pass binds to one scooter, so buying starts at the scanner — opened with
+ * `intent=subscribe`, which sends the read to the plan picker instead of the
+ * unlock screen. Without that the button read "scan a scooter and buy" and
+ * landed the rider on "unlock and start riding", which is a different thing.
  */
 export default function RentalScreen() {
   const { t, lang } = useI18n();
@@ -78,8 +81,15 @@ export default function RentalScreen() {
         {plans.map((plan: Plan) => (
           <Card key={plan.id} style={styles.card}>
             <View style={styles.rowBetween}>
-              <Text style={styles.cardTitle}>{plan.name}</Text>
-              <Text style={styles.price}>{formatSom(plan.price)}</Text>
+              {/* Plan names come from the database and can be long. Without a
+                  flex/shrink split the title ran straight into the price, and
+                  a six-figure so'm amount overflowed the card entirely. */}
+              <Text style={styles.cardTitle} numberOfLines={2}>
+                {plan.name}
+              </Text>
+              <Text style={styles.price} numberOfLines={1}>
+                {formatSom(plan.price)}
+              </Text>
             </View>
             <Text style={styles.metaText}>
               {plan.durationDays === 1
@@ -89,7 +99,7 @@ export default function RentalScreen() {
             <Button
               label={t.rentalScanCta}
               variant="secondary"
-              onPress={() => router.push('/scan')}
+              onPress={() => router.push({ pathname: '/scan', params: { intent: 'subscribe' } })}
               style={styles.cta}
             />
           </Card>
@@ -126,9 +136,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardTitle: { ...typography.heading, color: colors.text },
-  price: { ...typography.title, color: colors.primaryPressed, fontVariant: ['tabular-nums'] },
+  rowBetween: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.m,
+  },
+  cardTitle: { ...typography.heading, color: colors.text, flex: 1 },
+  price: {
+    ...typography.heading,
+    color: colors.primaryPressed,
+    fontVariant: ['tabular-nums'],
+    flexShrink: 0,
+  },
   metaText: { ...typography.label, color: colors.textSecondary },
   mutedText: { ...typography.body, color: colors.textSecondary },
   cta: { marginTop: spacing.s },

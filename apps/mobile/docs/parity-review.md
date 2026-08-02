@@ -331,4 +331,30 @@ named and its walking distance shown.
 **Not verified:** the success path (ending inside a parking zone) and the
 receipt. Neither was changed beyond the cost-shrink, but neither was exercised
 end to end in this session, and saying otherwise would be a guess.
-### 5.5 Plan purchase — pending
+### 5.5 Plan purchase
+
+**A real flow bug, not a cosmetic one.** The Аренда screen's button read
+"Отсканировать самокат и купить" and pushed `/scan`, which unconditionally
+routed to `/unlock`. So the rider was offered a pass and landed on "unlock and
+start riding" — a different action, and one that charges differently.
+
+The scanner now takes an `intent` param. `intent=subscribe` sends the read to
+the plan picker instead. The plans screen resolves the vehicle from the scanned
+code itself (`/vehicles/by-qr/:qr`) rather than requiring the caller to already
+know an id, so both entry points work: the map passes a vehicle it has, the
+scanner passes only the sticker code.
+
+**Layout fixes on the same screen:** plan names come from the database and can
+be long, so the title ran straight into the price ("Дневной абонемент45 000
+so'm") and a six-figure amount overflowed the card. Title now flexes, price
+does not shrink.
+
+**Verified end to end against the database.** Bought a weekly pass on
+SCOOT-0001: the subscription row is `active` with the right expiry, and the
+vehicle is now excluded from the public list twice over — its status moved to
+`reserved`, *and* `listPublic` independently filters vehicles with an active
+subscription. That is demo step 6 working, both halves.
+
+**Known cosmetic gap, not faked:** plan names are seeded in Russian and are
+data, not interface strings, so they stay Russian while the UI is in Uzbek.
+Translating them would mean inventing content the database does not have.
