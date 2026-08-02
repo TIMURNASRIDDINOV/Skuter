@@ -7,10 +7,17 @@ import { useI18n } from '@/lib/i18n';
 import { colors, shadows, spacing, typography } from '@/lib/theme';
 
 /**
- * Uzum-style bottom navigation: Карта / Аренда / raised circular Скан /
- * Профиль. The scan slot is not a tab — its button pushes the full-screen
- * scanner modal. The bar owns the bottom inset, which is what keeps every
- * screen clear of Android's edge-to-edge gesture bar.
+ * Bottom navigation: Карта / raised circular Скан / Профиль.
+ *
+ * **Three slots, not four.** The scan button is the primary action of the
+ * whole app, so it has to sit dead centre — and with four slots it lands at
+ * 62.5% of the width, visibly off. Rental moved out to its own screen, reached
+ * from Профиль: it duplicated the subscriptions and history already there, and
+ * its only unique content was the price list.
+ *
+ * The scan slot is not a tab — its button pushes the full-screen scanner
+ * modal. The bar owns the bottom inset, which is what keeps every screen clear
+ * of Android's edge-to-edge gesture bar.
  */
 export default function TabsLayout() {
   const { t } = useI18n();
@@ -37,13 +44,6 @@ export default function TabsLayout() {
         options={{
           title: t.tabMap,
           tabBarIcon: ({ color }) => <TabIcon name="map" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="rental"
-        options={{
-          title: t.tabRental,
-          tabBarIcon: ({ color }) => <TabIcon name="ticket" color={color} />,
         }}
       />
       <Tabs.Screen
