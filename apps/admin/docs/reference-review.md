@@ -513,5 +513,55 @@ the zone editor, which puts a much more interactive map in the same situation.
 a grey stripe down a column of no particular importance and pulled the eye
 straight to it. Overridden via `bodySortBg` in the theme, so it is fixed for
 every table at once.
-### 3.4 Zone editor — pending
+### 3.4 Zone editor
+
+**Before:** a map with the leaflet-draw toolbar, and a sidebar list of zone
+names with a delete button. You drew geofences **blind** — no scooters on the
+map, no idea what any zone contained, no way to jump to one, and no way to
+rename a zone once created. Deleting the service area was one click behind a
+generic "Действие нельзя отменить".
+
+**After:** the fleet is drawn underneath the zones, the list says what each zone
+holds, and the screen leads with what is wrong.
+
+| Change | Why |
+|---|---|
+| **Fleet drawn on the editor map** (toggleable) | A boundary only means something in relation to the scooters it does or does not contain. Drawing a service area without seeing what falls outside it is how you strand a fleet — and it is what this screen used to make you do. |
+| Stranded vehicles get a **red ring**, not a different fill | "Outside" is an overlay on status, not a seventh status. Colour still means what it means everywhere else. |
+| **Attention banner**: *N самокатов за пределами зоны обслуживания* | The screen's own version of "what needs my attention". Clicking frames them, so the fix — redraw the boundary — happens where the problem is shown. |
+| **Vehicle count per zone** in the list | Derived client-side with `isPointInPolygon`, the same predicate the dashboard uses. Turns a list of names into a list of facts. |
+| Zones **grouped by kind**, service first | The service area is the one whose edges strand scooters; it should not be sorted in among five parking bays. |
+| **Hover to highlight, click to frame** | Connects list and map, which were previously two unrelated things side by side. |
+| **Rename / change kind** added | `PATCH` already accepted `name` and `kind`; the UI simply never offered it, so a typo meant delete and redraw. |
+| Delete confirm states the **consequence** | Deleting a service area now says the whole fleet ends up out of bounds; deleting any other zone says how many scooters are inside it. |
+| Zone kind legend under the map | The colours were previously only decodable by opening the list. |
+
+**`DrawControl` was deliberately left alone.** Its comments document real
+leaflet-draw defects — the `showArea` crash that caps polygons at three points,
+the duplicate closing vertex that doubles a drag handle. The only change is
+that hover restyles existing layers in place rather than rebuilding the feature
+group, because clearing and re-adding layers would drop any edit handles the
+operator currently has open.
+
+**The map-sizing bug, properly diagnosed.** §3.3 fixed maps in drawers by
+re-invalidating on resize. That fix was incomplete and this screen exposed why —
+worth writing down, because the failure looks like a data problem and is not:
+
+1. `invalidateSize()` **pans by default** to preserve the centre. The observer
+   fires again for each size change, so that offset accumulates: the map pane
+   ended up translated 360px and tiles rendered in a band with empty map either
+   side.
+2. `invalidateSize({ pan: false })` avoids the drift but anchors the top-left,
+   so a container that grows rightwards leaves the subject pinned to the left
+   edge — here the whole of Tashkent squashed against the border while the view
+   showed empty country to the east.
+3. The working version keeps the centre **by hand** — read `getCenter()` and
+   `getZoom()`, invalidate with `pan: false`, then `setView` back. `setView`
+   also forces a clean reset, which is what actually fetches tiles for the
+   newly exposed area.
+
+It now lives in one place, `components/MapAutoSize.tsx`, shared by every map.
+The guard against re-running on unchanged sizes matters too: this page
+re-renders every few seconds from the fleet stream, and an unguarded re-fit
+would snatch the map back mid-drag.
 ### 3.5 Other — pending

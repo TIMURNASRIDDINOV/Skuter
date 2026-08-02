@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   CircleMarker,
   MapContainer,
@@ -7,7 +7,6 @@ import {
   Popup,
   TileLayer,
   Tooltip,
-  useMap,
 } from 'react-leaflet';
 import { Space, Typography } from 'antd';
 import {
@@ -18,6 +17,7 @@ import {
   type Zone,
 } from '@scoot/shared';
 import { VEHICLE_STATUS_META, ZONE_KIND_META } from './status.js';
+import { MapAutoSize } from './MapAutoSize.js';
 import 'leaflet/dist/leaflet.css';
 
 /**
@@ -100,7 +100,7 @@ export function FleetMap({
         ),
       )}
 
-      <MapAutoFit positions={route} />
+      <MapAutoSize positions={route} />
 
       {route.length > 1 ? (
         <>
@@ -143,42 +143,6 @@ export function FleetMap({
 
 function colourFor(status: VehicleStatus): string {
   return VEHICLE_STATUS_META[status].colour;
-}
-
-/**
- * Keeps the map sized to its container, and frames a route when given one.
- *
- * Both drawers mount their map while the drawer is still sliding in, so
- * Leaflet's first measurement is of a container that has not reached full
- * width yet — tiles then render into one corner and `fitBounds` computes a
- * viewport for the wrong size. Observing the container and re-invalidating
- * fixes both, and costs nothing on the dashboard where the size never changes.
- *
- * A fixed centre and zoom could not frame a route anyway: rides run from a few
- * hundred metres to right across the city.
- */
-function MapAutoFit({ positions }: { positions: [number, number][] }): null {
-  const map = useMap();
-
-  useEffect(() => {
-    const apply = (): void => {
-      map.invalidateSize();
-      if (positions.length > 0) {
-        map.fitBounds(positions, { padding: [24, 24], maxZoom: 16 });
-      }
-    };
-
-    const observer = new ResizeObserver(apply);
-    observer.observe(map.getContainer());
-    const frame = requestAnimationFrame(apply);
-
-    return () => {
-      observer.disconnect();
-      cancelAnimationFrame(frame);
-    };
-  }, [map, positions]);
-
-  return null;
 }
 
 function RouteEnd({
