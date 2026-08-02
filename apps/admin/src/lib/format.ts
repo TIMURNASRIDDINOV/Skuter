@@ -31,6 +31,28 @@ export function formatRelative(iso: string | null): string {
   return dayjs(iso).fromNow();
 }
 
+/**
+ * Compact relative time for dense tables — `8 с`, `12 мин`, `3 ч`, `2 дн`.
+ *
+ * `formatRelative` is the right thing in prose, but "несколько секунд назад"
+ * wraps to two lines in a table cell and doubles every row's height, which on
+ * a live fleet list is most of the rows most of the time.
+ */
+export function formatAgo(iso: string | null): string {
+  if (iso === null) return '—';
+
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (seconds < 60) return `${String(seconds)} с`;
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${String(minutes)} мин`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${String(hours)} ч`;
+
+  return `${String(Math.floor(hours / 24))} дн`;
+}
+
 export function formatDuration(seconds: number): string {
   const total = Math.max(0, Math.round(seconds));
   const h = Math.floor(total / 3600);

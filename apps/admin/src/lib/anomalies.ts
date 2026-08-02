@@ -27,6 +27,8 @@ export interface Anomaly {
   id: string;
   kind: AnomalyKind;
   severity: Severity;
+  /** Id of the vehicle at fault, so a table row can find its own problems. */
+  vehicleId: string;
   /** The thing at fault, e.g. `SCOOT-0042`. */
   subject: string;
   /** What is wrong with it, already localised. */
@@ -72,6 +74,7 @@ export function deriveAnomalies({
       found.push({
         id: `offline:${vehicle.id}`,
         kind: 'vehicle_offline',
+        vehicleId: vehicle.id,
         severity: 'alarm',
         subject: vehicle.qrCode,
         detail: 'не выходит на связь',
@@ -85,6 +88,7 @@ export function deriveAnomalies({
       found.push({
         id: `outside:${vehicle.id}`,
         kind: 'vehicle_outside_service',
+        vehicleId: vehicle.id,
         severity: 'alarm',
         subject: vehicle.qrCode,
         detail: 'за пределами зоны обслуживания',
@@ -96,6 +100,7 @@ export function deriveAnomalies({
       found.push({
         id: `maintenance:${vehicle.id}`,
         kind: 'vehicle_maintenance',
+        vehicleId: vehicle.id,
         severity: 'watch',
         subject: vehicle.qrCode,
         detail: 'на обслуживании',
@@ -109,6 +114,7 @@ export function deriveAnomalies({
       found.push({
         id: `battery:${vehicle.id}`,
         kind: 'vehicle_low_battery',
+        vehicleId: vehicle.id,
         severity: 'watch',
         subject: vehicle.qrCode,
         detail: `заряд ${String(vehicle.batteryPct)} %`,
@@ -124,6 +130,7 @@ export function deriveAnomalies({
       found.push({
         id: `overlong:${ride.id}`,
         kind: 'ride_overlong',
+        vehicleId: ride.vehicleId,
         severity: 'alarm',
         subject: ride.vehicleQrCode,
         detail: `поездка идёт ${String(Math.floor(minutes))} мин`,
@@ -136,6 +143,7 @@ export function deriveAnomalies({
       found.push({
         id: `stalled:${ride.id}`,
         kind: 'ride_stalled',
+        vehicleId: ride.vehicleId,
         severity: 'alarm',
         subject: ride.vehicleQrCode,
         detail: `поездка ${String(Math.floor(minutes))} мин без движения`,

@@ -1,22 +1,95 @@
-import { useMemo, useState } from 'react';
-import { Card, Input, Progress, Segmented, Space, Table, Typography } from 'antd';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Card, Input, Progress, Segmented, Space, Table, Typography, theme } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import type { AdminVehicle, VehicleStatus } from '@scoot/shared';
+import type { AdminVehicle, Ride, VehicleStatus, Zone } from '@scoot/shared';
+import { LOW_BATTERY_THRESHOLD_PCT } from '@scoot/shared';
 import { useLiveFleet } from '../lib/useLiveFleet.js';
-import { formatRelative } from '../lib/format.js';
-import { VEHICLE_STATUS_META, VehicleStatusTag } from '../components/status.js';
+import { apiFetch, type ListResponse } from '../lib/api.js';
+import { useServerEvents } from '../lib/events.js';
+import { formatAgo } from '../lib/format.js';
+import {
+  DEFAULT_THRESHOLDS,
+  deriveAnomalies,
+  type Anomaly,
+} from '../lib/anomalies.js';
+import {
+  SEVERITY_META,
+  VEHICLE_STATUS_META,
+  VehicleStatusTag,
+  type Severity,
+} from '../components/status.js';
+import { useRecentlyChanged } from '../components/motion.js';
+import { VehicleDrawer } from '../components/VehicleDrawer.js';
 import { EmptyState, ErrorState, TableSkeleton } from '../components/states.js';
 
-/** Vehicles table, live from the same SSE stream as the map. */
+type ActiveRide = Ride & { vehicleQrCode: string };
+
+/** `all` and `attention` sit alongside the real statuses as pseudo-filters. */
+type Filter = VehicleStatus | 'all' | 'attention';
+
+const vehicleId = (vehicle: AdminVehicle): string => vehicle.id;
+// Battery and position move every tick; only a status change should flash.
+const vehicleSignature = (vehicle: AdminVehicle): string => vehicle.status;
+
+/**
+ * The fleet, live from the same SSE stream as the map.
+ *
+ * Problems come first: the toolbar leads with how many vehicles need something
+ * doing, and each row carries its own faults. The reference panel's equivalent
+ * screen opens with roughly 700px of filter chips and no data above the fold
+ * (docs/reference-review.md §1.5) — this one opens on the table.
+ */
 export function VehiclesPage(): React.ReactElement {
   const { vehicles, isLoading, error, refetch } = useLiveFleet();
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [activeRides, setActiveRides] = useState<ActiveRide[]>([]);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<VehicleStatus | 'all'>('all');
+  const [filter, setFilter] = useState<Filter>('all');
+  const [selected, setSelected] = useState<AdminVehicle | null>(null);
+  const { token } = theme.useToken();
+
+  const loadContext = useCallback(() => {
+    Promise.all([
+      apiFetch<ListResponse<Zone>>('/admin/zones'),
+      apiFetch<ListResponse<ActiveRide>>('/admin/rides?status=active'),
+    ])
+      .then(([nextZones, nextRides]) => {
+        setZones(nextZones.items);
+        setActiveRides(nextRides.items);
+      })
+      .catch(() => {
+        // The table stands on its own without zones; losing them only costs
+        // the out-of-zone flag, so this must not blank the screen.
+      });
+  }, []);
+
+  useEffect(loadContext, [loadContext]);
+  useServerEvents(loadContext, ['ride.started', 'ride.ended']);
+
+  const anomalies = useMemo(
+    () =>
+      deriveAnomalies({ vehicles, zones, activeRides, thresholds: DEFAULT_THRESHOLDS }),
+    [vehicles, zones, activeRides],
+  );
+
+  const byVehicle = useMemo(() => {
+    const map = new Map<string, Anomaly[]>();
+    for (const anomaly of anomalies) {
+      const bucket = map.get(anomaly.vehicleId);
+      if (bucket === undefined) map.set(anomaly.vehicleId, [anomaly]);
+      else bucket.push(anomaly);
+    }
+    return map;
+  }, [anomalies]);
+
+  const attentionCount = byVehicle.size;
+  const flashing = useRecentlyChanged(vehicles, vehicleId, vehicleSignature);
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return vehicles.filter((vehicle) => {
-      if (statusFilter !== 'all' && vehicle.status !== statusFilter) return false;
+      if (filter === 'attention' && !byVehicle.has(vehicle.id)) return false;
+      if (filter !== 'all' && filter !== 'attention' && vehicle.status !== filter) return false;
       if (needle === '') return true;
       return (
         vehicle.qrCode.toLowerCase().includes(needle) ||
@@ -24,33 +97,81 @@ export function VehiclesPage(): React.ReactElement {
         vehicle.imei.includes(needle)
       );
     });
-  }, [vehicles, search, statusFilter]);
+  }, [vehicles, search, filter, byVehicle]);
 
   const columns: ColumnsType<AdminVehicle> = [
     {
-      title: 'Код',
+      title: 'Самокат',
       dataIndex: 'qrCode',
-      width: 130,
+      width: 190,
       sorter: (a, b) => a.qrCode.localeCompare(b.qrCode),
-      render: (value: string) => <Typography.Text strong>{value}</Typography.Text>,
+      defaultSortOrder: 'ascend',
+      // Code and model as one cell with a hierarchy, rather than two columns
+      // of equal weight — the code is what an operator reads, the model is
+      // context they only need once they have found the row.
+      render: (code: string, vehicle) => (
+        <Space size={8}>
+          <SeverityDot severity={worstSeverity(byVehicle.get(vehicle.id))} />
+          <span>
+            <Typography.Text strong style={{ fontFamily: 'monospace' }}>
+              {code}
+            </Typography.Text>
+            <br />
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+              {vehicle.model}
+            </Typography.Text>
+          </span>
+        </Space>
+      ),
     },
-    { title: 'Модель', dataIndex: 'model', width: 160, ellipsis: true },
     {
       title: 'Статус',
       dataIndex: 'status',
-      width: 150,
+      width: 140,
       render: (status: VehicleStatus) => <VehicleStatusTag status={status} />,
+    },
+    {
+      title: 'Проблемы',
+      key: 'problems',
+      render: (_, vehicle) => {
+        const found = byVehicle.get(vehicle.id);
+        if (found === undefined) {
+          return (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              —
+            </Typography.Text>
+          );
+        }
+        return (
+          <Space size={4} wrap>
+            {found.map((anomaly) => (
+              <Typography.Text
+                key={anomaly.id}
+                style={{ fontSize: 12, color: SEVERITY_META[anomaly.severity].colour }}
+              >
+                {anomaly.detail}
+              </Typography.Text>
+            ))}
+          </Space>
+        );
+      },
     },
     {
       title: 'Заряд',
       dataIndex: 'batteryPct',
-      width: 150,
+      width: 130,
       sorter: (a, b) => a.batteryPct - b.batteryPct,
       render: (pct: number) => (
         <Progress
           percent={pct}
           size="small"
-          strokeColor={pct < 20 ? '#faad14' : pct < 50 ? '#1677ff' : '#52c41a'}
+          strokeColor={
+            pct <= LOW_BATTERY_THRESHOLD_PCT
+              ? token.colorWarning
+              : pct < 50
+                ? token.colorPrimary
+                : token.colorSuccess
+          }
           format={(value) => `${String(value ?? 0)}%`}
         />
       ),
@@ -58,26 +179,24 @@ export function VehiclesPage(): React.ReactElement {
     {
       title: 'Запас хода',
       dataIndex: 'rangeM',
-      width: 110,
-      render: (metres: number) => `${(metres / 1000).toFixed(1)} км`,
-    },
-    {
-      title: 'Координаты',
-      key: 'location',
-      width: 190,
-      render: (_, vehicle) => (
-        <Typography.Text type="secondary" style={{ fontFamily: 'monospace', fontSize: 12 }}>
-          {vehicle.location.lat.toFixed(5)}, {vehicle.location.lon.toFixed(5)}
-        </Typography.Text>
+      width: 105,
+      sorter: (a, b) => a.rangeM - b.rangeM,
+      render: (metres: number) => (
+        <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {(metres / 1000).toFixed(1)} км
+        </span>
       ),
     },
-    { title: 'IMEI', dataIndex: 'imei', width: 150, ellipsis: true },
     {
       title: 'На связи',
       dataIndex: 'lastSeenAt',
-      width: 130,
+      width: 100,
+      align: 'right',
+      sorter: (a, b) => a.lastSeenAt.localeCompare(b.lastSeenAt),
       render: (iso: string) => (
-        <Typography.Text type="secondary">{formatRelative(iso)}</Typography.Text>
+        <Typography.Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {formatAgo(iso)}
+        </Typography.Text>
       ),
     },
   ];
@@ -85,57 +204,130 @@ export function VehiclesPage(): React.ReactElement {
   if (error !== null) return <ErrorState message={error} onRetry={refetch} />;
 
   return (
-    <Card
-      size="small"
-      title={`Самокаты — ${String(vehicles.length)}`}
-      extra={
-        <Space>
+    <>
+      <Card size="small">
+        {/* One row, not the reference panel's 700px filter wall — the table
+            has to start above the fold. */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            flexWrap: 'wrap',
+            marginBottom: 10,
+          }}
+        >
+          <Typography.Text strong style={{ flex: '0 0 auto' }}>
+            Самокаты{' '}
+            <Typography.Text type="secondary" style={{ fontWeight: 400 }}>
+              {filtered.length === vehicles.length
+                ? vehicles.length
+                : `${String(filtered.length)} из ${String(vehicles.length)}`}
+            </Typography.Text>
+          </Typography.Text>
+
           <Segmented
             size="small"
-            value={statusFilter}
+            value={filter}
             onChange={(value) => {
-              setStatusFilter(value as VehicleStatus | 'all');
+              setFilter(value as Filter);
             }}
             options={[
               { label: 'Все', value: 'all' },
+              {
+                label:
+                  attentionCount > 0
+                    ? `Требует внимания · ${String(attentionCount)}`
+                    : 'Требует внимания',
+                value: 'attention',
+              },
               ...(Object.keys(VEHICLE_STATUS_META) as VehicleStatus[]).map((status) => ({
                 label: VEHICLE_STATUS_META[status].label,
                 value: status,
               })),
             ]}
           />
+
           <Input.Search
             size="small"
             allowClear
             placeholder="Код, модель или IMEI"
-            style={{ width: 220 }}
+            style={{ width: 210, marginLeft: 'auto' }}
             onChange={(event) => {
               setSearch(event.target.value);
             }}
           />
-        </Space>
-      }
-    >
-      {isLoading ? (
-        <TableSkeleton rows={10} />
-      ) : filtered.length === 0 ? (
-        <EmptyState
-          description={
-            vehicles.length === 0
-              ? 'Парк пуст — запустите pnpm db:seed'
-              : 'Ничего не найдено по этому фильтру'
-          }
-        />
-      ) : (
-        <Table
-          rowKey="id"
-          size="small"
-          dataSource={filtered}
-          columns={columns}
-          pagination={{ pageSize: 20, showSizeChanger: true, size: 'small' }}
-          scroll={{ x: 1150 }}
-        />
-      )}
-    </Card>
+        </div>
+
+        {isLoading ? (
+          <TableSkeleton rows={10} />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            description={
+              vehicles.length === 0
+                ? 'Парк пуст — запустите pnpm db:seed'
+                : filter === 'attention'
+                  ? 'Ничего не требует вмешательства'
+                  : 'Ничего не найдено по этому фильтру'
+            }
+          />
+        ) : (
+          <Table
+            rowKey="id"
+            size="small"
+            dataSource={filtered}
+            columns={columns}
+            rowClassName={(vehicle) => (flashing.has(vehicle.id) ? 'scoot-flash' : '')}
+            onRow={(vehicle) => ({
+              onClick: () => {
+                setSelected(vehicle);
+              },
+              style: { cursor: 'pointer' },
+            })}
+            pagination={{ pageSize: 20, showSizeChanger: true, size: 'small' }}
+            scroll={{ x: 1000 }}
+          />
+        )}
+      </Card>
+
+      <VehicleDrawer
+        // Read through from live fleet state so the drawer keeps ticking while
+        // it is open rather than freezing on the row as it was clicked.
+        vehicle={
+          selected === null
+            ? null
+            : (vehicles.find((item) => item.id === selected.id) ?? selected)
+        }
+        anomalies={selected === null ? [] : (byVehicle.get(selected.id) ?? [])}
+        zones={zones}
+        onClose={() => {
+          setSelected(null);
+        }}
+      />
+    </>
+  );
+}
+
+function worstSeverity(anomalies: Anomaly[] | undefined): Severity {
+  if (anomalies === undefined || anomalies.length === 0) return 'ok';
+  return anomalies.some((anomaly) => anomaly.severity === 'alarm') ? 'alarm' : 'watch';
+}
+
+function SeverityDot({ severity }: { severity: Severity }): React.ReactElement {
+  return (
+    <span
+      aria-label={SEVERITY_META[severity].label}
+      title={SEVERITY_META[severity].label}
+      style={{
+        width: 7,
+        height: 7,
+        borderRadius: '50%',
+        flex: '0 0 auto',
+        display: 'inline-block',
+        // An "everything is fine" dot on every healthy row is noise; leave the
+        // space so codes stay aligned, but only ink it when it means something.
+        background: severity === 'ok' ? 'transparent' : SEVERITY_META[severity].colour,
+      }}
+    />
   );
 }

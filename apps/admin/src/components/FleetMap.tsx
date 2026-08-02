@@ -21,6 +21,9 @@ interface FleetMapProps {
   height?: number | string;
   /** Zones the operator is editing are drawn by the editor instead. */
   showZones?: boolean;
+  /** Defaults to the whole city; the vehicle drawer centres on one scooter. */
+  center?: { lat: number; lon: number };
+  zoom?: number;
 }
 
 export function FleetMap({
@@ -28,8 +31,11 @@ export function FleetMap({
   zones = [],
   height = 460,
   showZones = true,
+  center,
+  zoom = 11,
 }: FleetMapProps): React.ReactElement {
-  const centre: [number, number] = [TASHKENT_MAP_CENTER.lat, TASHKENT_MAP_CENTER.lon];
+  const anchor = center ?? TASHKENT_MAP_CENTER;
+  const centre: [number, number] = [anchor.lat, anchor.lon];
 
   const zonePolygons = useMemo(
     () =>
@@ -47,7 +53,7 @@ export function FleetMap({
   return (
     <MapContainer
       center={centre}
-      zoom={11}
+      zoom={zoom}
       style={{ height, width: '100%', borderRadius: 6 }}
       preferCanvas
     >

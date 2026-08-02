@@ -440,7 +440,46 @@ authoritative.
 slide are one rAF hook plus three keyframes (`components/motion.tsx`), which
 gives tighter control over the 150–250 ms spec than a new dependency would.
 Everything collapses to an instant swap under `prefers-reduced-motion`.
-### 3.2 Vehicle list + detail — pending
+### 3.2 Vehicle list + detail
+
+**Before:** eight columns of equal weight — code, model, status, battery, range,
+raw lat/lon, IMEI, last seen — a status filter, a search box, and no detail view
+at all. Nothing said which vehicle had a problem; you inferred it from the
+status tag and read coordinates as numbers.
+
+**After:** six columns with a hierarchy, a problems column, a severity dot per
+row, and a detail drawer.
+
+| Change | Why |
+|---|---|
+| Code + model merged into one cell | The code is what an operator reads; the model is context they need only after finding the row. Two equal columns made it a scan of two things. |
+| Raw lat/lon column dropped | Coordinates as digits answer nothing at a glance. Moved to the drawer, copyable, next to a map that actually shows where it is. |
+| IMEI column dropped | Hardware identity, needed once you are already looking at one vehicle. Still searchable, still in the drawer. |
+| New **Проблемы** column + severity dot | The screen's reason to exist. Each row now carries its own faults in severity colour. |
+| New **Требует внимания · N** filter, first after "Все" | Attention-first without a surprising default — see the deviation note below. |
+| Detail as a **drawer**, not a route | An operator working a list of problems does not lose their filter, scroll position or place to inspect one scooter. It slides rather than pops, per the motion brief. |
+| Row flashes on **status change only** | Battery and position move every 3s; keying the flash on those would strobe all 70 rows every tick, which is the opposite of drawing the eye. |
+| `formatAgo` for "На связи" | `formatRelative` renders "несколько секунд назад", which wraps to two lines and doubles row height — on a live fleet that is most rows most of the time. `8 с` / `12 мин` / `3 ч`, right-aligned, tabular. |
+| Toolbar moved out of `Card.extra` | With eight filter chips plus search it overflowed and truncated the card title to "Самокат". Own row, wrapping. |
+
+**Deviation from §2.1, deliberate.** The plan said "vehicles default to needs
+attention", mirroring the reference's ticket screen defaulting to *Unprocessed*.
+Building it, that turned out wrong for this screen specifically: a fleet list is
+a census, and opening on 16 of 70 with no obvious reason reads as *scooters are
+missing*. Tickets are a work queue where the filtered subset **is** the job; a
+vehicle list is not. So the default stays "Все", with the attention filter
+first, counted, and one click away. Rides keep the actionable default in §3.3,
+where it is genuinely a queue.
+
+**Drawer reads live state.** It looks the vehicle up in the fleet array by id on
+every render rather than holding the row object it was opened with, so battery
+and position keep ticking while it is open instead of freezing at click time.
+
+**Still not tracked**, and still not faked: idle time (`No order time` in the
+reference, §1.5) needs a "last ride ended at" the API does not expose —
+`lastSeenAt` is telemetry, which is a different thing and would have been a
+plausible-looking lie. Vehicle tags, controller status and swappable batteries
+remain unmodelled per §2.4.
 ### 3.3 Ride list — pending
 ### 3.4 Zone editor — pending
 ### 3.5 Other — pending

@@ -117,6 +117,54 @@ export function useFlashOnChange(token: string | number): string {
 const FLASH_MS = 700;
 
 /**
+ * Ids whose signature changed within the last flash window, for highlighting
+ * rows in a live table.
+ *
+ * Pick the signature carefully. Battery and position move on every simulator
+ * tick, so keying on those would strobe all seventy rows every three seconds —
+ * the opposite of drawing the eye to a change. Status is the thing an operator
+ * needs to notice.
+ */
+export function useRecentlyChanged<T>(
+  items: readonly T[],
+  idOf: (item: T) => string,
+  signatureOf: (item: T) => string,
+): ReadonlySet<string> {
+  const previous = useRef(new Map<string, string>());
+  const [changed, setChanged] = useState<ReadonlySet<string>>(new Set());
+
+  useEffect(() => {
+    const next = new Map<string, string>();
+    const hits = new Set<string>();
+
+    for (const item of items) {
+      const id = idOf(item);
+      const signature = signatureOf(item);
+      next.set(id, signature);
+
+      const before = previous.current.get(id);
+      // A row absent last time is new, not changed — do not flash the first load.
+      if (before !== undefined && before !== signature) hits.add(id);
+    }
+
+    previous.current = next;
+    if (hits.size === 0 || prefersReducedMotion()) return;
+
+    setChanged(hits);
+    const timer = setTimeout(() => {
+      setChanged(new Set());
+    }, FLASH_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+    // idOf/signatureOf are expected to be stable module-level functions.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
+  return changed;
+}
+
+/**
  * Injected once rather than shipped as a stylesheet import, so the motion
  * rules live next to the hooks that depend on them.
  */
