@@ -40,7 +40,16 @@ export function App(): React.ReactElement {
           },
           components: {
             // Dense back office, not a landing page.
-            Table: { cellPaddingBlockSM: 6, headerBg: '#fafafa' },
+            // AntD tints the whole sorted column. On a table sorted by default
+            // that paints a grey stripe down a column of no special importance,
+            // pulling the eye away from the data that matters.
+            Table: {
+              cellPaddingBlockSM: 6,
+              headerBg: '#fafafa',
+              bodySortBg: 'transparent',
+              headerSortActiveBg: '#fafafa',
+              headerSortHoverBg: '#f0f0f0',
+            },
             Card: { bodyPadding: 12, headerHeight: 40 },
           },
         }}

@@ -480,6 +480,38 @@ reference, §1.5) needs a "last ride ended at" the API does not expose —
 `lastSeenAt` is telemetry, which is a different thing and would have been a
 plausible-looking lie. Vehicle tags, controller status and swappable batteries
 remain unmodelled per §2.4.
-### 3.3 Ride list — pending
+### 3.3 Ride list
+
+**Before:** the strongest screen already — live cost and duration, a force-end
+action with a confirm. Nine columns, defaulting to "Все", with the travelled
+route reduced to a column reading "223 точек".
+
+**After:** opens on active rides, flags overlong and stalled ones, and draws the
+route.
+
+| Change | Why |
+|---|---|
+| Defaults to **Активные** | Unlike the fleet list, this screen genuinely is a work queue — the filtered subset *is* the job. Same reasoning the reference applies to tickets (§1.7), and the reason §3.2 went the other way for vehicles. |
+| **Трек** column → route drawn in a drawer | "223 точек" is the least useful thing that can be done with a travelled path. Where the scooter actually went is the question you open a ride to answer. |
+| Vehicle code + rider phone merged, with severity dot | Same hierarchy as the vehicle list. |
+| Overlong / stalled rides flagged inline | Shares `classifyRide` with the dashboard, so a ride cannot be an alarm on one screen and unremarkable on the other. |
+| Duration ticks every second from `startedAt` | It previously only moved when the simulator emitted, roughly every 3s. Duration is pure arithmetic on the start time so it can tick locally; **cost still comes from the server**, which owns pricing — `calculateRideCost` stays the single implementation. |
+| Summary line: active count + longest running | Two facts an operator wants before reading any row. |
+| Row flashes on status change only | Same reasoning as the vehicle list: duration and cost move constantly. |
+| Force-end also in the drawer footer | You decide to kill a ride after looking at its route, which is where you now are. |
+
+**Two defects found and fixed while verifying, both worth recording:**
+
+*Leaflet in a drawer.* Both drawers mount their map while the drawer is still
+sliding in, so Leaflet measures a container that has not reached full width.
+Tiles rendered into one corner and `fitBounds` framed the wrong viewport — the
+ride route was invisible. `MapAutoFit` now observes the container and
+re-invalidates, which fixes the vehicle drawer's map too. Worth knowing before
+the zone editor, which puts a much more interactive map in the same situation.
+
+*AntD tints the sorted column.* With a default sort on start time, that painted
+a grey stripe down a column of no particular importance and pulled the eye
+straight to it. Overridden via `bodySortBg` in the theme, so it is fixed for
+every table at once.
 ### 3.4 Zone editor — pending
 ### 3.5 Other — pending

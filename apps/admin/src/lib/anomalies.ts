@@ -124,32 +124,18 @@ export function deriveAnomalies({
   }
 
   for (const ride of activeRides) {
-    const minutes = ride.durationS / 60;
+    const fault = classifyRide(ride, thresholds);
+    if (fault === null) continue;
 
-    if (minutes >= thresholds.overlongRideMinutes) {
-      found.push({
-        id: `overlong:${ride.id}`,
-        kind: 'ride_overlong',
-        vehicleId: ride.vehicleId,
-        severity: 'alarm',
-        subject: ride.vehicleQrCode,
-        detail: `поездка идёт ${String(Math.floor(minutes))} мин`,
-        href: '/rides',
-      });
-    } else if (
-      minutes >= thresholds.stalledRideMinutes &&
-      ride.distanceM < STALLED_RIDE_DISTANCE_M
-    ) {
-      found.push({
-        id: `stalled:${ride.id}`,
-        kind: 'ride_stalled',
-        vehicleId: ride.vehicleId,
-        severity: 'alarm',
-        subject: ride.vehicleQrCode,
-        detail: `поездка ${String(Math.floor(minutes))} мин без движения`,
-        href: '/rides',
-      });
-    }
+    found.push({
+      id: `${fault.kind}:${ride.id}`,
+      kind: fault.kind,
+      vehicleId: ride.vehicleId,
+      severity: fault.severity,
+      subject: ride.vehicleQrCode,
+      detail: fault.detail,
+      href: '/rides',
+    });
   }
 
   return found.sort(
@@ -157,6 +143,37 @@ export function deriveAnomalies({
       SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity] ||
       a.subject.localeCompare(b.subject),
   );
+}
+
+/**
+ * What is wrong with one running ride, or null if nothing is.
+ *
+ * Shared by the dashboard queue and the ride list so a ride cannot be an alarm
+ * on one screen and unremarkable on the other.
+ */
+export function classifyRide(
+  ride: { durationS: number; distanceM: number },
+  thresholds: AnomalyThresholds,
+): { kind: AnomalyKind; severity: Exclude<Severity, 'ok'>; detail: string } | null {
+  const minutes = Math.floor(ride.durationS / 60);
+
+  if (minutes >= thresholds.overlongRideMinutes) {
+    return {
+      kind: 'ride_overlong',
+      severity: 'alarm',
+      detail: `поездка идёт ${String(minutes)} мин`,
+    };
+  }
+
+  if (minutes >= thresholds.stalledRideMinutes && ride.distanceM < STALLED_RIDE_DISTANCE_M) {
+    return {
+      kind: 'ride_stalled',
+      severity: 'alarm',
+      detail: `${String(minutes)} мин без движения`,
+    };
+  }
+
+  return null;
 }
 
 function isInAnyZone(vehicle: AdminVehicle, zones: readonly Zone[]): boolean {
