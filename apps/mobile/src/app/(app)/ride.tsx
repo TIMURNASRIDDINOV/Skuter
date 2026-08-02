@@ -1,7 +1,7 @@
 import { Camera, GeoJSONSource, Layer, Map, Marker } from '@maplibre/maplibre-react-native';
 import type { CameraRef } from '@maplibre/maplibre-react-native';
 import type { LatLon, ParkingCheck } from '@scoot/shared';
-import { calculateRideCost, formatSom } from '@scoot/shared';
+import { calculateRideCost, formatSom, isPointInPolygon } from '@scoot/shared';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -13,7 +13,7 @@ import { ZoneOverlays } from '@/components/ZoneOverlays';
 import { Button, Icon, Pill } from '@/components/ui';
 import { DEMO_CONTROLS_ENABLED } from '@/lib/demo';
 import { formatDistance, formatDuration } from '@/lib/format';
-import { pointInPolygon, polygonCentroid } from '@/lib/geo';
+import { polygonCentroid } from '@/lib/geo';
 import { useI18n } from '@/lib/i18n';
 import { MAP_STYLE_URL, RIDE_ZOOM } from '@/lib/map';
 import { ZONE_KIND_COLOUR, colors, radius, shadows, spacing, typography } from '@/lib/theme';
@@ -111,7 +111,7 @@ export default function RideScreen() {
   // The rider is standing on the scooter — its live position is the ride
   // position, unless the dev control has placed them somewhere specific.
   const riderLocation = devLocation ?? ride.vehicle.location;
-  const inParking = parkingZones.some((zone) => pointInPolygon(riderLocation, zone.geom));
+  const inParking = parkingZones.some((zone) => isPointInPolygon(riderLocation, zone.geom));
 
   const plan = plansQuery.data?.items.find((item) => item.id === ride.planId) ?? null;
   const durationS = Math.max(0, (now - new Date(ride.startedAt).getTime()) / 1000);

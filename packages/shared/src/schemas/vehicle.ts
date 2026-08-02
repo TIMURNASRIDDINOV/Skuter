@@ -12,6 +12,36 @@ export const vehicleStatusSchema = z.enum([
 ]);
 export type VehicleStatus = z.infer<typeof vehicleStatusSchema>;
 
+/**
+ * A second axis over status: status says *what* a vehicle is, severity says
+ * *how much it should worry you*.
+ *
+ * It lives here rather than in either client because both need to agree. The
+ * back office ranks its attention queue by it; the rider app decides from it
+ * whether a scooter is offered at all. Rendering stays per app — the panel
+ * draws Ant Design tags in Russian, the rider app draws React Native views in
+ * RU/UZ — but the classification is one thing in one place.
+ */
+export const severitySchema = z.enum(['ok', 'watch', 'alarm']);
+export type Severity = z.infer<typeof severitySchema>;
+
+/** Sort key for mixed lists of problems, most urgent first. */
+export const SEVERITY_RANK: Record<Severity, number> = { alarm: 0, watch: 1, ok: 2 };
+
+/**
+ * `reserved` is deliberately `ok`: a held scooter is the system working, not a
+ * fault. `low_battery` is `watch` rather than `alarm` because the fleet always
+ * has some — it is a dispatch queue, not an incident.
+ */
+export const VEHICLE_STATUS_SEVERITY: Record<VehicleStatus, Severity> = {
+  available: 'ok',
+  in_use: 'ok',
+  reserved: 'ok',
+  low_battery: 'watch',
+  maintenance: 'watch',
+  offline: 'alarm',
+};
+
 /** Statuses a rider is allowed to unlock. */
 export const RIDEABLE_VEHICLE_STATUSES: readonly VehicleStatus[] = ['available', 'reserved'];
 

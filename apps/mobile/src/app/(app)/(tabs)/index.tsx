@@ -13,6 +13,7 @@ import { Icon, IconButton } from '@/components/ui';
 import { NearbyList, VehicleDetail } from '@/components/VehicleSheet';
 import { VehicleMarkers } from '@/components/VehicleMarkers';
 import { ZoneOverlays } from '@/components/ZoneOverlays';
+import { isRentable, serviceZonesOf } from '@/lib/fleet';
 import { formatDuration } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
 import { CITY_ZOOM, FOCUS_ZOOM, INITIAL_BOUNDS, MAP_STYLE_URL } from '@/lib/map';
@@ -44,8 +45,20 @@ export default function MapScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const vehicles = vehiclesQuery.data?.items ?? [];
   const zones = zonesQuery.data?.items ?? [];
+
+  // The rider sees what the back office would not flag red — see
+  // docs/parity-review.md §2.1. The API already withholds offline,
+  // maintenance, in-use and reserved scooters; what it cannot know is that a
+  // vehicle has drifted outside every service zone, which the panel reports as
+  // an alarm and this app would otherwise offer as an ordinary rental.
+  const vehicles = useMemo(() => {
+    const serviceZones = serviceZonesOf(zones);
+    return (vehiclesQuery.data?.items ?? []).filter((vehicle) =>
+      isRentable(vehicle, serviceZones),
+    );
+  }, [vehiclesQuery.data, zones]);
+
   const selected = vehicles.find((vehicle) => vehicle.id === selectedId) ?? null;
   const perMinutePlan =
     plansQuery.data?.items.find((plan) => plan.kind === 'per_minute') ?? null;

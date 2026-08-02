@@ -215,10 +215,22 @@ MapLibre RN has a different set, which this app already works around in places:
 - Viewport comes from `onRegionDidChange` rather than being read imperatively;
   `INITIAL_BOUNDS` in `lib/map.ts` seeds clustering before the first callback.
 
-**Not yet verified on a device.** Doing so needs a one-time
-`expo prebuild` + native dev-client build, which has not been run in this
-session. Every claim in §3.3 is from reading the code, and is marked as such
-rather than presented as tested. Findings go here once the build has run.
+**Verified** on iPhone 16 Pro / iOS 18.2 via a dev-client build
+(`expo prebuild` → `pod install` → `xcodebuild` → Metro on `--dev-client`).
+
+What the build actually showed:
+
+- **MapLibre needs no equivalent of `MapAutoSize`.** The map sized itself
+  correctly on first render, under a docked bottom sheet, and again after
+  camera moves. The native view lays out with the platform, so Leaflet's
+  measure-once-on-mount problem simply does not exist here. The admin fix does
+  not transfer and does not need to.
+- **`cameraRef.easeTo` from user interaction works as written.** Tapping a
+  cluster zoomed and re-clustered correctly at every level.
+- **Marker glide is not observable in a static screenshot.** It is in and
+  typechecks, but "does it look right in motion" is unverified — a video
+  capture or a hand on the simulator is the only way to judge it, and neither
+  happened. Stated as untested rather than implied to be fine.
 
 ---
 
@@ -236,7 +248,35 @@ rather than presented as tested. Findings go here once the build has run.
 
 *Filled in as each Phase 4 item lands.*
 
-### 5.1 Map screen + visibility rule — pending
+### 5.1 Map screen + visibility rule
+
+**Before:** every vehicle the API returned became a pin. The three stranded
+scooters showed as ordinary rentable green pins while the panel flagged them
+red. Point-in-polygon was a second, weaker implementation living in
+`lib/geo.ts`. No reduced-motion support. Pins teleported on each 5 s poll.
+
+**After**, and verified against the database on a real build:
+
+| Change | Result |
+|---|---|
+| `lib/fleet.ts` applies the §2.1 rule | Map shows **55**. Database says 58 public, 3 outside the service zone. 58 − 3 = 55 |
+| Nothing renders outside the service boundary | Confirmed on screen — the Keles, east and south stranded scooters are absent |
+| `low_battery` gets an explicit `%` badge | Amber pin **plus** the number, so it survives a colour-blind viewer and a sunlit phone rather than leaning on hue alone |
+| `lib/geo.ts::pointInPolygon` deleted | `ride.tsx` now uses `isPointInPolygon` from `@scoot/shared`. One implementation, and the one that handles interior rings |
+| `lib/motion.ts` added | `useMotion()` wraps Reanimated's `useReducedMotion` and collapses durations to 0, so an animation becomes an instant swap without any component knowing |
+| Markers glide 250 ms ease-out | Per-marker state, so one moving scooter re-renders only itself. Clusters deliberately excluded — their centroid moves as membership changes, so animating them would animate a number, not a vehicle |
+
+**Shared-package change, as flagged in §2.3.** `Severity`,
+`VEHICLE_STATUS_SEVERITY` and `SEVERITY_RANK` moved from
+`apps/admin/src/components/status.tsx` into `packages/shared`;
+`status.tsx` re-exports all three. Admin typechecks unchanged — same names,
+same file, same values. `SEVERITY_META` stayed in admin, because Russian labels
+and Ant Design hex are presentation, not classification.
+
+**Testing note.** `apps/mobile/.env` points `EXPO_PUBLIC_API_URL` at the
+deployed Cloudflare Worker. Metro was started with a `http://localhost:8787`
+override for this session so the app read the locally seeded fleet — the only
+place the three stranded scooters exist. The file was not modified.
 ### 5.2 Scan → unlock — pending
 ### 5.3 Active ride — pending
 ### 5.4 End ride, success and block — pending

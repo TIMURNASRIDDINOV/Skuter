@@ -1,26 +1,14 @@
 import type { GeoPolygon, LatLon } from '@scoot/shared';
 
 /**
- * Ray-cast point-in-polygon against the outer ring. Advisory only — the
- * "in parking zone" pill during a ride. The API's PostGIS check is the
- * authority on whether a ride may actually end.
+ * Point-in-polygon deliberately does **not** live here. `isPointInPolygon` in
+ * `@scoot/shared` is the one implementation, shared with the back office, and
+ * it subtracts interior rings where the copy that used to sit in this file did
+ * not. Two implementations of one domain predicate is what that package exists
+ * to prevent — and the weaker one was deciding what the rider saw.
+ *
+ * Import it from `@scoot/shared` directly.
  */
-export function pointInPolygon(point: LatLon, polygon: GeoPolygon): boolean {
-  const ring = polygon.coordinates[0] ?? [];
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const a = ring[i];
-    const b = ring[j];
-    if (a === undefined || b === undefined) continue;
-    const [ax, ay] = a;
-    const [bx, by] = b;
-    const intersects =
-      ay > point.lat !== by > point.lat &&
-      point.lon < ((bx - ax) * (point.lat - ay)) / (by - ay) + ax;
-    if (intersects) inside = !inside;
-  }
-  return inside;
-}
 
 /**
  * Vertex average of the outer ring (ignoring the closing point). Zones are
