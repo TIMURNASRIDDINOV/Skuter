@@ -2,6 +2,7 @@ import {
   FLEET_SIZE,
   LOW_BATTERY_THRESHOLD_PCT,
   TASHKENT_CLUSTERS,
+  isPointInPolygon,
   somToTiyin,
   type LatLon,
   type VehicleStatus,
@@ -72,11 +73,33 @@ function qrCodeFor(index: number): string {
 }
 
 /**
+ * Three scooters parked outside the service area on purpose.
+ *
+ * A fleet where nothing is ever out of bounds gives the back office's
+ * attention queue nothing true to show. These sit just past the boundary,
+ * where a rider who ignored the warning would actually leave one.
+ */
+const STRANDED_POSITIONS: readonly LatLon[] = [
+  { lat: 41.3305, lon: 69.3942 }, // east of the boundary, out past Qibray
+  { lat: 41.1748, lon: 69.2461 }, // south, beyond Sergeli
+  { lat: 41.4018, lon: 69.1902 }, // north-west, out toward Keles
+];
+
+/** Give up resampling rather than spin forever if a cluster sits outside. */
+const MAX_RESAMPLE_ATTEMPTS = 50;
+
+/**
  * Distributes the fleet across clusters by weight. Roughly a third of each
  * cluster is laid along a street segment and the rest scattered in a disc.
+ *
+ * Scatter is rejected and resampled until it lands inside the service area —
+ * an 800 m disc around a cluster near the boundary would otherwise put the odd
+ * scooter outside it, which the back office correctly reports as stranded and
+ * which is then indistinguishable from the deliberate three below.
  */
 function placeVehicles(rng: Rng): LatLon[] {
   const positions: LatLon[] = [];
+  const scattered = FLEET_SIZE - STRANDED_POSITIONS.length;
 
   const totalWeight = TASHKENT_CLUSTERS.reduce((sum, cluster) => sum + cluster.weight, 0);
   let assigned = 0;
@@ -84,8 +107,8 @@ function placeVehicles(rng: Rng): LatLon[] {
   TASHKENT_CLUSTERS.forEach((cluster, index) => {
     const isLast = index === TASHKENT_CLUSTERS.length - 1;
     const share = isLast
-      ? FLEET_SIZE - assigned
-      : Math.round((cluster.weight / totalWeight) * FLEET_SIZE);
+      ? scattered - assigned
+      : Math.round((cluster.weight / totalWeight) * scattered);
     assigned += share;
 
     const centre: LatLon = { lat: cluster.lat, lon: cluster.lon };
@@ -93,13 +116,32 @@ function placeVehicles(rng: Rng): LatLon[] {
 
     for (let i = 0; i < share; i += 1) {
       const alongStreet = street !== undefined && rng() < 0.35;
-      positions.push(
-        alongStreet
+
+      let candidate: LatLon | null = null;
+      for (let attempt = 0; attempt < MAX_RESAMPLE_ATTEMPTS; attempt += 1) {
+        const next = alongStreet
           ? scatterAlongLine(street.from, street.to, 25, rng)
-          : scatterInDisc(centre, cluster.radiusM, rng),
-      );
+          : scatterInDisc(centre, cluster.radiusM, rng);
+        if (isPointInPolygon(next, SERVICE_AREA)) {
+          candidate = next;
+          break;
+        }
+      }
+
+      // Falling back to the cluster centre keeps the fleet size exact; a
+      // cluster centre outside the service area is a data error worth failing on.
+      if (candidate === null) {
+        if (!isPointInPolygon(centre, SERVICE_AREA)) {
+          throw new Error(`Cluster ${cluster.name} lies outside the service area`);
+        }
+        candidate = centre;
+      }
+
+      positions.push(candidate);
     }
   });
+
+  positions.push(...STRANDED_POSITIONS);
 
   return positions;
 }
@@ -219,8 +261,13 @@ async function main(): Promise<void> {
   if (vehicleCount !== FLEET_SIZE) {
     throw new Error(`Expected ${FLEET_SIZE} vehicles, found ${vehicleCount}`);
   }
-  if (outside > 0) {
-    throw new Error(`${outside} vehicles landed outside the service area`);
+  // Exactly the deliberate three, no more: an extra one means the scatter
+  // resampling let a vehicle through, which the back office would report as a
+  // stranded scooter that nobody actually stranded.
+  if (outside !== STRANDED_POSITIONS.length) {
+    throw new Error(
+      `Expected ${String(STRANDED_POSITIONS.length)} vehicles outside the service area, found ${String(outside)}`,
+    );
   }
 
   const parkingCount = zones.filter((z) => z.kind === 'parking').length;
@@ -230,7 +277,10 @@ async function main(): Promise<void> {
   write(`  Area          ${area.name}`);
   write(`  Zones         ${parkingCount} parking, ${forbiddenCount} forbidden, 1 service area`);
   write(`  Plans         ${plans.map((p) => p.name).join(', ')}`);
-  write(`  Vehicles      ${vehicleCount} (all inside the service area)`);
+  write(
+    `  Vehicles      ${vehicleCount} (${String(vehicleCount - outside)} inside the service area, ` +
+      `${String(outside)} stranded outside on purpose)`,
+  );
   write(
     `                ${byStatus.available} available · ${byStatus.low_battery} low battery · ` +
       `${byStatus.offline} offline · ${byStatus.maintenance} maintenance · ${byStatus.in_use} in use`,
