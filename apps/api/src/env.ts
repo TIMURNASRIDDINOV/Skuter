@@ -53,6 +53,11 @@ const envSchema = z.object({
   // NODE_ENV=production DEV_FEATURES=true: there is no SMS provider yet, so
   // the fixed OTP code is the only way phone login can work.
   DEV_FEATURES: z.enum(['true', 'false']).optional(),
+  // Required to reach /dev/simulate/* on a deployed instance, sent as
+  // X-Dev-Secret. Unset in production = those routes stay off, so a deploy
+  // cannot leave "start a ride on any scooter" open by omission. Ignored
+  // locally, where the whole point is firing them from a terminal unauthed.
+  DEV_ROUTES_SECRET: z.string().min(16).optional(),
   // Telegram login. Unset = the /auth/telegram/* endpoints answer 501.
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_BOT_USERNAME: z.string().default('Scootrentuzbot'),
@@ -80,6 +85,9 @@ export const isProduction = env.NODE_ENV === 'production';
  */
 export const devFeaturesEnabled =
   env.DEV_FEATURES !== undefined ? env.DEV_FEATURES === 'true' : !isProduction;
+
+/** Shared secret guarding /dev/simulate/* on a deployed instance. */
+export const devRoutesSecret: string | null = env.DEV_ROUTES_SECRET ?? null;
 
 /** Telegram login is available only when the bot token is configured. */
 export const telegramAuthEnabled = env.TELEGRAM_BOT_TOKEN !== undefined;

@@ -2,7 +2,7 @@ import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { idSchema, vehicleStatusSchema } from '@scoot/shared';
-import { devFeaturesEnabled } from '../env.js';
+import { devFeaturesEnabled, devRoutesSecret, isProduction } from '../env.js';
 import { NotImplementedError, badRequest, forbidden, notFound } from '../lib/errors.js';
 import { getSimulationControl } from '../gateway/index.js';
 import { repositories } from '../repositories/index.js';
@@ -12,16 +12,34 @@ import type { SimulationControl } from '../gateway/types.js';
 /**
  * Demo controls for steering fleet state live during a client meeting.
  *
- * Deliberately unauthenticated so they can be fired from a terminal mid-demo,
- * and therefore gated on NODE_ENV !== production. They exist to make states
- * reachable on cue, not as an API surface.
+ * Locally they stay unauthenticated so they can be fired from a terminal
+ * mid-demo — that is the whole point of them.
+ *
+ * **On a deployed instance they are not open.** The pre-release deployment
+ * runs `NODE_ENV=production` with `DEV_FEATURES=true`, because there is no SMS
+ * provider yet and the clients depend on these routes. Left as-is that would
+ * put "start a ride on any scooter", "drain any battery" and "take any scooter
+ * offline" on a public URL for anyone who guesses it. So in production they
+ * additionally require `X-Dev-Secret` to match `DEV_ROUTES_SECRET`, and if
+ * that secret is not set they stay off entirely — a deploy cannot expose them
+ * by omission.
  */
 export const devRoutes = new Hono<AppEnv>();
 
-devRoutes.use('*', async (_c, next) => {
+devRoutes.use('*', async (c, next) => {
   if (!devFeaturesEnabled) {
     throw forbidden('Simulation endpoints are disabled outside development');
   }
+
+  if (isProduction) {
+    if (devRoutesSecret === null) {
+      throw forbidden('Simulation endpoints require DEV_ROUTES_SECRET to be set');
+    }
+    if (c.req.header('X-Dev-Secret') !== devRoutesSecret) {
+      throw forbidden('Simulation endpoints require a valid X-Dev-Secret header');
+    }
+  }
+
   await next();
 });
 
