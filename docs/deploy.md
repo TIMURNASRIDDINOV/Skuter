@@ -101,7 +101,16 @@ pnpm -F @scoot/api exec wrangler secret put DEV_ROUTES_SECRET
 `DEV_ROUTES_SECRET` — минимум 16 символов, `openssl rand -hex 24`. См. раздел
 про демо-контролы ниже: **без него `/dev/simulate/*` на деплое выключены.**
 
+**Секреты ставятся на окружение, а не на проект.** `wrangler secret put` без
+`--env` кладёт их в основной воркер; у `--env canary` свой отдельный набор.
+Деплой canary без этого падает на старте с `JWT_SECRET: expected string,
+received undefined`.
+
 ### 5. Проверка на canary, потом боевой деплой
+
+Canary нужен, только когда боевой воркер уже работает и его нельзя ломать. На
+первом деплое его можно пропустить и сразу катить основной:
+`wrangler deploy --env=""`.
 
 ```bash
 pnpm -F @scoot/api exec wrangler deploy --env canary
@@ -155,6 +164,24 @@ curl -X POST https://scoot-api.<субдомен>.workers.dev/dev/simulate/ride 
 
 Локально ничего не меняется: `pnpm dev` поднимает `NODE_ENV=development`, и
 команды из README работают без заголовка.
+
+## Проверка живого деплоя
+
+```bash
+curl -s https://scoot-api.timurnasriddinov56.workers.dev/health
+```
+
+Первый запрос после простоя может вернуть **530** — это холодный старт
+Durable Object и Hyperdrive, а не поломка. Повтори через несколько секунд.
+
+Состояние симулятора (нужен `X-Dev-Secret`, см. ниже):
+
+```bash
+curl -s https://scoot-api.timurnasriddinov56.workers.dev/dev/simulate/status -H "X-Dev-Secret: <DEV_ROUTES_SECRET>"
+```
+
+Ожидается `{"running":true,"tickMs":3000,...}`. Если `running:false` —
+Durable Object заснул, любой запрос к API его разбудит.
 
 ## Что остаётся открытым
 
