@@ -20,7 +20,7 @@
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "TODO_SET_AFTER_wrangler_hyperdrive_create"
+      "id": "98b8d93987774e5382f4a4f39363fcf4"
     }
   ],
   "vars": {
@@ -50,7 +50,7 @@
       "hyperdrive": [
         {
           "binding": "HYPERDRIVE",
-          "id": "TODO_SET_AFTER_wrangler_hyperdrive_create"
+          "id": "98b8d93987774e5382f4a4f39363fcf4"
         }
       ],
       "vars": {
