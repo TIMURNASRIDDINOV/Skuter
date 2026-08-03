@@ -33,25 +33,34 @@ Durable Object — это то, что делает схему рабочей: �
 
 ### 1. Supabase
 
-Создай проект на supabase.com (регион ближе к Ташкенту — Frankfurt).
+Проект: **TIMURNASRIDDINOV's Project**, `yrbrwfvrtggdpparkviw`, AWS
+`ap-south-1` (Мумбаи — до Ташкента ближе, чем Франкфурт). База пустая.
+
+Если он на паузе — Resume project на странице проекта, восстановление занимает
+несколько минут.
+
 В SQL Editor включи PostGIS:
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS postgis;
 ```
 
-Возьми **Session pooler** connection string (Project Settings → Database →
-Connection string → Session pooler, порт 5432). Не Transaction pooler —
-Drizzle-миграции требуют сессионного режима.
+Строку подключения бери здесь: Connect → **Session pooler**, порт 5432.
+Transaction pooler (6543) **не подойдёт** — Drizzle-миграции требуют
+сессионного режима. Если пароль от базы забыт, он сбрасывается в
+Settings → Database → Reset database password.
+
+Положи строку в `.env` как `SUPABASE_DB_URL=...` — дальше все команды читают
+её оттуда, и пароль не приходится вставлять в терминал.
 
 ### 2. Миграции и сид
 
 ```bash
-DATABASE_URL='<supabase session pooler url>' pnpm db:migrate
+set -a && . ./.env && set +a && DATABASE_URL="$SUPABASE_DB_URL" pnpm db:migrate
 ```
 
 ```bash
-DATABASE_URL='<supabase session pooler url>' pnpm db:seed
+set -a && . ./.env && set +a && DATABASE_URL="$SUPABASE_DB_URL" pnpm db:seed
 ```
 
 Сид детерминированный: те же 70 самокатов на тех же местах, три из них
@@ -64,7 +73,7 @@ pnpm -F @scoot/api exec wrangler login
 ```
 
 ```bash
-pnpm -F @scoot/api exec wrangler hyperdrive create scoot-db --connection-string="<supabase session pooler url>"
+set -a && . ./.env && set +a && pnpm -F @scoot/api exec wrangler hyperdrive create scoot-db --connection-string="$SUPABASE_DB_URL"
 ```
 
 Команда вернёт `id`. Впиши его в [`apps/api/wrangler.jsonc`](../apps/api/wrangler.jsonc)
