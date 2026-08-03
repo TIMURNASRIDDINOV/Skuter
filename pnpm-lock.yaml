@@ -252,6 +252,9 @@ importers:
         specifier: ^8.0.1
         version: 8.0.1
     devDependencies:
+      '@react-native/codegen':
+        specifier: 0.85.3
+        version: 0.85.3(@babel/core@7.29.7(supports-color@8.1.1))
       '@types/react':
         specifier: ~19.2.2
         version: 19.2.17
