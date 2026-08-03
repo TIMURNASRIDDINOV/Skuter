@@ -136,6 +136,9 @@ const ru = {
   tabRental: 'Аренда',
   tabScan: 'Скан',
   tabProfile: 'Профиль',
+  // Общий / Аренда switcher above the map
+  sectionGeneral: 'Общий',
+  sectionRent: 'Аренда',
   // Rental tab
   rentalTitle: 'Аренда',
   subscriptionUntil: 'До',
@@ -280,6 +283,9 @@ const uz: Strings = {
   tabRental: 'Ijara',
   tabScan: 'Skan',
   tabProfile: 'Profil',
+  // Общий / Аренда switcher above the map
+  sectionGeneral: 'Umumiy',
+  sectionRent: 'Ijara',
   // Rental tab
   rentalTitle: 'Ijara',
   subscriptionUntil: 'Muddati:',

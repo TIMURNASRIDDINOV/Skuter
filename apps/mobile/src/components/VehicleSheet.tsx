@@ -1,4 +1,4 @@
-import { BottomSheetFlatList, BottomSheetView } from '@gorhom/bottom-sheet';
+import { BottomSheetFlatList, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import type { Plan, Vehicle, VehicleStatus } from '@scoot/shared';
 import { formatSom, haversineDistanceM } from '@scoot/shared';
 import { useMemo } from 'react';
@@ -109,7 +109,16 @@ interface VehicleDetailProps {
   onClose: () => void;
 }
 
-/** Sheet content after tapping a pin: battery, range and pricing — demo step 1. */
+/**
+ * Sheet content after tapping a pin: battery, range and pricing — demo step 1.
+ *
+ * **This scrolls, and it has to.** The content is taller than the sheet's
+ * resting snap point on a short phone, and taller than every snap point once
+ * the OS font scale is turned up — rendered in a plain `BottomSheetView` the
+ * two action buttons were simply cut off with no way to reach them. The sheet
+ * offers a taller stop to drag to (see `snapPoints` in the map screen); this
+ * scroll view is what guarantees nothing is unreachable either way.
+ */
 export function VehicleDetail({
   vehicle,
   perMinutePlan,
@@ -121,7 +130,12 @@ export function VehicleDetail({
   const rideable = vehicle.status === 'available' || vehicle.status === 'reserved';
 
   return (
-    <BottomSheetView style={styles.detail}>
+    <BottomSheetScrollView
+      contentContainerStyle={styles.detail}
+      showsVerticalScrollIndicator={false}
+      // Reads as a panel that happens to scroll, not as a list.
+      bounces={false}
+    >
       <View style={styles.detailHeader}>
         <View style={styles.detailHeading}>
           <Text style={styles.detailTitle}>{vehicle.qrCode}</Text>
@@ -169,17 +183,20 @@ export function VehicleDetail({
         </View>
       )}
 
+      {/* Stacked, not side by side. Split down the middle, «Разблокировать»
+          does not fit on one line at any supported width and wrapped to a
+          stray «ь» on the second row. Full width also gives the primary action
+          the weight it has in the mini app. */}
       <View style={styles.actions}>
-        <Button label={t.unlock} onPress={onUnlock} disabled={!rideable} style={styles.action} />
+        <Button label={t.unlock} onPress={onUnlock} disabled={!rideable} />
         <Button
           label={t.subscribe}
           onPress={onSubscribe}
           variant="secondary"
           disabled={!rideable}
-          style={styles.action}
         />
       </View>
-    </BottomSheetView>
+    </BottomSheetScrollView>
   );
 }
 
@@ -246,6 +263,5 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   pricingHint: { ...typography.caption, color: colors.textSecondary },
-  actions: { flexDirection: 'row', gap: spacing.m, marginTop: spacing.xs },
-  action: { flex: 1 },
+  actions: { gap: spacing.s, marginTop: spacing.xs },
 });

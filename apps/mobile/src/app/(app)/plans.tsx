@@ -67,6 +67,7 @@ export default function PlansScreen() {
         <Header title={t.plansTitle} onBack={() => router.back()} />
         <EmptyState title={t.pickVehicleFirst} icon="scooter" style={styles.grow} />
         <View style={styles.footer}>
+          {/* Nothing was bought — this one really does want the map. */}
           <Button label={t.toMap} onPress={() => router.replace('/')} variant="secondary" />
         </View>
       </SafeAreaView>
@@ -87,7 +88,12 @@ export default function PlansScreen() {
           <Text style={styles.successNote}>{t.purchaseSuccessHint}</Text>
         </View>
         <View style={styles.footer}>
-          <Button label={t.toMap} onPress={() => router.replace('/')} testID="subscription-done" />
+          {/* Back to Аренда, where the pass they just bought is now listed. */}
+          <Button
+            label={t.toMap}
+            onPress={() => router.replace({ pathname: '/', params: { section: 'rent' } })}
+            testID="subscription-done"
+          />
         </View>
       </SafeAreaView>
     );

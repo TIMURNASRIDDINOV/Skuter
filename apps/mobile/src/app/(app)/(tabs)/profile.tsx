@@ -109,17 +109,8 @@ export default function ProfileScreen() {
           </View>
         </Card>
 
-        {/* Rental left the tab bar so the scan button could sit dead centre;
-            this is how you still reach the price list. */}
-        <Pressable onPress={() => router.push('/rental')}>
-          <Card style={styles.rentalRow}>
-            <View style={styles.rentalIcon}>
-              <Icon name="ticket" size={20} color={colors.primary} />
-            </View>
-            <Text style={styles.rentalLabel}>{t.rentalTitle}</Text>
-            <Icon name="chevronRight" size={14} color={colors.textSecondary} />
-          </Card>
-        </Pressable>
+        {/* Аренда is not linked from here any more — it is the second half of
+            the map screen's Общий / Аренда switcher, same as the mini app. */}
 
         <Text style={styles.sectionHeading}>{t.mySubscriptions}</Text>
         {subscriptionsQuery.isPending ? (
@@ -203,16 +194,6 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  rentalRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.m },
-  rentalIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primaryFaint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rentalLabel: { ...typography.heading, color: colors.text, flex: 1 },
   safe: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row',
