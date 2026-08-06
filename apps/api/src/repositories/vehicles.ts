@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
   PUBLIC_VEHICLE_STATUSES,
   latLonToPoint,
@@ -167,6 +167,15 @@ export function createVehiclesRepository(db: Database) {
     // These write only the hold columns. The vehicle's *status* is moved by
     // services/reservations.ts through the gateway, never from here — see the
     // note there about the simulator tick rewriting status from memory.
+    //
+    // **Every one of these reports its outcome through RETURNING rather than a
+    // follow-up SELECT.** On Cloudflare the database is behind Hyperdrive,
+    // which caches read queries: a SELECT issued straight after a write can be
+    // served from before it. Read-modify-write built on those reads misbehaved
+    // in exactly the ways you would predict — releases quietly became no-ops,
+    // so a rider accumulated holds, and a cleared hold kept its `reserved`
+    // status because the status check read a stale row. Writes are never
+    // cached, so a RETURNING clause is always the truth.
 
     /** Who holds this vehicle and until when, ignoring lapsed holds. */
     async findHold(id: string): Promise<{ userId: string; until: Date } | null> {
@@ -189,8 +198,12 @@ export function createVehiclesRepository(db: Database) {
      * this UPDATE, and Postgres row-locking means exactly one matches. Without
      * it the check and the write would be two statements with a race between.
      */
-    async claimHold(id: string, userId: string, until: Date): Promise<boolean> {
-      const rows = await db
+    async claimHold(
+      id: string,
+      userId: string,
+      until: Date,
+    ): Promise<{ status: VehicleStatus } | null> {
+      const [row] = await db
         .update(vehicles)
         .set({ reservedUntil: until, reservedBy: userId })
         .where(
@@ -199,15 +212,63 @@ export function createVehiclesRepository(db: Database) {
             sql`(${vehicles.reservedUntil} IS NULL OR ${vehicles.reservedUntil} <= now())`,
           ),
         )
-        .returning({ id: vehicles.id });
-      return rows.length > 0;
+        .returning({ status: vehicles.status });
+      return row === undefined ? null : { status: row.status };
     },
 
-    async clearHold(id: string): Promise<void> {
-      await db
+    /**
+     * Drop the hold only if `userId` owns it, in one statement.
+     *
+     * Returns null when there was no live hold or it belonged to somebody
+     * else — the caller cannot tell those apart, and does not need to.
+     */
+    async clearHoldOwnedBy(
+      id: string,
+      userId: string,
+    ): Promise<{ status: VehicleStatus } | null> {
+      const [row] = await db
         .update(vehicles)
         .set({ reservedUntil: null, reservedBy: null })
-        .where(eq(vehicles.id, id));
+        .where(
+          and(
+            eq(vehicles.id, id),
+            eq(vehicles.reservedBy, userId),
+            sql`${vehicles.reservedUntil} IS NOT NULL AND ${vehicles.reservedUntil} > now()`,
+          ),
+        )
+        .returning({ status: vehicles.status });
+      return row === undefined ? null : { status: row.status };
+    },
+
+    /**
+     * Clear every live hold this rider owns except `keepVehicleId`, in one
+     * statement. A rider holds one scooter at a time; without this, walking
+     * past a nicer one and holding that too takes both off the map.
+     */
+    async clearOtherHoldsOf(
+      userId: string,
+      keepVehicleId: string,
+    ): Promise<{ id: string; status: VehicleStatus }[]> {
+      return db
+        .update(vehicles)
+        .set({ reservedUntil: null, reservedBy: null })
+        .where(
+          and(
+            eq(vehicles.reservedBy, userId),
+            sql`${vehicles.id} <> ${keepVehicleId}`,
+            sql`${vehicles.reservedUntil} IS NOT NULL`,
+          ),
+        )
+        .returning({ id: vehicles.id, status: vehicles.status });
+    },
+
+    /** Clear every lapsed hold in one statement, reporting what it touched. */
+    async clearLapsedHolds(): Promise<{ id: string; status: VehicleStatus }[]> {
+      return db
+        .update(vehicles)
+        .set({ reservedUntil: null, reservedBy: null })
+        .where(sql`${vehicles.reservedUntil} IS NOT NULL AND ${vehicles.reservedUntil} <= now()`)
+        .returning({ id: vehicles.id, status: vehicles.status });
     },
 
     /** The live hold this rider owns, if any. A rider holds at most one. */
@@ -221,19 +282,13 @@ export function createVehiclesRepository(db: Database) {
             sql`${vehicles.reservedUntil} IS NOT NULL AND ${vehicles.reservedUntil} > now()`,
           ),
         )
+        // One hold per rider is the invariant, but order anyway so that if it
+        // is ever violated the newest hold wins rather than an arbitrary row.
+        .orderBy(desc(vehicles.reservedUntil))
         .limit(1);
 
       if (row?.reservedUntil == null) return null;
       return { vehicle: toVehicle(row as VehicleRow), until: row.reservedUntil };
-    },
-
-    /** Vehicles whose hold has lapsed but whose columns still say otherwise. */
-    async findLapsedHolds(): Promise<string[]> {
-      const rows = await db
-        .select({ id: vehicles.id })
-        .from(vehicles)
-        .where(sql`${vehicles.reservedUntil} IS NOT NULL AND ${vehicles.reservedUntil} <= now()`);
-      return rows.map((row) => row.id);
     },
 
     /** Applied by the simulator on every tick. */

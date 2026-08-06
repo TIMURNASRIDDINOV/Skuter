@@ -1,6 +1,7 @@
 import {
   API_ERROR_CODES,
   RESERVATION_HOLD_MS,
+  type LatLon,
   type Vehicle,
   type VehicleStatus,
 } from '@scoot/shared';
@@ -17,7 +18,24 @@ import type { Repositories } from '../repositories/index.js';
  * `reserved_by` columns, and the vehicle's `reserved` status. The columns are
  * the truth (they say *whose* hold it is and when it lapses); the status is
  * what every existing screen already renders.
+ *
+ * **Nothing here decides anything from a SELECT issued after a write.** On
+ * Cloudflare the database sits behind Hyperdrive, which caches read queries,
+ * so a read-back can predate the write that preceded it. Built that way this
+ * service misbehaved only in production: releases silently became no-ops and a
+ * rider accumulated holds, while a cleared hold kept its `reserved` status.
+ * Every branch below is driven by a RETURNING clause instead — see the note in
+ * `repositories/vehicles.ts`.
  */
+
+/**
+ * Drop hardware identity. `findById` is the back-office read and carries IMEI;
+ * everything this module hands back goes to a rider.
+ */
+function toPublic(vehicle: Vehicle & { imei: string }): Vehicle {
+  const { imei: _imei, ...rest } = vehicle;
+  return rest;
+}
 
 /**
  * Move a vehicle's status, through the gateway when one is simulating it.
@@ -46,25 +64,40 @@ async function moveStatus(
 }
 
 /**
- * Drop hardware identity. `findById` is the back-office read and carries IMEI;
- * everything this module hands back goes to a rider.
+ * Announce a hold change so the back office redraws the pin without a refresh.
+ *
+ * Takes the status from the caller rather than reading it back: the caller
+ * just set it, and a re-read is exactly the cached-read hazard this module
+ * avoids. Battery and position are cosmetic on this event and a few seconds
+ * stale is fine, so they may come from an ordinary read.
  */
-function toPublic(vehicle: Vehicle & { imei: string }): Vehicle {
-  const { imei: _imei, ...rest } = vehicle;
-  return rest;
-}
-
-/** Announce a hold change so the back office redraws the pin without a refresh. */
-async function announce(repositories: Repositories, vehicleId: string): Promise<void> {
+async function announce(
+  repositories: Repositories,
+  vehicleId: string,
+  status: VehicleStatus,
+): Promise<void> {
   const vehicle = await repositories.vehicles.findById(vehicleId);
-  if (vehicle === null) return;
+  const location: LatLon = vehicle?.location ?? { lat: 0, lon: 0 };
   publishEvent({
     type: 'vehicle.updated',
     vehicleId,
-    status: vehicle.status,
-    batteryPct: vehicle.batteryPct,
-    location: vehicle.location,
+    status,
+    batteryPct: vehicle?.batteryPct ?? 0,
+    location,
   });
+}
+
+/** Put a released vehicle back on the map, if the hold was what held it there. */
+async function restore(
+  repositories: Repositories,
+  released: { id: string; status: VehicleStatus },
+): Promise<void> {
+  // Only a vehicle still sitting in `reserved` needs its status moved back.
+  // One taken for maintenance, or unlocked, while held has already been moved
+  // by whoever did that, and must not be dragged to `available`.
+  if (released.status !== 'reserved') return;
+  await moveStatus(repositories, released.id, 'available');
+  await announce(repositories, released.id, 'available');
 }
 
 /**
@@ -75,35 +108,25 @@ async function announce(repositories: Repositories, vehicleId: string): Promise<
  * That keeps behaviour identical on Node and on Workers, where there is no
  * long-lived process to hang a timer on.
  *
- * Releases one vehicle at a time on purpose. A single bulk `UPDATE` would
- * clear the columns while leaving the simulator's in-memory copy on
- * `reserved`, and the next tick would write the expired hold straight back —
- * see `moveStatus`. The fleet is 70 vehicles and lapsed holds are rare, so the
- * loop costs nothing.
+ * One UPDATE clears the columns and reports which vehicles it touched; the
+ * per-vehicle loop that follows only moves statuses, which has to go through
+ * the gateway one at a time anyway.
  */
 export async function releaseExpiredReservations(repositories: Repositories): Promise<number> {
-  const lapsed = await repositories.vehicles.findLapsedHolds();
-  for (const vehicleId of lapsed) {
-    await repositories.vehicles.clearHold(vehicleId);
-    // Only a vehicle still sitting in `reserved` needs its status moved back.
-    // One that was taken for maintenance, or unlocked, while held has already
-    // been moved by whoever did that, and must not be dragged to `available`.
-    const vehicle = await repositories.vehicles.findById(vehicleId);
-    if (vehicle?.status === 'reserved') {
-      await moveStatus(repositories, vehicleId, 'available');
-      await announce(repositories, vehicleId);
-    }
+  const released = await repositories.vehicles.clearLapsedHolds();
+  for (const vehicle of released) {
+    await restore(repositories, vehicle);
   }
-  return lapsed.length;
+  return released.length;
 }
 
 /**
  * Hold a scooter for this rider.
  *
  * Idempotent for the holder: tapping again on a scooter they already hold
- * extends nothing and errors on nothing, it just returns the live hold. Two
- * riders racing for the same scooter are resolved by `claimHold`, which is a
- * single conditional UPDATE.
+ * extends nothing and errors on nothing. Two riders racing for the same
+ * scooter are resolved by `claimHold`, which is a single conditional UPDATE —
+ * exactly one of them matches a row.
  */
 export async function reserveVehicle(
   repositories: Repositories,
@@ -114,22 +137,19 @@ export async function reserveVehicle(
   const vehicle = await repositories.vehicles.findById(input.vehicleId);
   if (vehicle === null) throw notFound('No such scooter');
 
-  const existing = await repositories.vehicles.findHold(input.vehicleId);
-  if (existing !== null) {
-    if (existing.userId !== input.userId) {
+  if (vehicle.status !== 'available' && vehicle.status !== 'low_battery') {
+    // `reserved` reaching here means somebody's live hold, including possibly
+    // this rider's own — findHold distinguishes, and is a plain read with no
+    // write before it in this request.
+    const hold = await repositories.vehicles.findHold(input.vehicleId);
+    if (hold !== null) {
+      if (hold.userId === input.userId) {
+        return { ...toPublic(vehicle), reservedUntil: hold.until.toISOString() };
+      }
       throw conflict(API_ERROR_CODES.VEHICLE_RESERVED, 'Another rider is holding this scooter', {
-        until: existing.until.toISOString(),
+        until: hold.until.toISOString(),
       });
     }
-    return toPublic(vehicle);
-  }
-
-  // A rider may hold one scooter at a time; a second hold releases the first.
-  // Without this, walking past a nicer scooter and holding that one too takes
-  // both off the map for ten minutes.
-  await releaseHoldsOf(repositories, input.userId, input.vehicleId);
-
-  if (vehicle.status !== 'available' && vehicle.status !== 'low_battery') {
     throw conflict(
       API_ERROR_CODES.VEHICLE_UNAVAILABLE,
       `This scooter is ${vehicle.status.replace('_', ' ')} and cannot be held`,
@@ -147,16 +167,21 @@ export async function reserveVehicle(
 
   const until = new Date(Date.now() + RESERVATION_HOLD_MS);
   const claimed = await repositories.vehicles.claimHold(vehicle.id, input.userId, until);
-  if (!claimed) {
+  if (claimed === null) {
     throw conflict(API_ERROR_CODES.VEHICLE_RESERVED, 'Another rider got there first');
   }
 
-  await moveStatus(repositories, vehicle.id, 'reserved');
-  await announce(repositories, vehicle.id);
+  // Only once the claim is won, so a failed race leaves the rider's existing
+  // hold alone.
+  for (const other of await repositories.vehicles.clearOtherHoldsOf(input.userId, vehicle.id)) {
+    await restore(repositories, other);
+  }
 
-  const updated = await repositories.vehicles.findById(vehicle.id);
-  if (updated === null) throw notFound('No such scooter');
-  return toPublic(updated);
+  await moveStatus(repositories, vehicle.id, 'reserved');
+  await announce(repositories, vehicle.id, 'reserved');
+
+  // Built from what we just wrote, not read back.
+  return { ...toPublic(vehicle), status: 'reserved', reservedUntil: until.toISOString() };
 }
 
 /**
@@ -171,20 +196,14 @@ export async function releaseVehicle(
   repositories: Repositories,
   input: { userId: string; vehicleId: string; silent?: boolean },
 ): Promise<void> {
-  const hold = await repositories.vehicles.findHold(input.vehicleId);
-  if (hold === null) return;
-  if (hold.userId !== input.userId) {
-    throw conflict(API_ERROR_CODES.VEHICLE_RESERVED, 'This hold belongs to another rider');
-  }
-
-  await repositories.vehicles.clearHold(input.vehicleId);
+  const released = await repositories.vehicles.clearHoldOwnedBy(input.vehicleId, input.userId);
+  // No live hold, or somebody else's. Releasing something you do not hold is a
+  // no-op rather than an error: the rider's intent — "I am not holding this" —
+  // is already true, and the endpoint is idempotent.
+  if (released === null) return;
   if (input.silent === true) return;
 
-  const vehicle = await repositories.vehicles.findById(input.vehicleId);
-  if (vehicle?.status === 'reserved') {
-    await moveStatus(repositories, input.vehicleId, 'available');
-    await announce(repositories, input.vehicleId);
-  }
+  await restore(repositories, { id: input.vehicleId, status: released.status });
 }
 
 /** The rider's live hold, if they have one. Drives the countdown banner. */
@@ -197,15 +216,4 @@ export async function findActiveHold(
   const held = await repositories.vehicles.findHeldBy(userId);
   if (held === null) return null;
   return { vehicle: held.vehicle, until: held.until.toISOString() };
-}
-
-/** Release whatever else this rider is holding, except `keepVehicleId`. */
-async function releaseHoldsOf(
-  repositories: Repositories,
-  userId: string,
-  keepVehicleId: string,
-): Promise<void> {
-  const held = await repositories.vehicles.findHeldBy(userId);
-  if (held === null || held.vehicle.id === keepVehicleId) return;
-  await releaseVehicle(repositories, { userId, vehicleId: held.vehicle.id });
 }
