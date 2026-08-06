@@ -84,6 +84,8 @@ export function RideScreen({
             ZONE_KIND_COLOUR.parking,
             'forbidden',
             ZONE_KIND_COLOUR.forbidden,
+            'slow',
+            ZONE_KIND_COLOUR.slow,
             ZONE_KIND_COLOUR.service,
           ],
           'fill-opacity': [
@@ -106,6 +108,8 @@ export function RideScreen({
             ZONE_KIND_COLOUR.parking,
             'forbidden',
             ZONE_KIND_COLOUR.forbidden,
+            'slow',
+            ZONE_KIND_COLOUR.slow,
             ZONE_KIND_COLOUR.service,
           ],
           'line-width': ['case', ['get', 'highlighted'], 4, 2],

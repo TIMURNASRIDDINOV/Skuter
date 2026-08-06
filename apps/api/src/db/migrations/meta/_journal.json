@@ -15,6 +15,20 @@
       "when": 1785329314230,
       "tag": "0001_useful_kree",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785997082844,
+      "tag": "0002_glorious_hulk",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785997424893,
+      "tag": "0003_massive_nightmare",
+      "breakpoints": true
     }
   ]
 }

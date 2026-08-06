@@ -43,6 +43,12 @@ const ICONS = {
   history: { ios: 'clock.arrow.circlepath', android: 'history' },
   parking: { ios: 'p.circle.fill', android: 'local_parking' },
   info: { ios: 'info.circle.fill', android: 'info' },
+  speed: { ios: 'speedometer', android: 'speed' },
+  block: { ios: 'nosign', android: 'block' },
+  layers: { ios: 'square.3.layers.3d', android: 'layers' },
+  lock: { ios: 'lock.fill', android: 'lock' },
+  timer: { ios: 'timer', android: 'timer' },
+  route: { ios: 'arrow.triangle.turn.up.right.diamond.fill', android: 'route' },
 } as const satisfies Record<string, SymbolViewProps['name']>;
 
 export type IconName = keyof typeof ICONS;
@@ -206,6 +212,63 @@ export function BatteryBar({ pct, colour }: { pct: number; colour: string }) {
   );
 }
 
+/**
+ * A small fact with an icon — battery, walk time, remaining range.
+ *
+ * The reference app stacks two or three of these under a scooter's number, and
+ * they carry most of what a rider decides on. Tinted background rather than a
+ * border: at this size a 1px outline reads as a text field.
+ */
+export function Chip({
+  icon,
+  label,
+  colour = colors.text,
+  background = colors.surfaceElevated,
+}: {
+  icon?: IconName;
+  label: string;
+  colour?: string;
+  background?: string;
+}) {
+  return (
+    <View style={[styles.chip, { backgroundColor: background }]}>
+      {icon !== undefined && <Icon name={icon} size={13} color={colour} />}
+      <Text style={[styles.chipLabel, { color: colour }]} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * A tappable row that leads somewhere — the menu under the map sheet.
+ * Icon, label, chevron; the whole row is the target, not just the text.
+ */
+export function MenuRow({
+  icon,
+  label,
+  onPress,
+  testID,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  testID?: string;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      testID={testID}
+      onPress={onPress}
+      style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: colors.surfaceMuted }]}
+    >
+      <Icon name={icon} size={20} color={colors.textSecondary} />
+      <Text style={styles.menuLabel}>{label}</Text>
+      <Icon name="chevronRight" size={14} color={colors.textTertiary} />
+    </Pressable>
+  );
+}
+
 /** Pulsing placeholder block — the loading state everywhere. */
 export function Skeleton({ style }: { style?: StyleProp<ViewStyle> }) {
   const opacity = useSharedValue(0.6);
@@ -265,6 +328,29 @@ const styles = StyleSheet.create({
   },
   pillDot: { width: 8, height: 8, borderRadius: 4 },
   pillLabel: { ...typography.label } as TextStyle,
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: spacing.s + 2,
+    paddingVertical: 5,
+    borderRadius: radius.s,
+  },
+  chipLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: -0.1,
+    fontVariant: ['tabular-nums'],
+  } as TextStyle,
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.m,
+    paddingHorizontal: spacing.l,
+    paddingVertical: spacing.m + 2,
+    borderRadius: radius.m,
+  },
+  menuLabel: { fontSize: 16, fontWeight: '600', letterSpacing: -0.2, color: colors.text, flex: 1 },
   batteryTrack: {
     height: 8,
     borderRadius: 4,

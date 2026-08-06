@@ -45,6 +45,42 @@ export const FORBIDDEN_ZONES: readonly SeedZone[] = [
   { name: 'Amir Temur skver — pedestrian only', centre: { lat: 41.3106, lon: 69.2779 }, radiusM: 180 },
 ] as const;
 
+export interface SeedSlowZone extends SeedZone {
+  speedLimitKph: number;
+}
+
+/**
+ * Calmed areas — busy on foot, so the scooter throttles itself rather than
+ * being refused outright.
+ *
+ * Deliberately large and overlapping the parking zones at Amir Temur and
+ * Chilonzor: the rider has to *stand in one* for the speed-limit sheet to be
+ * worth demonstrating, and the walk into parking (demo step 5) is the moment
+ * they do. The Chorsu zone is the wide one, the two squares are the strict
+ * ones, so the overlap also exercises the "lowest cap wins" ordering in
+ * `findSlowZoneAt`.
+ */
+export const SLOW_ZONES: readonly SeedSlowZone[] = [
+  {
+    name: 'Amir Temur square — calmed',
+    centre: { lat: 41.3122, lon: 69.2805 },
+    radiusM: 320,
+    speedLimitKph: 10,
+  },
+  {
+    name: 'Chorsu bozor — calmed',
+    centre: { lat: 41.3262, lon: 69.2352 },
+    radiusM: 420,
+    speedLimitKph: 15,
+  },
+  {
+    name: 'Chilonzor metro — calmed',
+    centre: { lat: 41.2766, lon: 69.2044 },
+    radiusM: 300,
+    speedLimitKph: 15,
+  },
+] as const;
+
 export function zonePolygon(zone: SeedZone): GeoPolygon {
   return polygonAround(zone.centre, zone.radiusM, 10);
 }

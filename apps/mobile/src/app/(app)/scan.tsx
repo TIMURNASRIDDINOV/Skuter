@@ -15,7 +15,7 @@ import { Button, Icon, IconButton } from '@/components/ui';
 import { DEMO_CONTROLS_ENABLED } from '@/lib/demo';
 import { useI18n } from '@/lib/i18n';
 import { DURATION, useMotion } from '@/lib/motion';
-import { colors, radius, shadows, spacing, typography } from '@/lib/theme';
+import { chrome, colors, radius, shadows, spacing, typography } from '@/lib/theme';
 
 /** With no successful read after this long, suggest typing the code. */
 const SCAN_TROUBLE_MS = 6000;
@@ -217,19 +217,13 @@ export default function ScanScreen() {
       />
 
       <SafeAreaView style={styles.overlay}>
+        {/* The title sits above the frame, as it does in the reference app —
+            the instruction is read before the camera is aimed, so it belongs
+            at the top of the screen rather than under the viewfinder. */}
         <View style={styles.topRow}>
-          <IconButton
-            name="close"
-            onPress={() => router.back()}
-            color={colors.textInverse}
-            background="rgba(255,255,255,0.2)"
-          />
-          <IconButton
-            name="flash"
-            onPress={() => setTorch((on) => !on)}
-            color={colors.textInverse}
-            background={torch ? colors.warning : 'rgba(255,255,255,0.2)'}
-          />
+          <Text style={styles.scanHeading} numberOfLines={2}>
+            {invalid ? t.scanInvalid : t.scanTitle}
+          </Text>
         </View>
 
         <View style={styles.viewfinderArea}>
@@ -239,27 +233,43 @@ export default function ScanScreen() {
             <View style={[styles.corner, styles.cornerBL, invalid && styles.cornerInvalid]} />
             <View style={[styles.corner, styles.cornerBR, invalid && styles.cornerInvalid]} />
           </View>
-          <Text style={styles.hintTitle}>{invalid ? t.scanInvalid : t.scanTitle}</Text>
           {!invalid && (
             <Text style={styles.hintBody}>{trouble ? t.scanTrouble : t.scanHint}</Text>
           )}
         </View>
 
-        <View style={styles.bottomRow}>
+        {/* Close, enter-a-code, torch — the reference app's three controls, in
+            that order, so the two circular ones frame the wide pill. */}
+        <View style={styles.controls}>
+          <IconButton
+            name="close"
+            onPress={() => router.back()}
+            color={chrome.text}
+            background={chrome.surface}
+            accessibilityLabel={t.close}
+          />
           <Pressable
             style={({ pressed }) => [styles.manualButton, pressed && { opacity: 0.85 }]}
             onPress={() => sheetRef.current?.snapToIndex(0)}
             testID="manual-entry"
           >
-            <Icon name="keypad" size={18} color={colors.text} />
+            <Icon name="keypad" size={18} color={chrome.text} />
             <Text style={styles.manualButtonLabel}>{t.enterCodeManually}</Text>
           </Pressable>
-          {DEMO_CONTROLS_ENABLED && (
-            <Pressable style={styles.devButton} onPress={simulateScan} testID="simulate-scan">
-              <Text style={styles.devButtonLabel}>{t.simulateScan}</Text>
-            </Pressable>
-          )}
+          <IconButton
+            name="flash"
+            onPress={() => setTorch((on) => !on)}
+            color={torch ? colors.text : chrome.text}
+            background={torch ? colors.warning : chrome.surface}
+            accessibilityLabel={t.torch}
+          />
         </View>
+
+        {DEMO_CONTROLS_ENABLED && (
+          <Pressable style={styles.devButton} onPress={simulateScan} testID="simulate-scan">
+            <Text style={styles.devButtonLabel}>{t.simulateScan}</Text>
+          </Pressable>
+        )}
       </SafeAreaView>
 
       {manualSheet}
@@ -271,10 +281,13 @@ export default function ScanScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   overlay: { flex: 1, justifyContent: 'space-between', padding: EDGE },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: spacing.s,
+  topRow: { paddingTop: spacing.l, paddingHorizontal: spacing.s },
+  scanHeading: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    color: chrome.text,
+    textAlign: 'center',
   },
   viewfinderArea: { alignItems: 'center', gap: spacing.l },
   confirmOverlay: {
@@ -298,70 +311,76 @@ const styles = StyleSheet.create({
   },
   confirmLabel: { ...typography.heading, color: colors.textInverse },
   viewfinder: { width: VIEWFINDER_SIZE, height: VIEWFINDER_SIZE },
+  // Longer arms and a wider radius than the old 26/3/14 — the reference
+  // frame reads as a bracket around the code rather than a hairline crop mark.
   corner: {
     position: 'absolute',
-    width: 26,
-    height: 26,
+    width: 42,
+    height: 42,
     borderColor: colors.textInverse,
   },
   cornerTL: {
     top: 0,
     left: 0,
-    borderTopWidth: 3,
-    borderLeftWidth: 3,
-    borderTopLeftRadius: radius.m,
+    borderTopWidth: 5,
+    borderLeftWidth: 5,
+    borderTopLeftRadius: radius.xl,
   },
   cornerTR: {
     top: 0,
     right: 0,
-    borderTopWidth: 3,
-    borderRightWidth: 3,
-    borderTopRightRadius: radius.m,
+    borderTopWidth: 5,
+    borderRightWidth: 5,
+    borderTopRightRadius: radius.xl,
   },
   cornerBL: {
     bottom: 0,
     left: 0,
-    borderBottomWidth: 3,
-    borderLeftWidth: 3,
-    borderBottomLeftRadius: radius.m,
+    borderBottomWidth: 5,
+    borderLeftWidth: 5,
+    borderBottomLeftRadius: radius.xl,
   },
   cornerBR: {
     bottom: 0,
     right: 0,
-    borderBottomWidth: 3,
-    borderRightWidth: 3,
-    borderBottomRightRadius: radius.m,
+    borderBottomWidth: 5,
+    borderRightWidth: 5,
+    borderBottomRightRadius: radius.xl,
   },
   cornerInvalid: { borderColor: colors.warning },
-  hintTitle: {
-    ...typography.heading,
-    color: colors.textInverse,
-    textAlign: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  hintBody: { ...typography.body, color: 'rgba(255,255,255,0.72)', textAlign: 'center' },
-  bottomRow: { alignItems: 'center', gap: spacing.m, minHeight: 52 },
-  manualButton: {
+  hintBody: { ...typography.body, color: chrome.textSecondary, textAlign: 'center' },
+  controls: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.m,
+    minHeight: 52,
+  },
+  manualButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.s,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: chrome.surface,
     borderRadius: radius.full,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.m,
+    paddingHorizontal: spacing.l,
+    height: 44,
     ...shadows.md,
   },
-  manualButtonLabel: { ...typography.label, color: colors.text },
+  manualButtonLabel: { ...typography.label, color: chrome.text },
   devButton: {
+    alignSelf: 'center',
+    marginTop: spacing.m,
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: radius.full,
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.m,
+    paddingVertical: spacing.s,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.4)',
     borderStyle: 'dashed',
   },
-  devButtonLabel: { ...typography.label, color: 'rgba(255,255,255,0.85)' },
+  devButtonLabel: { ...typography.label, color: chrome.textSecondary },
   denied: { flex: 1, backgroundColor: colors.background, justifyContent: 'space-between' },
   deniedTop: {
     flexDirection: 'row',

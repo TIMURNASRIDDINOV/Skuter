@@ -11,6 +11,7 @@ const zoneColumns = {
   kind: zones.kind,
   geom: selectPolygon(zones.geom),
   areaId: zones.areaId,
+  speedLimitKph: zones.speedLimitKph,
 } as const;
 
 const areaColumns = {
@@ -24,6 +25,8 @@ export interface NewZone {
   kind: ZoneKind;
   geom: GeoPolygon;
   areaId: string | null;
+  /** Required on `slow` zones, null on every other kind. */
+  speedLimitKph: number | null;
 }
 
 // Raw rows from the PostGIS containment queries. Declared as type aliases, not

@@ -46,3 +46,33 @@ export function serviceZonesOf(zones: readonly Zone[]): Zone[] {
 export function needsAttention(vehicle: Vehicle): boolean {
   return VEHICLE_STATUS_SEVERITY[vehicle.status] === 'watch';
 }
+
+/** Comfortable walking pace, m/s. Slower than the 1.4 m/s textbook figure. */
+const WALK_SPEED_MPS = 1.25;
+
+/** Typical shared-scooter speed in traffic, m/s (≈15 km/h). */
+const RIDE_SPEED_MPS = 4.2;
+
+/**
+ * Minutes on foot to a scooter, always at least one.
+ *
+ * Straight-line, because the app has no routing service — a keyed one is the
+ * kind of dependency this project deliberately avoids. Over the few hundred
+ * metres this is ever shown for, street routing adds roughly a quarter, which
+ * the deliberately slow pace above absorbs. Rounded up: "2 min" that takes
+ * three is a worse lie than "3 min" that takes two.
+ */
+export function walkMinutes(distanceM: number): number {
+  return Math.max(1, Math.ceil(distanceM / WALK_SPEED_MPS / 60));
+}
+
+/**
+ * How long the remaining charge is good for, in minutes.
+ *
+ * `rangeM` is already the server's estimate from battery percentage; this only
+ * restates it as time, which is what a rider actually decides on — "enough for
+ * an hour" answers the question that "12 km" does not.
+ */
+export function rideMinutesLeft(vehicle: Vehicle): number {
+  return Math.max(1, Math.round(vehicle.rangeM / RIDE_SPEED_MPS / 60));
+}

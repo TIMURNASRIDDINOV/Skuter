@@ -143,6 +143,31 @@ Demo controls are a separate interface, `SimulationControl`, obtained via
 "force a ride" on a scooter someone is holding — and the routes answer 501
 rather than pretending.
 
+### Reservation holds — status writes go through the gateway
+
+`services/reservations.ts` never writes a vehicle's **status** with
+`repositories.vehicles.updateStatus`. It calls
+`getSimulationControl()?.setStatus()`, falling back to the repository only when
+no simulated gateway is live.
+
+This is not stylistic. The simulator holds the fleet in memory and flushes
+every vehicle's status to Postgres on each tick, so a status written straight
+to the database survives at most one tick (3 s) before the simulator's stale
+in-memory copy overwrites it — a hold placed at t=0 silently vanished at t=3s.
+The same applies to *releasing* a hold, which is why `releaseExpiredReservations`
+releases row by row instead of issuing one bulk `UPDATE`.
+
+The hold columns themselves (`reserved_until`, `reserved_by`) are ordinary
+repository writes — only `status` has to cross the gateway seam.
+
+Two more things reservations touch:
+
+- **`#statusForBattery` in `simulated.ts` treats `reserved` as operator-chosen**,
+  alongside `maintenance` and `in_use`. Without it a held scooter's idle drain
+  can flip it to `low_battery` and drop a rider's hold while they walk to it.
+- **Expiry is lazy**, swept at the top of `GET /vehicles` and before a ride
+  starts. No scheduler, so it behaves the same on Node and on Workers.
+
 ### Simulation tuning
 
 Battery drain is **demo-compressed** (`IDLE_DRAIN_PCT_PER_TICK`,

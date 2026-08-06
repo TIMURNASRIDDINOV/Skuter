@@ -64,8 +64,13 @@ export function SubscriptionStatusTag({ status }: { status: string }): React.Rea
   return <Tag color={meta.tag}>{meta.label}</Tag>;
 }
 
+/**
+ * Mirrors `ZONE_KIND_COLOUR` in apps/mobile/src/lib/theme.ts. `slow` is
+ * amber-orange, not the warning yellow that already means low battery.
+ */
 export const ZONE_KIND_META: Record<string, { label: string; colour: string }> = {
   service: { label: 'Зона обслуживания', colour: '#1677ff' },
   parking: { label: 'Парковка', colour: '#52c41a' },
   forbidden: { label: 'Запрещено', colour: '#f5222d' },
+  slow: { label: 'Ограничение скорости', colour: '#fa8c16' },
 };

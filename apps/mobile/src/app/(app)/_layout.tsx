@@ -10,6 +10,7 @@ export default function AppLayout() {
       <Stack.Screen name="ride" options={{ gestureEnabled: false }} />
       <Stack.Screen name="receipt" options={{ gestureEnabled: false }} />
       <Stack.Screen name="plans" />
+      <Stack.Screen name="rules" />
     </Stack>
   );
 }

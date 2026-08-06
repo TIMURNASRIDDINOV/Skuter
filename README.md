@@ -72,7 +72,19 @@ every run, so a rehearsed demo stays rehearsed.
 The definition of done. Phone in one hand, admin panel on the laptop.
 
 - [ ] **1. Open the app.** Native map fills with clustered scooter pins across
-      Tashkent. Tap one → bottom sheet with battery, range and pricing.
+      Tashkent. The sheet rests on a carousel of the nearest scooters — walk
+      time, charge, and how long that charge lasts — beside the scan button.
+      Tap a card → the pin becomes a bubble, a dashed walking line and its ETA
+      appear, and the sheet shows the tariff picker.
+
+- [ ] **1a. Tap a zone badge.** The green **P** explains that a ride may end
+      there; an orange speed disc explains that the scooter throttles itself,
+      and says to what. «Подробнее о зонах» opens the full legend.
+
+- [ ] **1b. Hold a scooter.** «Забронировать на 10 мин» → a countdown banner
+      pins to the map and the pin gains a padlock. Nobody else can see or
+      unlock it; on the admin panel it flips to `reserved` with no refresh.
+      The hold releases itself when it lapses, and when the ride starts.
 
 - [ ] **2. Scan a QR.** Unlock animation, ride starts. QR values match the
       seeded codes (`SCOOT-0001` … `SCOOT-0070`); there is a dev **simulate
@@ -96,6 +108,11 @@ The definition of done. Phone in one hand, admin panel on the laptop.
 
 - [ ] **7. Draw a new parking zone** on the admin map and save. Pull to refresh
       on the phone — the new zone renders.
+
+- [ ] **7a. Draw a speed-limit zone.** Pick «Ограничение скорости», choose a
+      cap, save. On the phone it renders orange with its number on a road-sign
+      disc; ride into it and the live speed cap appears beside the parking
+      pill. Overlapping zones apply the lowest cap.
 
 ### Triggering states live
 

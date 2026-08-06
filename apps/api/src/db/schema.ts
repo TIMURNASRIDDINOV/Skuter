@@ -42,7 +42,7 @@ export const vehicleStatusEnum = pgEnum('vehicle_status', [
 
 export const userStatusEnum = pgEnum('user_status', ['active', 'blocked']);
 
-export const zoneKindEnum = pgEnum('zone_kind', ['service', 'parking', 'forbidden']);
+export const zoneKindEnum = pgEnum('zone_kind', ['service', 'parking', 'forbidden', 'slow']);
 
 export const planKindEnum = pgEnum('plan_kind', ['per_minute', 'daily', 'weekly']);
 
@@ -114,12 +114,24 @@ export const vehicles = pgTable(
     geom: point4326('geom').notNull(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
     areaId: uuid('area_id').references(() => areas.id, { onDelete: 'set null' }),
+    /**
+     * Reservation hold. Both columns move together — a vehicle is held when
+     * `reservedUntil` is in the future, and `reservedBy` says whose hold it is
+     * so another rider cannot unlock it.
+     *
+     * `set null` on user delete rather than cascade: losing an account should
+     * free the scooter, not delete it.
+     */
+    reservedUntil: timestamp('reserved_until', { withTimezone: true }),
+    reservedBy: uuid('reserved_by').references(() => users.id, { onDelete: 'set null' }),
   },
   (t) => [
     uniqueIndex('vehicles_qr_code_key').on(t.qrCode),
     uniqueIndex('vehicles_imei_key').on(t.imei),
     index('vehicles_geom_idx').using('gist', t.geom),
     index('vehicles_status_idx').on(t.status),
+    // Drives the expiry sweep, which runs on every public vehicle list.
+    index('vehicles_reserved_until_idx').on(t.reservedUntil),
   ],
 );
 
@@ -131,6 +143,8 @@ export const zones = pgTable(
     kind: zoneKindEnum('kind').notNull(),
     geom: polygon4326('geom').notNull(),
     areaId: uuid('area_id').references(() => areas.id, { onDelete: 'cascade' }),
+    /** Only set on `slow` zones; null on every other kind. */
+    speedLimitKph: smallint('speed_limit_kph'),
   },
   (t) => [index('zones_geom_idx').using('gist', t.geom), index('zones_kind_idx').on(t.kind)],
 );

@@ -23,6 +23,7 @@ export const ZONE_KIND_COLOUR: Record<ZoneKind, string> = {
   service: '#1677FF',
   parking: '#52C41A',
   forbidden: '#F5222D',
+  slow: '#FA8C16',
 };
 
 export const DEMO_CONTROLS_ENABLED: boolean = import.meta.env['VITE_DEMO_CONTROLS'] === '1';

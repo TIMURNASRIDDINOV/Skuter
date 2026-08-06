@@ -223,6 +223,7 @@ adminRoutes.post(
       kind: body.kind,
       geom: body.geom,
       areaId: body.areaId ?? null,
+      speedLimitKph: body.speedLimitKph ?? null,
     });
 
     await repositories.audit.append({
@@ -251,6 +252,13 @@ adminRoutes.patch(
       ...(body.kind === undefined ? {} : { kind: body.kind }),
       ...(body.geom === undefined ? {} : { geom: body.geom }),
       ...(body.areaId === undefined ? {} : { areaId: body.areaId }),
+      // A kind change away from `slow` must clear the limit, or the row keeps
+      // a cap that no longer applies to anything.
+      ...(body.speedLimitKph === undefined
+        ? body.kind === undefined || body.kind === 'slow'
+          ? {}
+          : { speedLimitKph: null }
+        : { speedLimitKph: body.speedLimitKph }),
     });
     if (zone === null) throw notFound('No such zone');
 

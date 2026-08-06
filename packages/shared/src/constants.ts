@@ -38,6 +38,15 @@ export const TASHKENT_CLUSTERS: readonly VehicleCluster[] = [
 export const TASHKENT_MAP_CENTER = { lat: 41.3111, lon: 69.2797 } as const;
 export const TASHKENT_MAP_DELTA = { latitudeDelta: 0.22, longitudeDelta: 0.22 } as const;
 
+/**
+ * How long a rider may hold a scooter before unlocking it.
+ *
+ * Free, and short on purpose: long enough to walk to the pin, short enough
+ * that a hold cannot be used to take a scooter off the market. The hold is
+ * released the moment the ride starts.
+ */
+export const RESERVATION_HOLD_MS = 10 * 60_000;
+
 /** Battery percentage at or below which a vehicle counts as low battery. */
 export const LOW_BATTERY_THRESHOLD_PCT = 20 as const;
 

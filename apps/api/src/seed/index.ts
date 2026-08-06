@@ -17,6 +17,7 @@ import {
   FORBIDDEN_ZONES,
   PARKING_ZONES,
   SERVICE_AREA,
+  SLOW_ZONES,
   VEHICLE_MODELS,
   zonePolygon,
 } from './geo-data.js';
@@ -193,18 +194,33 @@ async function main(): Promise<void> {
   const area = await repositories.areas.insert({ name: 'Tashkent', geom: SERVICE_AREA });
 
   const zones = await repositories.zones.insertMany([
-    { name: 'Tashkent service area', kind: 'service', geom: SERVICE_AREA, areaId: area.id },
+    {
+      name: 'Tashkent service area',
+      kind: 'service',
+      geom: SERVICE_AREA,
+      areaId: area.id,
+      speedLimitKph: null,
+    },
     ...PARKING_ZONES.map((zone) => ({
       name: zone.name,
       kind: 'parking' as const,
       geom: zonePolygon(zone),
       areaId: area.id,
+      speedLimitKph: null,
     })),
     ...FORBIDDEN_ZONES.map((zone) => ({
       name: zone.name,
       kind: 'forbidden' as const,
       geom: zonePolygon(zone),
       areaId: area.id,
+      speedLimitKph: null,
+    })),
+    ...SLOW_ZONES.map((zone) => ({
+      name: zone.name,
+      kind: 'slow' as const,
+      geom: zonePolygon(zone),
+      areaId: area.id,
+      speedLimitKph: zone.speedLimitKph,
     })),
   ]);
 
@@ -272,10 +288,14 @@ async function main(): Promise<void> {
 
   const parkingCount = zones.filter((z) => z.kind === 'parking').length;
   const forbiddenCount = zones.filter((z) => z.kind === 'forbidden').length;
+  const slowCount = zones.filter((z) => z.kind === 'slow').length;
 
   write('');
   write(`  Area          ${area.name}`);
-  write(`  Zones         ${parkingCount} parking, ${forbiddenCount} forbidden, 1 service area`);
+  write(
+    `  Zones         ${parkingCount} parking, ${forbiddenCount} forbidden, ` +
+      `${slowCount} slow, 1 service area`,
+  );
   write(`  Plans         ${plans.map((p) => p.name).join(', ')}`);
   write(
     `  Vehicles      ${vehicleCount} (${String(vehicleCount - outside)} inside the service area, ` +

@@ -39,6 +39,7 @@ export interface VehicleRow {
   geom: GeoPoint;
   lastSeenAt: Date;
   areaId: string | null;
+  reservedUntil: Date | null;
 }
 
 export function toVehicle(row: VehicleRow): Vehicle {
@@ -52,6 +53,12 @@ export function toVehicle(row: VehicleRow): Vehicle {
     rangeM: estimateRangeM(row.batteryPct),
     lastSeenAt: toIso(row.lastSeenAt),
     areaId: row.areaId,
+    // A hold that has already lapsed is not a hold. The sweep clears these
+    // rows, but a read racing the sweep must not report a stale one.
+    reservedUntil:
+      row.reservedUntil !== null && row.reservedUntil.getTime() > Date.now()
+        ? toIso(row.reservedUntil)
+        : null,
   };
 }
 
@@ -108,6 +115,7 @@ export interface ZoneRow {
   kind: Zone['kind'];
   geom: Zone['geom'];
   areaId: string | null;
+  speedLimitKph: number | null;
 }
 
 export function toZone(row: ZoneRow): Zone {
@@ -117,6 +125,7 @@ export function toZone(row: ZoneRow): Zone {
     kind: row.kind,
     geom: row.geom,
     areaId: row.areaId,
+    speedLimitKph: row.speedLimitKph,
   };
 }
 

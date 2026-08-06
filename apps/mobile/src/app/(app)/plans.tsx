@@ -25,11 +25,19 @@ function daysWord(days: number, t: Strings): string {
 export default function PlansScreen() {
   const { t, lang } = useI18n();
   const router = useRouter();
-  const params = useLocalSearchParams<{ vehicleId?: string; qr?: string; model?: string }>();
+  const params = useLocalSearchParams<{
+    vehicleId?: string;
+    qr?: string;
+    model?: string;
+    /** Preselected by the map sheet's tariff picker — the rider already chose. */
+    planId?: string;
+  }>();
 
   const plansQuery = usePlans();
   const buy = useBuySubscription();
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  // Arriving from the sheet's tariff picker, the choice is already made — land
+  // on it selected rather than making the rider pick the same plan twice.
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(params.planId ?? null);
   const [purchased, setPurchased] = useState(false);
 
   // Reached from the map, the caller already knows the vehicle. Reached by

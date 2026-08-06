@@ -16,6 +16,7 @@ import { conflict, notFound } from '../lib/errors.js';
 import { getPaymentProvider } from '../payments/index.js';
 import type { Repositories } from '../repositories/index.js';
 import { checkParking } from './parking.js';
+import { releaseExpiredReservations, releaseVehicle } from './reservations.js';
 
 /**
  * Ride lifecycle. This is the demo script's spine: scan, unlock, ride, fail to
@@ -38,6 +39,9 @@ export async function startRide(
   repositories: Repositories,
   input: { userId: string; qrCode: string; planId: string },
 ): Promise<StartRideResult> {
+  // First, so nothing below reads a vehicle still carrying a lapsed hold.
+  await releaseExpiredReservations(repositories);
+
   const vehicle = await repositories.vehicles.findByQrCode(input.qrCode);
   if (vehicle === null) {
     throw notFound(`No scooter with code ${input.qrCode}`);
@@ -50,6 +54,15 @@ export async function startRide(
   if (existing !== null) {
     throw conflict(API_ERROR_CODES.RIDE_ALREADY_ACTIVE, 'You already have a ride in progress', {
       rideId: existing.id,
+    });
+  }
+
+  // `reserved` is rideable — by whoever holds it. Without this check any rider
+  // could scan a scooter somebody else is walking towards and take it.
+  const hold = await repositories.vehicles.findHold(vehicle.id);
+  if (hold !== null && hold.userId !== input.userId) {
+    throw conflict(API_ERROR_CODES.VEHICLE_RESERVED, 'Another rider is holding this scooter', {
+      until: hold.until.toISOString(),
     });
   }
 
@@ -95,6 +108,15 @@ export async function startRide(
     vehicleId: vehicle.id,
     planId: plan.id,
     startedAt,
+  });
+
+  // The hold has done its job. `silent` because `beginRide` below moves the
+  // status to `in_use` — releasing loudly would flash the pin back to green
+  // on the back office map for a beat first.
+  await releaseVehicle(repositories, {
+    userId: input.userId,
+    vehicleId: vehicle.id,
+    silent: true,
   });
 
   await repositories.vehicles.updateStatus(vehicle.id, 'in_use');

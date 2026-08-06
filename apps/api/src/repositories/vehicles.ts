@@ -28,6 +28,7 @@ const columns = {
   geom: selectPoint(vehicles.geom),
   lastSeenAt: vehicles.lastSeenAt,
   areaId: vehicles.areaId,
+  reservedUntil: vehicles.reservedUntil,
 } as const;
 
 export interface NewVehicle {
@@ -62,10 +63,24 @@ export function createVehiclesRepository(db: Database) {
     /**
      * What the rider map shows: rideable vehicles only, minus any currently
      * bound to somebody's active subscription.
+     *
+     * `viewerId` is what keeps a rider's own held scooter on their map.
+     * `reserved` is not a public status — another rider must not see a held
+     * scooter at all, or they walk to a pin they cannot unlock — but the
+     * holder has to keep seeing theirs or the hold is invisible to the only
+     * person it belongs to.
      */
-    async listPublic(query: ListVehiclesQuery = {}): Promise<Vehicle[]> {
+    async listPublic(query: ListVehiclesQuery = {}, viewerId?: string): Promise<Vehicle[]> {
+      const visible =
+        viewerId === undefined
+          ? inArray(vehicles.status, [...PUBLIC_VEHICLE_STATUSES])
+          : sql`(
+              ${inArray(vehicles.status, [...PUBLIC_VEHICLE_STATUSES])}
+              OR (${vehicles.status} = 'reserved' AND ${vehicles.reservedBy} = ${viewerId})
+            )`;
+
       const filters = [
-        inArray(vehicles.status, [...PUBLIC_VEHICLE_STATUSES]),
+        visible,
         sql`NOT EXISTS (
           SELECT 1 FROM ${subscriptions}
           WHERE ${subscriptions.vehicleId} = ${vehicles.id}
@@ -146,6 +161,79 @@ export function createVehiclesRepository(db: Database) {
 
     async updateStatus(id: string, status: VehicleStatus): Promise<void> {
       await db.update(vehicles).set({ status }).where(eq(vehicles.id, id));
+    },
+
+    // --- reservations ----------------------------------------------------
+    // These write only the hold columns. The vehicle's *status* is moved by
+    // services/reservations.ts through the gateway, never from here — see the
+    // note there about the simulator tick rewriting status from memory.
+
+    /** Who holds this vehicle and until when, ignoring lapsed holds. */
+    async findHold(id: string): Promise<{ userId: string; until: Date } | null> {
+      const [row] = await db
+        .select({ userId: vehicles.reservedBy, until: vehicles.reservedUntil })
+        .from(vehicles)
+        .where(eq(vehicles.id, id))
+        .limit(1);
+
+      if (row?.userId == null || row.until === null) return null;
+      if (row.until.getTime() <= Date.now()) return null;
+      return { userId: row.userId, until: row.until };
+    },
+
+    /**
+     * Claim a hold, but only if nobody else already has a live one.
+     *
+     * The `reserved_until IS NULL OR reserved_until <= now()` guard makes this
+     * the atomic step: two riders tapping "hold" on the same scooter both run
+     * this UPDATE, and Postgres row-locking means exactly one matches. Without
+     * it the check and the write would be two statements with a race between.
+     */
+    async claimHold(id: string, userId: string, until: Date): Promise<boolean> {
+      const rows = await db
+        .update(vehicles)
+        .set({ reservedUntil: until, reservedBy: userId })
+        .where(
+          and(
+            eq(vehicles.id, id),
+            sql`(${vehicles.reservedUntil} IS NULL OR ${vehicles.reservedUntil} <= now())`,
+          ),
+        )
+        .returning({ id: vehicles.id });
+      return rows.length > 0;
+    },
+
+    async clearHold(id: string): Promise<void> {
+      await db
+        .update(vehicles)
+        .set({ reservedUntil: null, reservedBy: null })
+        .where(eq(vehicles.id, id));
+    },
+
+    /** The live hold this rider owns, if any. A rider holds at most one. */
+    async findHeldBy(userId: string): Promise<{ vehicle: Vehicle; until: Date } | null> {
+      const [row] = await db
+        .select(columns)
+        .from(vehicles)
+        .where(
+          and(
+            eq(vehicles.reservedBy, userId),
+            sql`${vehicles.reservedUntil} IS NOT NULL AND ${vehicles.reservedUntil} > now()`,
+          ),
+        )
+        .limit(1);
+
+      if (row?.reservedUntil == null) return null;
+      return { vehicle: toVehicle(row as VehicleRow), until: row.reservedUntil };
+    },
+
+    /** Vehicles whose hold has lapsed but whose columns still say otherwise. */
+    async findLapsedHolds(): Promise<string[]> {
+      const rows = await db
+        .select({ id: vehicles.id })
+        .from(vehicles)
+        .where(sql`${vehicles.reservedUntil} IS NOT NULL AND ${vehicles.reservedUntil} <= now()`);
+      return rows.map((row) => row.id);
     },
 
     /** Applied by the simulator on every tick. */

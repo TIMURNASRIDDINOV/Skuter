@@ -137,6 +137,23 @@ export default function RideScreen() {
   const riderLocation = devLocation ?? ride.vehicle.location;
   const inParking = parkingZones.some((zone) => isPointInPolygon(riderLocation, zone.geom));
 
+  // The slow zone the rider is currently inside, strictest first — zones can
+  // overlap and the lowest cap is the one that binds. Computed here from the
+  // zones already loaded rather than asked of the API, exactly like the
+  // parking pill above it: advisory, and it costs no request per tick.
+  const speedLimitKph = zones
+    .filter(
+      (zone) =>
+        zone.kind === 'slow' &&
+        zone.speedLimitKph !== null &&
+        isPointInPolygon(riderLocation, zone.geom),
+    )
+    .reduce<number | null>(
+      (lowest, zone) =>
+        lowest === null ? zone.speedLimitKph : Math.min(lowest, zone.speedLimitKph ?? lowest),
+      null,
+    );
+
   const submitEnd = (location: LatLon) => {
     endRide.mutate(
       { rideId: ride.id, location },
@@ -245,6 +262,15 @@ export default function RideScreen() {
         </View>
 
         <View style={styles.parkingRow}>
+          {/* A speed cap outranks the parking hint while it applies: it is
+              the one that changes how the scooter behaves under the rider
+              right now, rather than where they may leave it later. */}
+          {speedLimitKph !== null && (
+            <Pill
+              label={`${String(speedLimitKph)} ${t.zoneSpeedLimit}`}
+              colour={ZONE_KIND_COLOUR.slow}
+            />
+          )}
           <Pill
             label={inParking ? t.inParkingZone : t.notInParkingZone}
             colour={inParking ? colors.primary : colors.textSecondary}

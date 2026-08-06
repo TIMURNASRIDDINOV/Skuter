@@ -37,7 +37,20 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 
 /** Service area first: it is the one whose edges strand scooters. */
-const KIND_ORDER: readonly ZoneKind[] = ['service', 'parking', 'forbidden'];
+const KIND_ORDER: readonly ZoneKind[] = ['service', 'parking', 'forbidden', 'slow'];
+
+/** Offered speed caps. Free entry invites 3 km/h, which is not a scooter. */
+const SPEED_LIMIT_OPTIONS = [5, 10, 15, 20, 25] as const;
+
+/** The default cap when an operator switches a zone to `slow`. */
+const DEFAULT_SPEED_LIMIT_KPH = 15;
+
+interface ZoneFormValues {
+  name: string;
+  kind: ZoneKind;
+  /** Only read when `kind` is `slow`; the field is hidden otherwise. */
+  speedLimitKph?: number;
+}
 
 /**
  * Zone editor — demo step 7. Draw a polygon on the map, name it, save, and it
@@ -62,7 +75,11 @@ export function ZonesPage(): React.ReactElement {
   // the fleet re-renders this page every few seconds. A fresh `[]` per render
   // would snatch the map back mid-drag.
   const [focus, setFocus] = useState<[number, number][]>([]);
-  const [form] = Form.useForm<{ name: string; kind: ZoneKind }>();
+  const [form] = Form.useForm<ZoneFormValues>();
+  // Drives the conditional speed field. `Form.useWatch` rather than local
+  // state, so it also tracks the value written by setFieldsValue when an
+  // existing zone is opened for editing.
+  const kind = Form.useWatch('kind', form);
   const { token } = theme.useToken();
 
   const load = useCallback(() => {
@@ -100,19 +117,26 @@ export function ZonesPage(): React.ReactElement {
   );
 
   const save = useCallback(
-    async (values: { name: string; kind: ZoneKind }) => {
+    async (values: ZoneFormValues) => {
+      // The API rejects a limit on any kind but `slow`, so send it only there.
+      const speedLimitKph = values.kind === 'slow' ? (values.speedLimitKph ?? null) : null;
       try {
         if (editing !== null) {
           await apiFetch<Zone>(`/admin/zones/${editing.id}`, {
             method: 'PATCH',
-            body: JSON.stringify({ name: values.name, kind: values.kind }),
+            body: JSON.stringify({ name: values.name, kind: values.kind, speedLimitKph }),
           });
           message.success('Зона обновлена');
         } else {
           if (draft === null) return;
           await apiFetch<Zone>('/admin/zones', {
             method: 'POST',
-            body: JSON.stringify({ name: values.name, kind: values.kind, geom: draft }),
+            body: JSON.stringify({
+              name: values.name,
+              kind: values.kind,
+              geom: draft,
+              speedLimitKph,
+            }),
           });
           message.success('Зона сохранена — обновите приложение, чтобы увидеть её');
         }
@@ -374,7 +398,11 @@ export function ZonesPage(): React.ReactElement {
                         onClick={(event) => {
                           event.stopPropagation();
                           setEditing(zone);
-                          form.setFieldsValue({ name: zone.name, kind: zone.kind });
+                          form.setFieldsValue({
+                            name: zone.name,
+                            kind: zone.kind,
+                            speedLimitKph: zone.speedLimitKph ?? DEFAULT_SPEED_LIMIT_KPH,
+                          });
                         }}
                       />
 
@@ -425,7 +453,12 @@ export function ZonesPage(): React.ReactElement {
           void form.submit();
         }}
       >
-        <Form form={form} layout="vertical" onFinish={save} initialValues={{ kind: 'parking' }}>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={save}
+          initialValues={{ kind: 'parking', speedLimitKph: DEFAULT_SPEED_LIMIT_KPH }}
+        >
           <Form.Item
             name="name"
             label="Название"
@@ -441,6 +474,21 @@ export function ZonesPage(): React.ReactElement {
               }))}
             />
           </Form.Item>
+          {kind !== 'slow' ? null : (
+            <Form.Item
+              name="speedLimitKph"
+              label="Ограничение скорости"
+              rules={[{ required: true, message: 'Укажите ограничение' }]}
+              extra="Внутри зоны самокат автоматически замедляется. Если зоны пересекаются, действует самое строгое ограничение."
+            >
+              <Select
+                options={SPEED_LIMIT_OPTIONS.map((kph) => ({
+                  value: kph,
+                  label: `${String(kph)} км/ч`,
+                }))}
+              />
+            </Form.Item>
+          )}
           {draft === null ? null : (
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               Многоугольник: {draft.coordinates[0]?.length ?? 0} точек

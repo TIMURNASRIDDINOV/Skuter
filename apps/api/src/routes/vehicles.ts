@@ -8,7 +8,13 @@ import {
 } from '@scoot/shared';
 import { notFound } from '../lib/errors.js';
 import { repositories } from '../repositories/index.js';
-import { requireAdmin, requireRider, type AppEnv } from '../middleware/auth.js';
+import { requireAdmin, requireRider, riderIdOf, type AppEnv } from '../middleware/auth.js';
+import {
+  findActiveHold,
+  releaseExpiredReservations,
+  releaseVehicle,
+  reserveVehicle,
+} from '../services/reservations.js';
 
 /** Rider-facing vehicle reads. */
 export const vehicleRoutes = new Hono<AppEnv>();
@@ -19,10 +25,37 @@ vehicleRoutes.get(
   zValidator('query', listVehiclesQuerySchema),
   async (c) => {
     const query = c.req.valid('query');
-    const items: Vehicle[] = await repositories.vehicles.listPublic(query);
+    const riderId = riderIdOf(c.get('auth'));
+    // The map is polled every 5 s, which makes it the natural place to sweep
+    // lapsed holds — no scheduler, and a hold can never outlive its expiry by
+    // more than one poll.
+    await releaseExpiredReservations(repositories);
+    const items: Vehicle[] = await repositories.vehicles.listPublic(query, riderId);
     return c.json({ items, total: items.length });
   },
 );
+
+/** The rider's live hold, if they have one. Drives the countdown banner. */
+vehicleRoutes.get('/reservation', requireRider, async (c) => {
+  const hold = await findActiveHold(repositories, riderIdOf(c.get('auth')));
+  return c.json({ reservation: hold });
+});
+
+vehicleRoutes.post('/:id/reserve', requireRider, async (c) => {
+  const vehicle = await reserveVehicle(repositories, {
+    userId: riderIdOf(c.get('auth')),
+    vehicleId: c.req.param('id'),
+  });
+  return c.json(vehicle satisfies Vehicle, 201);
+});
+
+vehicleRoutes.delete('/:id/reserve', requireRider, async (c) => {
+  await releaseVehicle(repositories, {
+    userId: riderIdOf(c.get('auth')),
+    vehicleId: c.req.param('id'),
+  });
+  return c.body(null, 204);
+});
 
 vehicleRoutes.get('/by-qr/:qrCode', requireRider, async (c) => {
   const parsed = qrCodeSchema.safeParse(c.req.param('qrCode'));

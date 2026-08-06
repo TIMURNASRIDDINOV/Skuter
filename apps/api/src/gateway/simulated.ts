@@ -325,8 +325,17 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
   }
 
   #statusForBattery(vehicle: SimulatedVehicle): VehicleStatus {
-    // Never override a status a human or the fleet operator chose.
-    if (vehicle.status === 'maintenance' || vehicle.status === 'in_use') return vehicle.status;
+    // Never override a status a human or the fleet operator chose. `reserved`
+    // belongs here too: a held scooter idles and still drains, and letting the
+    // battery flip it to `low_battery` would silently drop a rider's hold
+    // while they were walking to it. Reservations expire on their own clock.
+    if (
+      vehicle.status === 'maintenance' ||
+      vehicle.status === 'in_use' ||
+      vehicle.status === 'reserved'
+    ) {
+      return vehicle.status;
+    }
     if (vehicle.batteryPct <= 0) return 'offline';
     if (vehicle.batteryPct < LOW_BATTERY_THRESHOLD_PCT) return 'low_battery';
     if (vehicle.status === 'low_battery' || vehicle.status === 'offline') return 'available';

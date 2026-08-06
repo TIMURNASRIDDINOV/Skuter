@@ -14,6 +14,8 @@ const COLOUR_BY_KIND: FillColour = [
   ZONE_KIND_COLOUR.parking,
   'forbidden',
   ZONE_KIND_COLOUR.forbidden,
+  'slow',
+  ZONE_KIND_COLOUR.slow,
   ZONE_KIND_COLOUR.service,
 ];
 

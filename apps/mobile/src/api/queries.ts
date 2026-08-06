@@ -25,6 +25,8 @@ export const queryKeys = {
   rides: ['rides'] as const,
   receipt: (rideId: string) => ['receipt', rideId] as const,
   subscriptions: ['subscriptions'] as const,
+  reservation: ['reservation'] as const,
+  profile: ['profile'] as const,
 };
 
 /** Riders have no SSE stream — the map stays fresh by polling. */
@@ -125,6 +127,61 @@ export function useBuySubscription() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions });
       void queryClient.invalidateQueries({ queryKey: queryKeys.vehicles });
     },
+  });
+}
+
+/**
+ * The rider's live hold, polled alongside the fleet.
+ *
+ * A hold can lapse without the rider touching anything, so the countdown
+ * banner cannot be driven from the mutation's return value alone — it has to
+ * keep asking. Same 5 s cadence as the map, which is where the banner sits.
+ */
+export function useReservation() {
+  return useQuery({
+    queryKey: queryKeys.reservation,
+    queryFn: () =>
+      apiFetch<{ reservation: { vehicle: Vehicle; until: string } | null }>(
+        '/vehicles/reservation',
+      ),
+    refetchInterval: 5000,
+  });
+}
+
+export function useReserveVehicle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vehicleId: string) =>
+      apiFetch<Vehicle>(`/vehicles/${vehicleId}/reserve`, { method: 'POST' }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reservation });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.vehicles });
+    },
+  });
+}
+
+export function useReleaseVehicle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vehicleId: string) =>
+      apiFetch<null>(`/vehicles/${vehicleId}/reserve`, { method: 'DELETE' }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reservation });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.vehicles });
+    },
+  });
+}
+
+/**
+ * The rider's own profile. `SessionProvider` holds a copy from sign-in, but
+ * the balance moves as rides are paid for — the map's balance chip reads this
+ * so it does not show a figure from whenever the app last launched.
+ */
+export function useProfile() {
+  return useQuery({
+    queryKey: queryKeys.profile,
+    queryFn: () => apiFetch<UserProfile>('/me'),
+    staleTime: 30_000,
   });
 }
 

@@ -1,23 +1,21 @@
-import { Tabs, useRouter } from 'expo-router';
-import { Pressable, StyleSheet } from 'react-native';
+import { Tabs } from 'expo-router';
 import type { ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, type IconName } from '@/components/ui';
 import { useI18n } from '@/lib/i18n';
-import { colors, shadows, spacing, typography } from '@/lib/theme';
+import { colors, typography } from '@/lib/theme';
 
 /**
- * Bottom navigation: Карта / raised circular Скан / Профиль.
+ * Bottom navigation: Карта / Профиль.
  *
- * **Three slots, not four.** The scan button is the primary action of the
- * whole app, so it has to sit dead centre — and with four slots it lands at
- * 62.5% of the width, visibly off. Rental moved out to its own screen, reached
- * from Профиль: it duplicated the subscriptions and history already there, and
- * its only unique content was the price list.
+ * **Scanning is not a tab.** It used to be a raised button in a central third
+ * slot, which stopped making sense once the map sheet grew its own scan
+ * control: both sat on the same screen, three centimetres apart, doing the
+ * same thing. The sheet's is the one that survived — it is far larger, it sits
+ * where a thumb already rests, and it is beside the scooter cards it acts on.
  *
- * The scan slot is not a tab — its button pushes the full-screen scanner
- * modal. The bar owns the bottom inset, which is what keeps every screen clear
- * of Android's edge-to-edge gesture bar.
+ * The bar owns the bottom inset, which is what keeps every screen clear of
+ * Android's edge-to-edge gesture bar.
  */
 export default function TabsLayout() {
   const { t } = useI18n();
@@ -47,13 +45,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="scan-action"
-        options={{
-          title: t.tabScan,
-          tabBarButton: () => <ScanTabButton />,
-        }}
-      />
-      <Tabs.Screen
         name="profile"
         options={{
           title: t.tabProfile,
@@ -68,35 +59,3 @@ export default function TabsLayout() {
 function TabIcon({ name, color }: { name: IconName; color: ColorValue }) {
   return <Icon name={name} size={22} color={color as string} />;
 }
-
-/** The raised centre button — pushes the scanner instead of switching tabs. */
-function ScanTabButton() {
-  const router = useRouter();
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.scanButton,
-        { backgroundColor: pressed ? colors.primaryPressed : colors.primary },
-      ]}
-      onPress={() => router.push('/scan')}
-      testID="scan-button"
-    >
-      <Icon name="scan" size={26} color={colors.textInverse} />
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
-  scanButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginTop: -spacing.xl,
-    alignSelf: 'center',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.surface,
-    ...shadows.lg,
-  },
-});

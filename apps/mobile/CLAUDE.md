@@ -34,7 +34,8 @@ src/
     login.tsx        phone entry → OTP request
     verify.tsx       6-digit code, dev-code prefill, resend cooldown
     (app)/           signed-in stack
-      index.tsx      map home: clustered pins, zones, vehicle sheet, scan FAB
+      index.tsx      map home: carousel + scan, pins, zones, vehicle sheet, holds
+      rules.tsx      zone legend — what each colour on the map means
       scan.tsx       camera QR scanner + dev "simulate scan" button
       unlock.tsx     optimistic unlock, 8% failure retry UI
       ride.tsx       live ride: cost ticker, end-ride geofence, receipt handoff
@@ -77,8 +78,29 @@ The retry button re-POSTs `/rides` verbatim — that is the demo's retry UI, not
 a bug.
 
 **Status and zone colours come from `lib/theme.ts` only**, and they mirror
-`apps/admin/src/components/status.tsx`. A colour never means two things across
-the two apps.
+`apps/admin/src/components/status.tsx` (and `apps/miniapp/src/lib.ts`). A colour
+never means two things across the apps. Controls floating over the map use the
+`chrome` tokens — dark and translucent, so they hold their edge over any tile.
+
+**Estimates are derived, never invented.** Walk time and remaining ride time
+come from `walkMinutes` / `rideMinutesLeft` in `lib/fleet.ts`, built on the
+server's own `rangeM` and a straight-line distance. There is no routing service
+and we are not adding a keyed one — which is why the walk line is **dashed**:
+it claims a direction and a rough distance, not a route.
+
+**The sheet has four modes**, not two — nearby / vehicle / zone / tariff — held
+in `SheetMode` in `index.tsx`. Adding a fifth means adding a variant there, not
+another piece of boolean state.
+
+**Reservation holds are polled, like everything else.** `useReservation` runs on
+the 5 s fleet cadence; `ReservationBanner` ticks its countdown locally each
+second off the server's timestamp, so it cannot drift. A hold that lapses fires
+`onExpire`, which refetches rather than waiting for the next poll.
+
+**Anything derived from `reservedUntil` must test `typeof … === 'string'`,
+not `!== null`.** A payload from a backend that predates the reservation
+columns leaves the field `undefined`, and `undefined !== null` put a padlock on
+every scooter on the map.
 
 **Icons come from the `Icon` vocabulary in `components/ui.tsx`** (native SF
 Symbols on iOS, Material Symbols on Android via expo-symbols). No emoji as UI

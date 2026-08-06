@@ -69,6 +69,14 @@ export const vehicleSchema = z.object({
   rangeM: z.int().nonnegative(),
   lastSeenAt: timestampSchema,
   areaId: idSchema.nullable(),
+  /**
+   * When the current hold lapses, or null if the scooter is not held.
+   *
+   * Deliberately does *not* say who holds it — that is another rider's
+   * business. The rider app learns a hold is theirs because the scooter is
+   * still in their list at all; see `listPublic`.
+   */
+  reservedUntil: timestampSchema.nullable(),
 });
 export type Vehicle = z.infer<typeof vehicleSchema>;
 

@@ -46,6 +46,10 @@ export const API_ERROR_CODES = {
   NOT_FOUND: 'not_found',
   CONFLICT: 'conflict',
   VEHICLE_UNAVAILABLE: 'vehicle_unavailable',
+  /** Held by another rider — distinct from `vehicle_unavailable` because it
+   *  clears by itself, and the app says "try again shortly" rather than
+   *  "pick another scooter". */
+  VEHICLE_RESERVED: 'vehicle_reserved',
   UNLOCK_FAILED: 'unlock_failed',
   OUTSIDE_PARKING_ZONE: 'outside_parking_zone',
   INSIDE_FORBIDDEN_ZONE: 'inside_forbidden_zone',

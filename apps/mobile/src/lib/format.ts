@@ -53,6 +53,28 @@ export function formatDistance(metres: number, lang: Language): string {
   return `${km} ${unitKm}`;
 }
 
+/**
+ * `1 ч 50 мин` / `35 мин` — a duration a person would say out loud.
+ *
+ * Distinct from `formatDuration`, which is a running clock (`12:34`). This one
+ * is for estimates: how long a charge lasts, how long a hold has left.
+ */
+export function formatMinutes(totalMinutes: number, lang: Language): string {
+  const minutes = Math.max(0, Math.round(totalMinutes));
+  const h = lang === 'uz' ? 'soat' : 'ч';
+  const m = lang === 'uz' ? 'daq' : 'мин';
+  if (minutes < 60) return `${minutes} ${m}`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours} ${h}` : `${hours} ${h} ${rest} ${m}`;
+}
+
+/** `9:59` — a countdown, always mm:ss. Used by the reservation banner. */
+export function formatCountdown(totalSeconds: number): string {
+  const s = Math.max(0, Math.round(totalSeconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
 /** `+998 90 123 45 67` from `+998901234567`. */
 export function formatPhone(phone: string): string {
   const match = /^\+998(\d{2})(\d{3})(\d{2})(\d{2})$/.exec(phone);

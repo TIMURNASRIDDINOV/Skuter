@@ -113,15 +113,46 @@ function VehicleMarker({
   const statusColour = VEHICLE_STATUS_COLOUR[vehicle.status];
   const attention = needsAttention(vehicle);
 
+  // `typeof` rather than `!== null`: a payload that predates the reservation
+  // columns leaves the field `undefined`, which is not null and would have
+  // put a padlock on every scooter on the map.
+  const held = typeof vehicle.reservedUntil === 'string';
+
+  // The selected pin becomes a teardrop bubble — bigger, white-filled, with a
+  // stem pointing at the actual coordinate. A pin that only scales up is easy
+  // to lose among its neighbours; one that changes silhouette is not, and the
+  // stem keeps the position unambiguous at the larger size.
+  if (selected) {
+    return (
+      <Marker lngLat={[position.lon, position.lat]} onPress={() => onPress(vehicle)}>
+        <View style={styles.bubbleWrap}>
+          <View style={[styles.bubble, { borderColor: held ? colors.primary : statusColour }]}>
+            <Icon name="scooter" size={26} color={held ? colors.primary : statusColour} />
+          </View>
+          <View
+            style={[styles.bubbleStem, { borderTopColor: held ? colors.primary : statusColour }]}
+          />
+        </View>
+      </Marker>
+    );
+  }
+
   return (
     <Marker lngLat={[position.lon, position.lat]} onPress={() => onPress(vehicle)}>
       <View style={styles.pinWrap}>
-        <View style={[styles.pin, { borderColor: statusColour }, selected && styles.pinSelected]}>
-          <Icon name="scooter" size={18} color={statusColour} />
+        <View style={[styles.pin, { borderColor: held ? colors.primary : statusColour }]}>
+          <Icon name="scooter" size={18} color={held ? colors.primary : statusColour} />
         </View>
+        {/* A held scooter is the rider's own — the only one on their map with
+            a lock on it, so the badge says which without needing the sheet. */}
+        {held && (
+          <View style={styles.holdBadge}>
+            <Icon name="lock" size={9} color={colors.textInverse} />
+          </View>
+        )}
         {/* Colour alone would carry this; the badge states it, which survives
             a colour-blind viewer and a sunlit phone. */}
-        {attention && (
+        {attention && !held && (
           <View style={styles.batteryBadge}>
             <Text style={styles.batteryBadgeText}>{vehicle.batteryPct}%</Text>
           </View>
@@ -174,6 +205,39 @@ function useGlidingPosition(target: LatLon, durationMs: number): LatLon {
 
 const styles = StyleSheet.create({
   pinWrap: { alignItems: 'center' },
+  bubbleWrap: { alignItems: 'center' },
+  bubble: {
+    width: 54,
+    height: 54,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 3,
+    ...shadows.lg,
+  },
+  // A CSS-triangle stem: a zero-size box with only its top border drawn.
+  bubbleStem: {
+    width: 0,
+    height: 0,
+    marginTop: -2,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderTopWidth: 9,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+  },
+  holdBadge: {
+    marginTop: -6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderWidth: 1.5,
+    borderColor: colors.surface,
+  },
   batteryBadge: {
     marginTop: -6,
     paddingHorizontal: spacing.xs + 1,
@@ -211,9 +275,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 3,
     ...shadows.md,
-  },
-  pinSelected: {
-    transform: [{ scale: 1.2 }],
-    borderColor: colors.text,
   },
 });
