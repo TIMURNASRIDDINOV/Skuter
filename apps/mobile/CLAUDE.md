@@ -33,15 +33,17 @@ src/
     _layout.tsx      providers + Stack.Protected auth gate
     login.tsx        phone entry → OTP request
     verify.tsx       6-digit code, dev-code prefill, resend cooldown
-    (app)/           signed-in stack
-      index.tsx      map home: carousel + scan, pins, zones, vehicle sheet, holds
+    (app)/           signed-in stack — no tab bar, the map is the only root
+      index.tsx      map home: pins, zones, the ☰/scan/locate row, the sheet
+      profile.tsx    settings: phone, name, RU/UZ toggle, sign out
+      rent.tsx       Аренда — active passes and the daily/weekly plans
+      history.tsx    every ride taken, tapping through to its receipt
       rules.tsx      zone legend — what each colour on the map means
       scan.tsx       camera QR scanner + dev "simulate scan" button
       unlock.tsx     optimistic unlock, 8% failure retry UI
       ride.tsx       live ride: cost ticker, end-ride geofence, receipt handoff
       receipt.tsx    cost breakdown after a ride (also reached from history)
       plans.tsx      buy a daily/weekly subscription bound to one vehicle
-      profile.tsx    balance, name, RU/UZ toggle, subscriptions, ride history
   api/
     client.ts        apiFetch + ApiRequestError + SecureStore token (mirrors admin's lib/api.ts)
     session.tsx      SessionProvider; 401 anywhere signs out via one handler
@@ -79,8 +81,16 @@ a bug.
 
 **Status and zone colours come from `lib/theme.ts` only**, and they mirror
 `apps/admin/src/components/status.tsx` (and `apps/miniapp/src/lib.ts`). A colour
-never means two things across the apps. Controls floating over the map use the
-`chrome` tokens — dark and translucent, so they hold their edge over any tile.
+never means two things across the apps. The `chrome` tokens are for controls
+over a **dark** surface — the camera viewfinder — not over the map: the map's
+floating row is white circles on `shadows.lg`.
+
+**The map screen is the app's only root.** No tab bar, no section switcher, and
+the sheet is closed at rest — the map is bare but for the banners at the top and
+one floating row at the bottom: ☰, the scan circle, locate. Everything else
+(`/profile`, `/rent`, `/history`, `/rules`) is pushed from the ☰ sheet, and
+`navigateFromMenu` closes the sheet *before* pushing, so a route never opens
+behind it.
 
 **Estimates are derived, never invented.** Walk time and remaining ride time
 come from `walkMinutes` / `rideMinutesLeft` in `lib/fleet.ts`, built on the
@@ -88,9 +98,10 @@ server's own `rangeM` and a straight-line distance. There is no routing service
 and we are not adding a keyed one — which is why the walk line is **dashed**:
 it claims a direction and a rough distance, not a route.
 
-**The sheet has four modes**, not two — nearby / vehicle / zone / tariff — held
-in `SheetMode` in `index.tsx`. Adding a fifth means adding a variant there, not
-another piece of boolean state.
+**The sheet has five modes and a closed state** — menu / nearby / vehicle / zone
+/ tariff, or `null` — held in `SheetMode` in `index.tsx`. Adding a sixth means
+adding a variant there, not another piece of boolean state. Closed is `null`
+plus `sheetRef.close()`; both, or the sheet and the mode drift apart.
 
 **Reservation holds are polled, like everything else.** `useReservation` runs on
 the 5 s fleet cadence; `ReservationBanner` ticks its countdown locally each

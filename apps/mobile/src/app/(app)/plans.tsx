@@ -10,7 +10,7 @@ import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { ApiRequestError, apiFetch } from '@/api/client';
 import { useBuySubscription, usePlans } from '@/api/queries';
 import { EmptyState, ErrorState, ListSkeleton } from '@/components/states';
-import { Button, Icon, IconButton } from '@/components/ui';
+import { Button, Icon, ScreenHeader } from '@/components/ui';
 import { formatDate } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
 import type { Strings } from '@/lib/i18n';
@@ -62,7 +62,7 @@ export default function PlansScreen() {
   if (scannedQuery.isPending && params.vehicleId === undefined && (params.qr ?? '') !== '') {
     return (
       <SafeAreaView style={styles.safe}>
-        <Header title={t.plansTitle} onBack={() => router.back()} />
+        <ScreenHeader title={t.plansTitle} onBack={() => router.back()} />
         <ListSkeleton rows={3} />
       </SafeAreaView>
     );
@@ -72,7 +72,7 @@ export default function PlansScreen() {
   if (vehicleId === undefined) {
     return (
       <SafeAreaView style={styles.safe}>
-        <Header title={t.plansTitle} onBack={() => router.back()} />
+        <ScreenHeader title={t.plansTitle} onBack={() => router.back()} />
         <EmptyState title={t.pickVehicleFirst} icon="scooter" style={styles.grow} />
         <View style={styles.footer}>
           {/* Nothing was bought — this one really does want the map. */}
@@ -99,7 +99,7 @@ export default function PlansScreen() {
           {/* Back to Аренда, where the pass they just bought is now listed. */}
           <Button
             label={t.toMap}
-            onPress={() => router.replace({ pathname: '/', params: { section: 'rent' } })}
+            onPress={() => router.replace('/rent')}
             testID="subscription-done"
           />
         </View>
@@ -120,7 +120,7 @@ export default function PlansScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <Header title={t.plansTitle} onBack={() => router.back()} />
+      <ScreenHeader title={t.plansTitle} onBack={() => router.back()} />
 
       <ScrollView contentContainerStyle={styles.list}>
         <Text style={styles.subtitle}>
@@ -202,27 +202,9 @@ function expiry(durationDays: number): string {
   return new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
 }
 
-function Header({ title, onBack }: { title: string; onBack: () => void }) {
-  return (
-    <View style={styles.header}>
-      <IconButton name="back" onPress={onBack} size={40} />
-      <Text style={styles.headerTitle}>{title}</Text>
-      <View style={styles.headerSpacer} />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   grow: { flex: 1, justifyContent: 'center' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: spacing.s,
-  },
-  headerSpacer: { width: 40, height: 40 },
-  headerTitle: { ...typography.heading, color: colors.text, flex: 1, textAlign: 'center' },
   list: { paddingHorizontal: 20, paddingVertical: spacing.l, gap: spacing.m },
   subtitle: { ...typography.heading, color: colors.text },
   note: { ...typography.body, color: colors.textSecondary, marginBottom: spacing.s },

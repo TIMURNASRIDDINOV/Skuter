@@ -33,12 +33,13 @@ export const colors = {
 } as const;
 
 /**
- * Controls floating over the map.
+ * Controls floating over a dark surface — the camera viewfinder on the scan
+ * screen, and any full-bleed imagery that follows it.
  *
- * A white circle on a pale basemap has to earn its edge from shadow alone, and
- * over dark tiles or a photo-heavy area it disappears. Map chrome is dark and
- * translucent instead: it reads against any tile, and it separates "controls
- * over the map" from "content in a sheet" without a second shadow scale.
+ * Not the map: over the pale Liberty basemap these read as holes punched in the
+ * tiles, and the floating row on the map screen is white circles with
+ * `shadows.lg` instead. Keep the two apart — a control's background is chosen
+ * by what is behind it, not by whether it floats.
  */
 export const chrome = {
   surface: 'rgba(11, 15, 20, 0.72)',

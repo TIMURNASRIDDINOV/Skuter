@@ -17,9 +17,8 @@ import { colors, spacing, typography } from '@/lib/theme';
  * unlock screen. Without that the button read "scan a scooter and buy" and
  * landed the rider on "unlock and start riding", which is a different thing.
  *
- * Lives behind the map screen's `Общий / Аренда` switcher rather than on a
- * route of its own — the switcher already names the section, so there is no
- * screen title here.
+ * The body of `/rent`, which supplies the screen header — so there is no title
+ * of its own here.
  */
 export function RentSection() {
   const { t, lang } = useI18n();
@@ -107,7 +106,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.background },
   content: {
     paddingHorizontal: 20,
-    paddingTop: spacing.l,
+    paddingTop: spacing.s,
     paddingBottom: spacing.xxl,
     gap: spacing.m,
   },

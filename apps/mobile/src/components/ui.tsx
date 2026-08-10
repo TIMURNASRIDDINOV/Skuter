@@ -48,6 +48,7 @@ const ICONS = {
   layers: { ios: 'square.3.layers.3d', android: 'layers' },
   lock: { ios: 'lock.fill', android: 'lock' },
   timer: { ios: 'timer', android: 'timer' },
+  menu: { ios: 'line.3.horizontal', android: 'menu' },
   route: { ios: 'arrow.triangle.turn.up.right.diamond.fill', android: 'route' },
 } as const satisfies Record<string, SymbolViewProps['name']>;
 
@@ -109,6 +110,23 @@ export function IconButton({
     >
       <Icon name={name} size={size * 0.45} color={color} />
     </Pressable>
+  );
+}
+
+/**
+ * Back arrow, centred title, and a spacer that balances the arrow so the title
+ * sits on the screen's centre line rather than the centre of what is left.
+ *
+ * Every screen pushed on top of the map wears this. `rules.tsx` keeps its own —
+ * it carries a subtitle under the title, which this deliberately does not.
+ */
+export function ScreenHeader({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <View style={styles.screenHeader}>
+      <IconButton name="back" onPress={onBack} size={40} />
+      <Text style={styles.screenHeaderTitle}>{title}</Text>
+      <View style={styles.screenHeaderSpacer} />
+    </View>
   );
 }
 
@@ -283,6 +301,19 @@ export function Skeleton({ style }: { style?: StyleProp<ViewStyle> }) {
 }
 
 const styles = StyleSheet.create({
+  screenHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: spacing.s,
+  },
+  screenHeaderSpacer: { width: 40, height: 40 },
+  screenHeaderTitle: {
+    ...typography.heading,
+    color: colors.text,
+    flex: 1,
+    textAlign: 'center',
+  } as TextStyle,
   button: {
     minHeight: 56,
     borderRadius: radius.m,
