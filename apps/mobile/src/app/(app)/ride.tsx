@@ -18,7 +18,16 @@ import { polygonCentroid } from '@/lib/geo';
 import { useI18n } from '@/lib/i18n';
 import { MAP_STYLE_URL, RIDE_ZOOM } from '@/lib/map';
 import { DURATION, useCountUp, useMotion } from '@/lib/motion';
-import { ZONE_KIND_COLOUR, colors, radius, shadows, spacing, typography } from '@/lib/theme';
+import {
+  ZONE_KIND_COLOUR,
+  caps,
+  colors,
+  outline,
+  radius,
+  shadows,
+  spacing,
+  typography,
+} from '@/lib/theme';
 
 const SCREEN_PADDING = 20;
 
@@ -373,20 +382,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.s,
+    ...outline,
     ...shadows.md,
   },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
-  headerTitle: { ...typography.label, color: colors.textSecondary },
-  headerCode: { ...typography.label, color: colors.text, fontWeight: '700' },
+  liveDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.primary, ...outline },
+  headerTitle: { fontSize: 12, ...caps, color: colors.textSecondary },
+  headerCode: { fontSize: 13, ...caps, color: colors.text },
   beepToast: {
     alignSelf: 'flex-start',
     backgroundColor: colors.text,
     borderRadius: radius.m,
     paddingHorizontal: spacing.m,
     paddingVertical: spacing.s,
+    ...outline,
     ...shadows.md,
   },
-  beepToastText: { ...typography.label, color: colors.textInverse },
+  beepToastText: { fontSize: 13, ...caps, color: colors.textInverse },
   vehiclePin: {
     width: 44,
     height: 44,
@@ -394,8 +405,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.info,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.surface,
+    ...outline,
     ...shadows.md,
   },
   riderPin: {
@@ -403,8 +413,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     backgroundColor: colors.info,
-    borderWidth: 3,
-    borderColor: colors.surface,
+    ...outline,
   },
   panel: {
     backgroundColor: colors.surface,
@@ -413,7 +422,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SCREEN_PADDING,
     paddingTop: spacing.l,
     gap: spacing.l,
-    ...shadows.lg,
+    borderWidth: 2,
+    borderColor: colors.border,
+    ...shadows.sheet,
   },
   statsCard: {
     flexDirection: 'row',
@@ -421,27 +432,28 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.l,
     paddingVertical: spacing.l,
-    ...shadows.lg,
+    ...outline,
+    ...shadows.md,
   },
   stat: { flex: 1, alignItems: 'center', gap: spacing.xs },
   statDivider: {
-    width: StyleSheet.hairlineWidth,
+    width: 2,
     alignSelf: 'stretch',
     backgroundColor: colors.border,
     marginVertical: spacing.xs,
   },
-  statLabel: { ...typography.caption, color: colors.textSecondary },
+  statLabel: { fontSize: 10, ...caps, color: colors.textSecondary },
   statValue: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '900',
     color: colors.text,
     fontVariant: ['tabular-nums'],
   },
   statValueHighlight: {
-    fontSize: 26,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-    color: colors.primaryPressed,
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: -0.8,
+    color: colors.text,
   },
   parkingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   beepButton: {
@@ -450,26 +462,30 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: colors.surface,
     borderRadius: radius.full,
-    borderWidth: 1.5,
-    borderColor: colors.border,
     paddingHorizontal: spacing.l,
     paddingVertical: spacing.s,
+    ...outline,
+    ...shadows.sm,
   },
-  beepButtonPressed: { backgroundColor: colors.surfaceMuted },
-  beepLabel: { ...typography.label, color: colors.text },
+  beepButtonPressed: {
+    backgroundColor: colors.surfaceMuted,
+    transform: [{ translateY: 2 }],
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
+  },
+  beepLabel: { fontSize: 12, ...caps, color: colors.text },
   // A refusal, not a hint. The amber card this replaced read like form
   // validation — something to fix and move on from — when the ride genuinely
   // cannot end here. Red, bordered, with the stop icon in the title.
   blockedCard: {
     backgroundColor: colors.dangerFaint,
     borderRadius: radius.l,
-    borderWidth: 1,
-    borderColor: colors.danger,
     padding: spacing.l,
     gap: spacing.s,
+    ...outline,
   },
   blockedTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.s },
-  blockedTitle: { ...typography.heading, color: colors.danger, flex: 1 },
+  blockedTitle: { ...typography.heading, color: colors.text, flex: 1 },
   blockedBody: { ...typography.body, color: colors.textSecondary },
   blockedZoneRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.s },
   blockedZone: { ...typography.body, color: colors.text, fontWeight: '600', flex: 1 },

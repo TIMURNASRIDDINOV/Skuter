@@ -5,7 +5,16 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button, Icon } from '@/components/ui';
 import { useI18n } from '@/lib/i18n';
 import type { Strings } from '@/lib/i18n';
-import { colors, numeric, radius, spacing, typography } from '@/lib/theme';
+import {
+  caps,
+  colors,
+  numeric,
+  outline,
+  radius,
+  shadows,
+  spacing,
+  typography,
+} from '@/lib/theme';
 
 /** The label under a plan's name — what it actually buys you. */
 export function planSubtitle(plan: Plan, t: Strings): string {
@@ -144,33 +153,41 @@ const styles = StyleSheet.create({
   picker: { gap: spacing.s },
   row: { flexDirection: 'row', gap: spacing.s },
   currencyNote: { ...typography.caption, color: colors.textTertiary, textAlign: 'right' },
+  // Every tile is outlined, selected or not — the outline is the tile's edge,
+  // not its selected state. Selection is carried by the volt fill and the
+  // shadow lifting off the page, which survives being seen out of the corner
+  // of the eye in a way a border-colour change does not.
   tile: {
     flex: 1,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surface,
     borderRadius: radius.m,
     paddingHorizontal: spacing.m,
     paddingVertical: spacing.m,
     gap: 1,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    ...outline,
   },
-  tileActive: { backgroundColor: colors.primaryFaint, borderColor: colors.primary },
-  tileTitle: { fontSize: 14, fontWeight: '700', letterSpacing: -0.2, color: colors.textSecondary },
+  tileActive: { backgroundColor: colors.primary, ...shadows.md },
+  // Smaller and much tighter than the `caps` default. Three tiles across a
+  // phone leave ~90pt of text each, and plan names come from the database —
+  // «НЕДЕЛЬНЫЙ» at 12sp/0.8 ellipsised to «НЕДЕЛЬН…», which is not a tariff.
+  tileTitle: { ...caps, fontSize: 11, letterSpacing: 0.1, color: colors.textSecondary },
   tileTitleActive: { color: colors.text },
-  tileSubtitle: { ...typography.caption, color: colors.textTertiary },
+  // `textSecondary`, not tertiary: this line has to stay legible on the volt
+  // fill of the selected tile as well as on the white of the others.
+  tileSubtitle: { ...typography.caption, fontWeight: '600', color: colors.textSecondary },
   tilePrice: {
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: -0.3,
+    fontSize: 17,
+    fontWeight: '900',
+    letterSpacing: -0.4,
     color: colors.text,
     marginTop: spacing.xs,
     ...numeric,
   },
-  tilePriceActive: { color: colors.primaryPressed },
-  tilePriceUnit: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
+  tilePriceActive: { color: colors.onPrimary },
+  tilePriceUnit: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
   details: { paddingHorizontal: 20, paddingBottom: spacing.xl, gap: spacing.s },
   detailsTitle: { ...typography.title, color: colors.text },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: spacing.s },
+  divider: { height: 2, backgroundColor: colors.border, marginVertical: spacing.s },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -178,7 +195,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.m,
   },
   detailLabel: { ...typography.body, color: colors.textSecondary },
-  detailValue: { fontSize: 16, fontWeight: '700', color: colors.text, ...numeric },
+  detailValue: { fontSize: 16, fontWeight: '900', color: colors.text, ...numeric },
   note: { flexDirection: 'row', alignItems: 'center', gap: spacing.s, paddingVertical: spacing.s },
   noteText: { ...typography.caption, color: colors.textSecondary, flex: 1 },
   closeButton: { marginTop: spacing.m },

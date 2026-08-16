@@ -3,7 +3,16 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Button, Icon, type IconName } from '@/components/ui';
 import { useI18n } from '@/lib/i18n';
 import type { Strings } from '@/lib/i18n';
-import { colors, numeric, radius, spacing, typography, ZONE_KIND_COLOUR } from '@/lib/theme';
+import {
+  caps,
+  colors,
+  numeric,
+  outline,
+  radius,
+  spacing,
+  typography,
+  ZONE_KIND_COLOUR,
+} from '@/lib/theme';
 
 interface ZoneMeta {
   icon: IconName;
@@ -50,8 +59,8 @@ export function ZoneSheet({
     <View style={styles.container}>
       <View style={styles.header}>
         {limit === null ? (
-          <View style={[styles.badge, { backgroundColor: `${colour}1F` }]}>
-            <Icon name={meta.icon} size={26} color={colour} />
+          <View style={[styles.badge, { backgroundColor: `${colour}45` }]}>
+            <Icon name={meta.icon} size={26} color={colors.text} />
           </View>
         ) : (
           // The road-sign disc, at the size the reference app gives it: the
@@ -91,6 +100,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
+    ...outline,
   },
   limitBadge: {
     width: 56,
@@ -101,10 +111,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  limitValue: { fontSize: 22, fontWeight: '800', color: colors.text, ...numeric },
-  title: { ...typography.title, color: colors.text },
-  zoneName: { ...typography.label, color: colors.textSecondary },
+  limitValue: { fontSize: 22, fontWeight: '900', color: colors.text, ...numeric },
+  title: { ...typography.title, fontSize: 24, color: colors.text },
+  zoneName: { fontSize: 12, ...caps, color: colors.textSecondary },
   body: { ...typography.body, color: colors.textSecondary, lineHeight: 21 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+  divider: { height: 2, backgroundColor: colors.border },
   moreButton: { minHeight: 44, borderRadius: radius.m },
 });

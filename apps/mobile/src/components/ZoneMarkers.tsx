@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Icon } from '@/components/ui';
 import { polygonCentroid } from '@/lib/geo';
-import { colors, numeric, shadows, ZONE_KIND_COLOUR } from '@/lib/theme';
+import { colors, numeric, outline, shadows, ZONE_KIND_COLOUR } from '@/lib/theme';
 
 /**
  * Zoom at which zone badges appear. Below this the city view is dense enough
@@ -49,7 +49,7 @@ export function ZoneMarkers({
         <Marker key={zone.id} lngLat={[centre.lon, centre.lat]} onPress={() => onPress(zone)}>
           {zone.kind === 'parking' ? (
             <View style={[styles.badge, { backgroundColor: ZONE_KIND_COLOUR.parking }]}>
-              <Icon name="parking" size={17} color={colors.textInverse} />
+              <Icon name="parking" size={17} color={colors.text} />
             </View>
           ) : (
             <View style={[styles.badge, styles.speedBadge]}>
@@ -69,8 +69,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.surface,
+    ...outline,
     ...shadows.sm,
   },
   // A speed limit is a road sign the world over: white disc, coloured ring.

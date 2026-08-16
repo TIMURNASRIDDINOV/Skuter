@@ -20,7 +20,17 @@ import { ErrorState, ListSkeleton } from '@/components/states';
 import { Button, Card, Icon, Pill, Row } from '@/components/ui';
 import { useI18n } from '@/lib/i18n';
 import { DURATION, useMotion } from '@/lib/motion';
-import { batteryColour, colors, radius, spacing, typography } from '@/lib/theme';
+import {
+  batteryColour,
+  caps,
+  colors,
+  outline,
+  outlineHair,
+  radius,
+  shadows,
+  spacing,
+  typography,
+} from '@/lib/theme';
 
 const SCREEN_PADDING = 20;
 
@@ -107,7 +117,7 @@ export default function UnlockScreen() {
         <Card style={styles.card}>
           <View style={styles.cardHeader}>
             <View style={styles.vehicleBadge}>
-              <Icon name="scooter" size={22} color={colors.primary} />
+              <Icon name="scooter" size={22} color={colors.text} />
             </View>
             <View style={styles.vehicleInfo}>
               <Text style={styles.vehicleCode}>{vehicle.qrCode}</Text>
@@ -206,11 +216,9 @@ function ScooterFigure({ unlocking, failed }: { unlocking: boolean; failed: bool
     <View style={styles.figureArea}>
       <Animated.View style={[styles.ring, ringStyle]} />
       <Animated.View style={[styles.figure, failed && styles.figureFailed, figureStyle]}>
-        <Icon
-          name={failed ? 'alert' : 'scooter'}
-          size={48}
-          color={failed ? colors.danger : colors.primary}
-        />
+        {/* Ink on both fills — the figure is volt at rest and pale red once it
+            has failed, and the glyph has to stay readable on each. */}
+        <Icon name={failed ? 'alert' : 'scooter'} size={48} color={colors.text} />
       </Animated.View>
     </View>
   );
@@ -231,15 +239,17 @@ const styles = StyleSheet.create({
     height: 112,
     borderRadius: 56,
     borderWidth: 3,
-    borderColor: colors.primary,
+    borderColor: colors.primaryInk,
   },
   figure: {
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: colors.primaryFaint,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    ...outline,
+    ...shadows.md,
   },
   figureFailed: { backgroundColor: colors.dangerFaint },
   card: { gap: spacing.m },
@@ -248,22 +258,24 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.primaryFaint,
+    backgroundColor: colors.surfaceBrand,
     alignItems: 'center',
     justifyContent: 'center',
+    ...outlineHair,
   },
   vehicleInfo: { flex: 1 },
   vehicleCode: { ...typography.heading, color: colors.text },
-  vehicleModel: { ...typography.label, color: colors.textSecondary, marginTop: 2 },
+  vehicleModel: { fontSize: 12, ...caps, color: colors.textSecondary, marginTop: 2 },
   batteryValue: { ...typography.heading, fontVariant: ['tabular-nums'] },
   errorCard: {
     backgroundColor: colors.dangerFaint,
     borderRadius: radius.l,
     padding: spacing.l,
     gap: spacing.s,
+    ...outline,
   },
   errorHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.s },
-  errorTitle: { ...typography.label, color: colors.danger, flex: 1 },
+  errorTitle: { fontSize: 13, ...caps, color: colors.text, flex: 1 },
   errorBody: { ...typography.body, color: colors.text },
   footer: { padding: SCREEN_PADDING, gap: spacing.s },
 });

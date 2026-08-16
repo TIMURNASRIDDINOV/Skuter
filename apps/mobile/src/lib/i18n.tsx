@@ -39,6 +39,8 @@ const ru = {
   emptyVehicles: 'Рядом нет свободных самокатов',
   emptyVehiclesHint: 'Потяните вниз, чтобы обновить карту',
   distanceAway: 'от центра карты',
+  toggleZones: 'Показать зоны на карте',
+  onFoot: 'Пешком',
   // Statuses
   statusAvailable: 'Свободен',
   statusLowBattery: 'Низкий заряд',
@@ -236,6 +238,8 @@ const uz: Strings = {
   activeRideBanner: 'Safar davom etmoqda',
   emptyVehicles: 'Yaqin-atrofda bo‘sh samokat yo‘q',
   emptyVehiclesHint: 'Xaritani yangilash uchun pastga torting',
+  toggleZones: 'Xaritada zonalarni ko‘rsatish',
+  onFoot: 'Piyoda',
   distanceAway: 'xarita markazidan',
   statusAvailable: 'Bo‘sh',
   statusLowBattery: 'Quvvat kam',

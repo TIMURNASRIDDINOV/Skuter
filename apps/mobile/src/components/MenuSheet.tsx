@@ -4,10 +4,20 @@ import Constants from 'expo-constants';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useProfile, useSubscriptions } from '@/api/queries';
 import { useSession } from '@/api/session';
-import { Icon, MenuRow } from '@/components/ui';
+import { Caps, Icon, MenuRow } from '@/components/ui';
 import { formatPhone } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
-import { colors, numeric, radius, spacing, typography } from '@/lib/theme';
+import {
+  caps,
+  colors,
+  numeric,
+  outline,
+  outlineHair,
+  radius,
+  shadows,
+  spacing,
+  typography,
+} from '@/lib/theme';
 
 /** Screen-edge inset, matching the other sheet content. */
 const EDGE = 20;
@@ -62,7 +72,7 @@ export function MenuSheet({
           </Text>
         </View>
         <View style={styles.avatar}>
-          <Icon name="person" size={22} color={colors.textSecondary} />
+          <Icon name="person" size={22} color={colors.text} />
         </View>
       </Pressable>
 
@@ -77,21 +87,21 @@ export function MenuSheet({
             {activeCount > 0 ? `${t.active} · ${String(activeCount)}` : t.noSubscriptions}
           </Text>
         </View>
-        <View style={styles.avatar}>
-          <Icon name="ticket" size={22} color={colors.primary} />
+        <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+          <Icon name="ticket" size={22} color={colors.onPrimary} />
         </View>
       </Pressable>
 
       <View style={styles.tiles}>
         {/* Not a button: the balance is read-only here — there is no top-up
             endpoint, and a mock payment provider is not a wallet. */}
-        <View style={styles.tile}>
-          <View style={[styles.tileBadge, { backgroundColor: colors.primaryFaint }]}>
-            <Icon name="wallet" size={20} color={colors.primary} />
+        <View style={[styles.tile, styles.tileBalance]}>
+          <View style={[styles.tileBadge, { backgroundColor: colors.surface }]}>
+            <Icon name="wallet" size={20} color={colors.text} />
           </View>
           <View>
             <Text style={styles.tileValue}>{balance === null ? '—' : formatSom(balance)}</Text>
-            <Text style={styles.tileLabel}>{t.balance}</Text>
+            <Caps style={styles.tileLabel}>{t.balance}</Caps>
           </View>
         </View>
 
@@ -101,11 +111,11 @@ export function MenuSheet({
           onPress={() => onNavigate('/history')}
           style={({ pressed }) => [styles.tile, pressed && styles.cardPressed]}
         >
-          <View style={[styles.tileBadge, { backgroundColor: colors.surfaceMuted }]}>
-            <Icon name="history" size={20} color={colors.textSecondary} />
+          <View style={[styles.tileBadge, { backgroundColor: colors.surfaceBrand }]}>
+            <Icon name="history" size={20} color={colors.text} />
           </View>
           <View>
-            <Text style={styles.tileLabel}>{t.menuHistory}</Text>
+            <Caps style={styles.tileLabel}>{t.menuHistory}</Caps>
           </View>
         </Pressable>
       </View>
@@ -136,44 +146,57 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.m,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surface,
     borderRadius: radius.l,
     padding: spacing.l,
+    ...outline,
+    ...shadows.sm,
   },
-  cardPressed: { backgroundColor: colors.surfaceMuted },
+  // Sinks onto its shadow rather than changing fill — see PRESS_SINK in ui.tsx.
+  cardPressed: {
+    transform: [{ translateY: 2 }],
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
+  },
   cardBody: { flex: 1, gap: 2 },
   cardTitle: { ...typography.heading, color: colors.text },
-  cardMeta: { ...typography.label, color: colors.textSecondary },
+  cardMeta: { fontSize: 12, ...caps, color: colors.textSecondary },
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceBrand,
     alignItems: 'center',
     justifyContent: 'center',
+    ...outline,
   },
   tiles: { flexDirection: 'row', gap: spacing.m },
   tile: {
     flex: 1,
     minHeight: 128,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surface,
     borderRadius: radius.l,
     padding: spacing.l,
     // Badge pinned to the top, text to the bottom — otherwise the tile with a
     // value above its label and the tile without one sit their labels on two
     // different baselines, and a two-tile row reads as misaligned.
     justifyContent: 'space-between',
+    ...outline,
+    ...shadows.sm,
   },
+  /** The balance is the one number on this sheet — the volt fill says so. */
+  tileBalance: { backgroundColor: colors.primary },
   tileBadge: {
     width: 40,
     height: 40,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    ...outlineHair,
   },
-  tileValue: { fontSize: 20, fontWeight: '800', color: colors.text, ...numeric },
-  tileLabel: { ...typography.body, fontWeight: '600', color: colors.text },
-  rows: { backgroundColor: colors.surfaceElevated, borderRadius: radius.l, padding: spacing.xs },
+  tileValue: { fontSize: 22, fontWeight: '900', letterSpacing: -0.6, color: colors.text, ...numeric },
+  tileLabel: { fontSize: 12, color: colors.text },
+  rows: { gap: spacing.s },
   footer: { paddingTop: spacing.s, gap: spacing.xs, alignItems: 'center' },
   footerText: { ...typography.caption, color: colors.textTertiary },
 });

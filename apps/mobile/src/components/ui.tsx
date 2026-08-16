@@ -10,7 +10,16 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { colors, radius, shadows, spacing, typography } from '@/lib/theme';
+import {
+  caps,
+  colors,
+  outline,
+  outlineHair,
+  radius,
+  shadows,
+  spacing,
+  typography,
+} from '@/lib/theme';
 
 /**
  * The app's icon vocabulary — native SF Symbols on iOS, Material Symbols on
@@ -68,13 +77,21 @@ export function Icon({
   return <SymbolView name={ICONS[name]} size={size} tintColor={color} style={style} />;
 }
 
-/** Floating circular icon button — map controls, close/torch chrome. */
+/**
+ * Floating circular icon button — map controls, close/torch chrome.
+ *
+ * Outlined by default, because that is what makes a white circle read as an
+ * object over the pale basemap rather than a smudge on it. `bare` drops both
+ * the outline and the shadow for the ones that sit *inside* an already-outlined
+ * surface, where a second ink ring would be a box in a box.
+ */
 export function IconButton({
   name,
   onPress,
   color = colors.text,
   background = colors.surface,
   size = 44,
+  bare = false,
   accessibilityLabel,
   style,
   testID,
@@ -84,6 +101,7 @@ export function IconButton({
   color?: string;
   background?: string;
   size?: number;
+  bare?: boolean;
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
   testID?: string;
@@ -102,9 +120,12 @@ export function IconButton({
           backgroundColor: background,
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: pressed ? 0.85 : 1,
         },
-        shadows.md,
+        !bare && outline,
+        !bare && shadows.md,
+        // Pressing sinks the button onto its own shadow instead of fading it:
+        // an outlined control at 85% opacity looks broken, not pressed.
+        pressed && (bare ? { opacity: 0.6 } : PRESS_SINK),
         style,
       ]}
     >
@@ -112,6 +133,16 @@ export function IconButton({
     </Pressable>
   );
 }
+
+/**
+ * The pressed state for anything wearing a hard offset shadow: drop the offset
+ * and translate down by the same amount, so the surface visibly meets the page.
+ */
+const PRESS_SINK = {
+  transform: [{ translateY: 2 }],
+  shadowOffset: { width: 0, height: 1 },
+  elevation: 1,
+} as const;
 
 /**
  * Back arrow, centred title, and a spacer that balances the arrow so the title
@@ -158,22 +189,25 @@ export function Button({
       disabled={inactive}
       style={({ pressed }) => [
         styles.button,
+        // Volt, sage and red all take ink labels; only `ghost` is unoutlined,
+        // because a ghost that keeps the outline is just a secondary button.
         variant === 'primary' && { backgroundColor: pressed ? colors.primaryPressed : colors.primary },
-        variant === 'secondary' && [styles.buttonSecondary, pressed && { backgroundColor: colors.surfaceMuted }],
-        variant === 'danger' && { backgroundColor: pressed ? '#D91E28' : colors.danger },
+        variant === 'secondary' && { backgroundColor: pressed ? colors.surfaceMuted : colors.surface },
+        variant === 'danger' && { backgroundColor: pressed ? '#E62A40' : colors.danger },
+        variant !== 'ghost' && outline,
+        variant !== 'ghost' && shadows.md,
         variant === 'ghost' && { backgroundColor: pressed ? colors.surfaceMuted : 'transparent' },
+        pressed && variant !== 'ghost' && PRESS_SINK,
         inactive && styles.buttonDisabled,
         style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'secondary' || variant === 'ghost' ? colors.text : colors.textInverse} />
+        <ActivityIndicator color={variant === 'danger' ? colors.textInverse : colors.text} />
       ) : (
         <Text
-          style={[
-            styles.buttonLabel,
-            (variant === 'secondary' || variant === 'ghost') && { color: colors.text },
-          ]}
+          style={[styles.buttonLabel, variant === 'danger' && { color: colors.textInverse }]}
+          numberOfLines={1}
         >
           {label}
         </Text>
@@ -213,13 +247,18 @@ export function Pill({
   faint?: string;
 }) {
   return (
-    <View style={[styles.pill, { backgroundColor: faint ?? `${colour}1A` }]}>
+    <View style={[styles.pill, { backgroundColor: faint ?? `${colour}2E` }]}>
       <View style={[styles.pillDot, { backgroundColor: colour }]} />
-      <Text style={[styles.pillLabel, { color: colour }]}>{label}</Text>
+      <Text style={styles.pillLabel}>{label}</Text>
     </View>
   );
 }
 
+/**
+ * Charge as a bar. Outlined and squared off rather than a soft capsule — the
+ * outline is what lets a 20 % fill still read as "a bar that is nearly empty"
+ * instead of a stray coloured dash.
+ */
 export function BatteryBar({ pct, colour }: { pct: number; colour: string }) {
   return (
     <View style={styles.batteryTrack}>
@@ -259,6 +298,22 @@ export function Chip({
 }
 
 /**
+ * A heavy, wide-tracked, uppercase caption — the label above a value, the
+ * section head inside a sheet. The style's smallest recurring gesture.
+ */
+export function Caps({
+  children,
+  color = colors.textSecondary,
+  style,
+}: {
+  children: ReactNode;
+  color?: string;
+  style?: StyleProp<TextStyle>;
+}) {
+  return <Text style={[styles.caps, { color }, style]}>{children}</Text>;
+}
+
+/**
  * A tappable row that leads somewhere — the menu under the map sheet.
  * Icon, label, chevron; the whole row is the target, not just the text.
  */
@@ -278,11 +333,17 @@ export function MenuRow({
       accessibilityRole="button"
       testID={testID}
       onPress={onPress}
-      style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: colors.surfaceMuted }]}
+      style={({ pressed }) => [
+        styles.menuRow,
+        pressed && { backgroundColor: colors.surfaceMuted },
+        pressed && PRESS_SINK,
+      ]}
     >
-      <Icon name={icon} size={20} color={colors.textSecondary} />
+      <View style={styles.menuIcon}>
+        <Icon name={icon} size={18} color={colors.text} />
+      </View>
       <Text style={styles.menuLabel}>{label}</Text>
-      <Icon name="chevronRight" size={14} color={colors.textTertiary} />
+      <Icon name="chevronRight" size={14} color={colors.text} />
     </Pressable>
   );
 }
@@ -319,25 +380,23 @@ const styles = StyleSheet.create({
     borderRadius: radius.m,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.l,
     paddingVertical: spacing.m,
   },
-  buttonSecondary: {
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-  },
-  buttonDisabled: { opacity: 0.45 },
+  buttonDisabled: { opacity: 0.4 },
   buttonLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-    color: colors.textInverse,
+    ...caps,
+    fontSize: 15,
+    // Overrides `caps`' tracking: at 15sp across a full-width button, 0.8 puts
+    // «ЗАБРОНИРОВАТЬ НА 15 МИН» over the edge on a 375pt screen.
+    letterSpacing: 0.4,
+    color: colors.onPrimary,
   } as TextStyle,
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.l,
     padding: spacing.l,
+    ...outline,
     ...shadows.sm,
   },
   row: {
@@ -347,7 +406,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.s,
   },
   rowLabel: { ...typography.body, color: colors.textSecondary } as TextStyle,
-  rowValue: { ...typography.body, color: colors.text, fontWeight: '600' } as TextStyle,
+  rowValue: { ...typography.body, color: colors.text, fontWeight: '800' } as TextStyle,
+  caps: { fontSize: 12, ...caps } as TextStyle,
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -356,9 +416,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.m,
     paddingVertical: 5,
     borderRadius: radius.full,
+    ...outlineHair,
   },
-  pillDot: { width: 8, height: 8, borderRadius: 4 },
-  pillLabel: { ...typography.label } as TextStyle,
+  pillDot: { width: 8, height: 8, borderRadius: 4, ...outlineHair },
+  // Ink on a tinted ground rather than the tint's own colour as text: at 13sp
+  // the status hues are what the dot is for, and the word has to stay readable.
+  pillLabel: { fontSize: 12, ...caps, color: colors.text } as TextStyle,
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -366,10 +429,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.s + 2,
     paddingVertical: 5,
     borderRadius: radius.s,
+    ...outlineHair,
   },
   chipLabel: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: -0.1,
     fontVariant: ['tabular-nums'],
   } as TextStyle,
@@ -377,20 +441,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.m,
-    paddingHorizontal: spacing.l,
-    paddingVertical: spacing.m + 2,
+    paddingHorizontal: spacing.m,
+    paddingVertical: spacing.m,
     borderRadius: radius.m,
+    backgroundColor: colors.surface,
+    ...outline,
+    ...shadows.sm,
   },
-  menuLabel: { fontSize: 16, fontWeight: '600', letterSpacing: -0.2, color: colors.text, flex: 1 },
+  menuIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.surfaceBrand,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...outlineHair,
+  },
+  menuLabel: { fontSize: 16, fontWeight: '800', letterSpacing: -0.2, color: colors.text, flex: 1 },
   batteryTrack: {
-    height: 8,
-    borderRadius: 4,
+    height: 10,
+    borderRadius: radius.s,
     backgroundColor: colors.surfaceMuted,
     overflow: 'hidden',
+    ...outlineHair,
   },
-  batteryFill: { height: '100%', borderRadius: 4 },
+  batteryFill: { height: '100%' },
   skeleton: {
     backgroundColor: colors.skeleton,
     borderRadius: radius.s,
+    ...outlineHair,
   },
 });

@@ -7,7 +7,7 @@ import { EmptyState, ErrorState, ListSkeleton } from '@/components/states';
 import { Card, Icon, ScreenHeader } from '@/components/ui';
 import { formatDateTime, formatDistance, formatDuration } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
-import { colors, numeric, spacing, typography } from '@/lib/theme';
+import { caps, colors, numeric, outline, radius, shadows, spacing, typography } from '@/lib/theme';
 
 /**
  * Every ride this rider has taken, newest first.
@@ -42,7 +42,7 @@ export default function HistoryScreen() {
                 onPress={() => router.push({ pathname: '/receipt', params: { rideId: ride.id } })}
               >
                 <View style={styles.badge}>
-                  <Icon name="history" size={20} color={colors.textSecondary} />
+                  <Icon name="history" size={20} color={colors.text} />
                 </View>
                 <View style={styles.body}>
                   <Text style={styles.date}>{formatDateTime(ride.startedAt, lang)}</Text>
@@ -71,19 +71,31 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
     gap: spacing.m,
   },
-  list: { paddingVertical: 0 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.m, gap: spacing.m },
-  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  list: { paddingVertical: 0, gap: spacing.s },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.m,
+    gap: spacing.m,
+    backgroundColor: colors.surface,
+    borderRadius: radius.m,
+    ...outline,
+    ...shadows.sm,
+  },
+  // Each ride is its own outlined card now, so the rule that used to separate
+  // them would be a second edge drawn on top of an edge.
+  rowBorder: {},
   badge: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.surfaceBrand,
     alignItems: 'center',
     justifyContent: 'center',
+    ...outline,
   },
   body: { flex: 1, gap: 2 },
-  date: { ...typography.body, color: colors.text, fontWeight: '600' },
-  meta: { ...typography.label, color: colors.textSecondary },
-  cost: { ...typography.body, color: colors.text, fontWeight: '600', ...numeric },
+  date: { ...typography.body, color: colors.text, fontWeight: '800' },
+  meta: { fontSize: 12, ...caps, color: colors.textSecondary },
+  cost: { fontSize: 16, fontWeight: '900', color: colors.text, ...numeric },
 });

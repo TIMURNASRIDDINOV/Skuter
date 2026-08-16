@@ -16,7 +16,7 @@ import { useSession } from '@/api/session';
 import { IconButton } from '@/components/ui';
 import { formatPhone } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
-import { colors, radius, spacing, typography } from '@/lib/theme';
+import { caps, colors, radius, shadows, spacing, typography } from '@/lib/theme';
 
 const CODE_LENGTH = 6;
 
@@ -155,7 +155,7 @@ export default function VerifyScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
+  safe: { flex: 1, backgroundColor: colors.background },
   back: { alignSelf: 'flex-start', marginLeft: 20, marginTop: spacing.s },
   container: { flex: 1, padding: 20, gap: spacing.l, paddingTop: spacing.xxl },
   title: { ...typography.title, color: colors.text },
@@ -165,13 +165,15 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 60,
     borderRadius: radius.m,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: colors.border,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cellActive: { borderColor: colors.primary, backgroundColor: colors.surface },
+  // Every cell is outlined ink, so the active one is marked by its volt fill
+  // and by lifting — not by a border colour it already has.
+  cellActive: { backgroundColor: colors.primary, ...shadows.md },
   cellError: { borderColor: colors.danger },
   cellDigit: {
     ...typography.title,
@@ -179,8 +181,8 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   hiddenInput: { position: 'absolute', opacity: 0, height: 1, width: 1 },
-  error: { ...typography.label, color: colors.danger },
+  error: { fontSize: 13, ...caps, color: colors.danger },
   devHint: { ...typography.caption, color: colors.textSecondary },
   cooldown: { ...typography.body, color: colors.textSecondary, marginTop: spacing.s },
-  resend: { ...typography.body, color: colors.primary, fontWeight: '600', marginTop: spacing.s },
+  resend: { fontSize: 15, ...caps, color: colors.text, marginTop: spacing.s },
 });

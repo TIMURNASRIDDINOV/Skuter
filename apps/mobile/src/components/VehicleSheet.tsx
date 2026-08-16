@@ -6,16 +6,20 @@ import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native'
 import { EmptyState } from '@/components/states';
 import { planTitle } from '@/components/TariffPicker';
 import { TariffPicker } from '@/components/TariffPicker';
-import { BatteryBar, Button, Chip, Icon, IconButton } from '@/components/ui';
+import { BatteryBar, Button, Caps, Icon, IconButton } from '@/components/ui';
 import { rideMinutesLeft, walkMinutes } from '@/lib/fleet';
 import { formatDistance, formatMinutes } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
 import type { Strings } from '@/lib/i18n';
 import {
   batteryColour,
+  caps,
   colors,
   numeric,
+  outline,
+  outlineHair,
   radius,
+  shadows,
   spacing,
   typography,
   VEHICLE_STATUS_COLOUR,
@@ -87,16 +91,16 @@ export function NearbyList({
       contentContainerStyle={styles.listContent}
       renderItem={({ item }) => (
         <Pressable
-          style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.surfaceMuted }]}
+          style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
           onPress={() => onSelect(item.vehicle)}
         >
           <View
             style={[
               styles.rowBadge,
-              { backgroundColor: `${VEHICLE_STATUS_COLOUR[item.vehicle.status]}1A` },
+              { backgroundColor: `${VEHICLE_STATUS_COLOUR[item.vehicle.status]}33` },
             ]}
           >
-            <Icon name="scooter" size={22} color={VEHICLE_STATUS_COLOUR[item.vehicle.status]} />
+            <Icon name="scooter" size={22} color={colors.text} />
           </View>
           <View style={styles.rowBody}>
             <Text style={styles.rowTitle}>{item.vehicle.qrCode}</Text>
@@ -111,7 +115,7 @@ export function NearbyList({
             </Text>
             <Text style={styles.rowDistance}>{formatDistance(item.distanceM, lang)}</Text>
           </View>
-          <Icon name="chevronRight" size={16} color={colors.textSecondary} />
+          <Icon name="chevronRight" size={16} color={colors.text} />
         </Pressable>
       )}
     />
@@ -170,52 +174,56 @@ export function VehicleDetail({
       // Reads as a panel that happens to scroll, not as a list.
       bounces={false}
     >
-      {/* Identity block: the number the rider is looking for, the two facts
-          that decide whether to take it, and the glyph that makes the whole
-          thing scannable — the reference app's card, in our palette. */}
-      <View style={styles.hero}>
-        <View style={styles.heroBody}>
-          <Text style={styles.heroCode} numberOfLines={1}>
+      {/* Identity: a volt disc, the number the rider is looking for, and the
+          status word — the reference app's card header, with our data in it. */}
+      <View style={styles.identity}>
+        <View style={styles.identityBadge}>
+          <Icon name="scooter" size={24} color={colors.onPrimary} />
+        </View>
+        <View style={styles.identityBody}>
+          <Text style={styles.identityCode} numberOfLines={1}>
             {vehicle.qrCode}
           </Text>
-          <View style={styles.heroChips}>
-            <Chip
-              label={`${String(vehicle.batteryPct)}%`}
-              colour={battery}
-              background={`${battery}1F`}
+          {/* The dot carries the status; the word for it appears once, in the
+              warning below, and only when it is something the rider must act
+              on. Saying «Свободен» twice on a scooter you can simply take is
+              noise. */}
+          <View style={styles.identityStatus}>
+            <View
+              style={[styles.statusDot, { backgroundColor: VEHICLE_STATUS_COLOUR[vehicle.status] }]}
             />
-            <Chip
-              icon="clock"
-              label={formatMinutes(rideMinutesLeft(vehicle), lang)}
-              colour={colors.textSecondary}
-              background={colors.surface}
-            />
-            {distanceM !== null && (
-              <Chip
-                icon="walk"
-                label={`${String(walkMinutes(distanceM))} ${t.minutesShort}`}
-                colour={colors.textSecondary}
-                background={colors.surface}
-              />
-            )}
+            <Text style={styles.identityModel} numberOfLines={1}>
+              {vehicle.model}
+            </Text>
           </View>
-          <BatteryBar pct={vehicle.batteryPct} colour={battery} />
         </View>
-        <Icon name="scooter" size={64} color={colors.surfaceMuted} style={styles.heroGlyph} />
-      </View>
-
-      <View style={styles.headerRow}>
-        <Text style={styles.sectionLabel}>{t.pricing}</Text>
         <IconButton
           name="close"
           onPress={onClose}
-          size={32}
+          size={36}
           background={colors.surfaceElevated}
-          color={colors.textSecondary}
-          style={styles.closeButton}
           accessibilityLabel={t.close}
         />
       </View>
+
+      {/* The three facts that decide whether to walk to this one, each in its
+          own outlined tile. Walk time drops out entirely without a position
+          fix rather than showing a dash — an empty tile is a worse answer than
+          two tiles. */}
+      <View style={styles.stats}>
+        <StatTile value={`${String(vehicle.batteryPct)}%`} label={t.battery} colour={battery} />
+        <StatTile value={formatMinutes(rideMinutesLeft(vehicle), lang)} label={t.range} />
+        {distanceM !== null && (
+          <StatTile
+            value={`${String(walkMinutes(distanceM))} ${t.minutesShort}`}
+            label={t.onFoot}
+          />
+        )}
+      </View>
+
+      <BatteryBar pct={vehicle.batteryPct} colour={battery} />
+
+      <Caps style={styles.sectionLabel}>{t.pricing}</Caps>
 
       {plans.length > 0 && (
         <TariffPicker plans={plans} selectedId={selectedPlan?.id ?? null} onSelect={onSelectPlan} />
@@ -257,7 +265,7 @@ export function VehicleDetail({
         )}
         {held && (
           <View style={styles.heldNote}>
-            <Icon name="lock" size={15} color={colors.primaryPressed} />
+            <Icon name="lock" size={15} color={colors.primaryInk} />
             <Text style={styles.heldNoteText}>{t.reservedHint}</Text>
           </View>
         )}
@@ -277,55 +285,80 @@ export function VehicleDetail({
   );
 }
 
+/** One outlined fact — a big value over a heavy uppercase caption. */
+function StatTile({ value, label, colour }: { value: string; label: string; colour?: string }) {
+  return (
+    <View style={styles.statTile}>
+      <Text style={[styles.statValue, colour !== undefined && { color: colour }]} numberOfLines={1}>
+        {value}
+      </Text>
+      <Caps style={styles.statLabel} color={colors.textSecondary}>
+        {label}
+      </Caps>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   listContent: { paddingBottom: spacing.xxl },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-    marginLeft: EDGE + 44 + spacing.m,
-  },
+  separator: { height: spacing.s },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.m,
-    paddingHorizontal: EDGE,
+    marginHorizontal: EDGE,
+    paddingHorizontal: spacing.m,
     paddingVertical: spacing.m,
+    backgroundColor: colors.surface,
+    borderRadius: radius.m,
+    ...outline,
+    ...shadows.sm,
   },
+  rowPressed: { transform: [{ translateY: 2 }], shadowOffset: { width: 0, height: 0 }, elevation: 0 },
   rowBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
+    ...outlineHair,
   },
   rowBody: { flex: 1 },
-  rowTitle: { fontSize: 16, fontWeight: '700', letterSpacing: -0.2, color: colors.text, ...numeric },
-  rowSubtitle: { fontSize: 13, fontWeight: '400', color: colors.textSecondary, marginTop: 2 },
+  rowTitle: { fontSize: 16, fontWeight: '900', letterSpacing: -0.2, color: colors.text, ...numeric },
+  rowSubtitle: { fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginTop: 2 },
   rowMeta: { alignItems: 'flex-end', gap: 2 },
-  rowBattery: { fontSize: 15, fontWeight: '700', ...numeric },
-  rowDistance: { fontSize: 13, fontWeight: '400', color: colors.textSecondary },
+  rowBattery: { fontSize: 15, fontWeight: '900', ...numeric },
+  rowDistance: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
   detail: { paddingHorizontal: EDGE, paddingBottom: spacing.xl, gap: spacing.m },
-  hero: {
-    flexDirection: 'row',
+  identity: { flexDirection: 'row', alignItems: 'center', gap: spacing.m },
+  identityBadge: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: colors.primary,
     alignItems: 'center',
+    justifyContent: 'center',
+    ...outline,
+  },
+  identityBody: { flex: 1, gap: 2 },
+  identityCode: { ...typography.title, fontSize: 24, color: colors.text, ...numeric },
+  identityStatus: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  statusDot: { width: 9, height: 9, borderRadius: 5, ...outlineHair },
+  identityModel: { fontSize: 12, ...caps, color: colors.textSecondary, flex: 1 },
+  stats: { flexDirection: 'row', gap: spacing.s },
+  statTile: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
     backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.l,
-    paddingHorizontal: spacing.l,
-    paddingVertical: spacing.l,
-    overflow: 'hidden',
+    borderRadius: radius.m,
+    paddingHorizontal: spacing.s,
+    paddingVertical: spacing.m,
+    ...outline,
   },
-  heroBody: { flex: 1, gap: spacing.s },
-  heroCode: { ...typography.title, color: colors.text, ...numeric },
-  heroChips: { flexDirection: 'row', gap: spacing.xs + 2, flexWrap: 'wrap' },
-  heroGlyph: { marginRight: -spacing.l, opacity: 0.9 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  closeButton: { shadowOpacity: 0, elevation: 0 },
+  statValue: { fontSize: 17, fontWeight: '900', letterSpacing: -0.4, color: colors.text, ...numeric },
+  statLabel: { fontSize: 10, textAlign: 'center' },
+  sectionLabel: { marginTop: spacing.xs },
   tariffLink: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: 2 },
   tariffLinkLabel: { ...typography.label, color: colors.textSecondary },
   unavailable: {
@@ -335,9 +368,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.warningFaint,
     borderRadius: radius.m,
     paddingHorizontal: spacing.m,
-    paddingVertical: spacing.s,
+    paddingVertical: spacing.m,
+    ...outline,
   },
-  unavailableText: { ...typography.label, color: colors.text },
+  unavailableText: { fontSize: 13, ...caps, color: colors.text, flex: 1 },
   actions: { gap: spacing.s, marginTop: spacing.xs },
   heldNote: {
     flexDirection: 'row',
@@ -346,6 +380,6 @@ const styles = StyleSheet.create({
     gap: spacing.s,
     paddingVertical: spacing.m,
   },
-  heldNoteText: { ...typography.label, color: colors.primaryPressed },
+  heldNoteText: { ...typography.label, color: colors.primaryInk },
   footnote: { ...typography.caption, color: colors.textTertiary, textAlign: 'center' },
 });

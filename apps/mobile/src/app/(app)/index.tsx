@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   useActiveRide,
   usePlans,
+  useProfile,
   useReleaseVehicle,
   useReservation,
   useReserveVehicle,
@@ -34,7 +35,16 @@ import { formatDuration } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
 import { CITY_ZOOM, FOCUS_ZOOM, INITIAL_BOUNDS, MAP_STYLE_URL } from '@/lib/map';
 import { DURATION, EASE_OUT, useMotion } from '@/lib/motion';
-import { colors, numeric, radius, shadows, spacing, typography } from '@/lib/theme';
+import {
+  caps,
+  colors,
+  numeric,
+  outline,
+  outlineHair,
+  radius,
+  shadows,
+  spacing,
+} from '@/lib/theme';
 
 type Viewport = Pick<ViewStateChangeEvent, 'center' | 'zoom' | 'bounds'>;
 
@@ -82,11 +92,16 @@ export default function MapScreen() {
   const plansQuery = usePlans();
   const activeRideQuery = useActiveRide();
   const reservationQuery = useReservation();
+  const profileQuery = useProfile();
   const reserve = useReserveVehicle();
   const release = useReleaseVehicle();
 
   const [viewport, setViewport] = useState<Viewport>(INITIAL_VIEWPORT);
   const [mode, setMode] = useState<SheetMode | null>(null);
+  // Zones are drawn by default — a rider who does not know the rules is
+  // exactly the one who needs to see them. The toggle is for the other case:
+  // four overlapping polygons over the pin you are trying to tap.
+  const [showZones, setShowZones] = useState(true);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   // The device's last known position. `locateMe` used to fetch a fix and throw
@@ -268,12 +283,14 @@ export default function MapScreen() {
           initialViewState={{ center: INITIAL_VIEWPORT.center, zoom: CITY_ZOOM }}
         />
         <UserLocation />
-        <ZoneOverlays
-          zones={zones}
-          highlightedZoneId={mode?.kind === 'zone' ? mode.zone.id : null}
-        />
+        {showZones && (
+          <ZoneOverlays
+            zones={zones}
+            highlightedZoneId={mode?.kind === 'zone' ? mode.zone.id : null}
+          />
+        )}
         {selected !== null && <WalkRoute from={userLocation} to={selected.location} />}
-        <ZoneMarkers zones={zones} zoom={viewport.zoom} onPress={selectZone} />
+        {showZones && <ZoneMarkers zones={zones} zoom={viewport.zoom} onPress={selectZone} />}
         <VehicleMarkers
           vehicles={vehicles}
           bounds={viewport.bounds}
@@ -290,7 +307,48 @@ export default function MapScreen() {
         />
       </Map>
 
-      <View style={[styles.banners, { top: chromeTop }]} pointerEvents="box-none">
+      <View style={[styles.chrome, { top: chromeTop }]} pointerEvents="box-none">
+        {/* The brand mark, what a ride will cost against, and the zones
+            switch. All three were previously either absent or two taps deep
+            behind ☰ — and the balance in particular is the one fact a rider
+            wants *before* walking to a scooter, not after failing to unlock
+            one. */}
+        <View style={styles.topBar}>
+          <View style={styles.brand}>
+            <View style={styles.brandMark}>
+              <Icon name="scooter" size={16} color={colors.onPrimary} />
+            </View>
+            <Text style={styles.brandName}>SCOOT</Text>
+            <View style={styles.brandCity}>
+              <Text style={styles.brandCityText}>TAS</Text>
+            </View>
+          </View>
+
+          <View style={styles.topActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.balance}
+              testID="balance-pill"
+              onPress={() => openSheet({ kind: 'menu' })}
+              style={({ pressed }) => [styles.balance, pressed && styles.chromePressed]}
+            >
+              <Icon name="wallet" size={15} color={colors.text} />
+              <Text style={styles.balanceValue} numberOfLines={1}>
+                {profileQuery.data === undefined ? '—' : formatSom(profileQuery.data.balance)}
+              </Text>
+            </Pressable>
+
+            <IconButton
+              name="layers"
+              size={40}
+              onPress={() => setShowZones((on) => !on)}
+              background={showZones ? colors.primary : colors.surface}
+              accessibilityLabel={t.toggleZones}
+              testID="zones-toggle"
+            />
+          </View>
+        </View>
+
         {showError && (
           <View style={styles.errorBanner}>
             <Icon name="alert" size={18} color={colors.danger} />
@@ -344,7 +402,7 @@ export default function MapScreen() {
             { backgroundColor: pressed ? colors.primaryPressed : colors.primary },
           ]}
         >
-          <Icon name="scan" size={30} color={colors.textInverse} />
+          <Icon name="scan" size={30} color={colors.onPrimary} />
         </Pressable>
         <IconButton
           name="locate"
@@ -459,11 +517,16 @@ function ActiveRideBanner({
   const elapsedS = (now - new Date(startedAt).getTime()) / 1000;
 
   return (
+    // Label, clock, cost — in that order of expendability. The label is the
+    // only flexible child, so when Uzbek's «Safar davom etmoqda» outgrows the
+    // pill it is the *word* that ellipsises; the two numbers the rider is
+    // actually watching are never the thing that gets cut.
     <Pressable style={styles.rideBanner} onPress={onPress}>
       <View style={styles.rideBannerDot} />
       <Text style={styles.rideBannerText} numberOfLines={1}>
-        {t.activeRideBanner} · {formatDuration(elapsedS)}
+        {t.activeRideBanner}
       </Text>
+      <Text style={styles.rideBannerTime}>{formatDuration(elapsedS)}</Text>
       <Text style={styles.rideBannerCost}>{formatSom(currentCost)}</Text>
       <Icon name="chevronRight" size={13} color={colors.textInverse} />
     </Pressable>
@@ -492,13 +555,63 @@ const styles = StyleSheet.create({
     borderRadius: SCAN_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
+    ...outline,
     ...shadows.lg,
   },
-  banners: {
+  chrome: {
     position: 'absolute',
     left: SCREEN_EDGE,
     right: SCREEN_EDGE,
     gap: spacing.s,
+  },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  brand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.surface,
+    borderRadius: radius.full,
+    paddingLeft: 5,
+    paddingRight: spacing.m,
+    paddingVertical: 5,
+    ...outline,
+    ...shadows.md,
+  },
+  brandMark: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...outlineHair,
+  },
+  brandName: { fontSize: 14, ...caps, letterSpacing: 1.2, color: colors.text },
+  brandCity: {
+    backgroundColor: colors.surfaceBrand,
+    borderRadius: radius.s,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    ...outlineHair,
+  },
+  brandCityText: { fontSize: 10, ...caps, color: colors.text },
+  topActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.s },
+  balance: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.surface,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.m,
+    paddingVertical: spacing.s + 2,
+    ...outline,
+    ...shadows.md,
+  },
+  balanceValue: { fontSize: 13, fontWeight: '900', color: colors.text, ...numeric },
+  chromePressed: {
+    transform: [{ translateY: 2 }],
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
   errorBanner: {
     backgroundColor: colors.dangerFaint,
@@ -507,38 +620,68 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.s,
+    ...outline,
     ...shadows.md,
   },
-  errorText: { ...typography.label, color: colors.danger, flex: 1 },
-  errorRetry: { ...typography.label, color: colors.danger, textDecorationLine: 'underline' },
+  // Tightened for the same reason as `rideBannerText`: a sentence-length
+  // string sharing one row with an icon and a retry link.
+  errorText: { ...caps, fontSize: 12, letterSpacing: 0.2, color: colors.text, flex: 1 },
+  errorRetry: {
+    ...caps,
+    fontSize: 12,
+    letterSpacing: 0.2,
+    color: colors.text,
+    textDecorationLine: 'underline',
+  },
   rideBanner: {
-    backgroundColor: colors.text,
+    backgroundColor: colors.ink,
     borderRadius: radius.full,
     paddingHorizontal: spacing.l,
     paddingVertical: spacing.m,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.s,
+    ...outline,
     ...shadows.lg,
   },
-  rideBannerDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
-  rideBannerText: { ...typography.label, color: colors.textInverse, flex: 1 },
+  rideBannerDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.primary },
+  // Tighter than the `caps` default on both counts — three things share this
+  // pill and the tracking is what pushed it over the edge.
+  rideBannerText: {
+    ...caps,
+    fontSize: 11,
+    letterSpacing: 0.2,
+    color: 'rgba(255,255,255,0.76)',
+    flex: 1,
+  },
+  rideBannerTime: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.textInverse,
+    flexShrink: 0,
+    ...numeric,
+  },
   rideBannerCost: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: -0.2,
-    color: colors.textInverse,
+    color: colors.primary,
+    flexShrink: 0,
     ...numeric,
   },
   listTitle: {
-    ...typography.caption,
+    fontSize: 12,
+    ...caps,
     color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
     paddingHorizontal: SCREEN_EDGE,
     paddingBottom: spacing.s,
   },
-  // `border` on `surface` is a 4dp bar at roughly 4% contrast — invisible.
-  sheetHandle: { backgroundColor: colors.textTertiary, width: 44 },
-  sheetBackground: { backgroundColor: colors.surface, borderRadius: radius.xl, ...shadows.lg },
+  sheetHandle: { backgroundColor: colors.text, width: 48, height: 5 },
+  sheetBackground: {
+    backgroundColor: colors.background,
+    borderRadius: radius.xl,
+    borderWidth: 2,
+    borderColor: colors.border,
+    ...shadows.sheet,
+  },
 });

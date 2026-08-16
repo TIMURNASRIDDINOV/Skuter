@@ -7,7 +7,7 @@ import { Button, Card, Icon, Pill } from '@/components/ui';
 import { ErrorState, ListSkeleton } from '@/components/states';
 import { formatDateTime } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
-import { colors, spacing, typography } from '@/lib/theme';
+import { caps, colors, outline, shadows, spacing, typography } from '@/lib/theme';
 
 /**
  * Аренда: active passes and the daily/weekly plans.
@@ -51,12 +51,12 @@ export function RentSection() {
           <Card key={sub.id} style={styles.card}>
             <View style={styles.subRow}>
               <View style={styles.iconBadge}>
-                <Icon name="ticket" size={20} color={colors.primary} />
+                <Icon name="ticket" size={20} color={colors.onPrimary} />
               </View>
               <View style={styles.subBody}>
                 <View style={styles.rowBetween}>
                   <Text style={styles.cardTitle}>{sub.plan.name}</Text>
-                  <Pill label={t.active} colour={colors.primaryPressed} faint={colors.primaryFaint} />
+                  <Pill label={t.active} colour={colors.primaryInk} faint={colors.primaryFaint} />
                 </View>
                 <Text style={styles.metaText}>
                   {sub.vehicle.qrCode} · {sub.vehicle.model}
@@ -110,13 +110,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
     gap: spacing.m,
   },
-  sectionTitle: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginTop: spacing.s,
-  },
+  sectionTitle: { fontSize: 12, ...caps, color: colors.textSecondary, marginTop: spacing.s },
   card: { gap: spacing.xs },
   subRow: { flexDirection: 'row', gap: spacing.m, alignItems: 'flex-start' },
   subBody: { flex: 1, gap: spacing.xs },
@@ -124,9 +118,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.primaryFaint,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    ...outline,
+    ...shadows.sm,
   },
   rowBetween: {
     flexDirection: 'row',
@@ -137,11 +133,11 @@ const styles = StyleSheet.create({
   cardTitle: { ...typography.heading, color: colors.text, flex: 1 },
   price: {
     ...typography.heading,
-    color: colors.primaryPressed,
+    color: colors.text,
     fontVariant: ['tabular-nums'],
     flexShrink: 0,
   },
-  metaText: { ...typography.label, color: colors.textSecondary },
+  metaText: { fontSize: 12, ...caps, color: colors.textSecondary },
   mutedText: { ...typography.body, color: colors.textSecondary },
   cta: { marginTop: spacing.s },
 });

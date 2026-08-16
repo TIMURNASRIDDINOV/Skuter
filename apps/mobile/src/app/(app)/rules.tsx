@@ -6,7 +6,17 @@ import { useZones } from '@/api/queries';
 import { Icon, IconButton } from '@/components/ui';
 import { zoneMeta } from '@/components/ZoneSheet';
 import { useI18n } from '@/lib/i18n';
-import { colors, numeric, radius, spacing, typography, ZONE_KIND_COLOUR } from '@/lib/theme';
+import {
+  caps,
+  colors,
+  numeric,
+  outline,
+  radius,
+  shadows,
+  spacing,
+  typography,
+  ZONE_KIND_COLOUR,
+} from '@/lib/theme';
 
 /** Service area last: it is the outer boundary, not a thing you ride into. */
 const KIND_ORDER: readonly ZoneKind[] = ['parking', 'slow', 'forbidden', 'service'];
@@ -42,8 +52,6 @@ export default function RulesScreen() {
           name="back"
           onPress={() => router.back()}
           size={40}
-          background={colors.surfaceElevated}
-          style={styles.backButton}
         />
         <View style={styles.headerText}>
           <Text style={styles.title}>{t.rulesTitle}</Text>
@@ -115,10 +123,9 @@ const styles = StyleSheet.create({
     paddingTop: spacing.s,
     paddingBottom: spacing.l,
   },
-  backButton: { shadowOpacity: 0, elevation: 0 },
   headerText: { flex: 1, gap: 2 },
   title: { ...typography.title, color: colors.text },
-  subtitle: { ...typography.label, color: colors.textSecondary },
+  subtitle: { fontSize: 12, ...caps, color: colors.textSecondary },
   content: { paddingHorizontal: 20, paddingBottom: spacing.xxl, gap: spacing.m },
   card: {
     flexDirection: 'row',
@@ -126,14 +133,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.l,
     padding: spacing.l,
+    ...outline,
+    ...shadows.sm,
   },
   swatch: {
     width: 52,
     height: 52,
     borderRadius: radius.m,
-    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
+    ...outline,
   },
   cardBody: { flex: 1, gap: spacing.xs },
   cardTitle: { ...typography.heading, color: colors.text },
@@ -149,7 +158,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  limitValue: { fontSize: 13, fontWeight: '800', color: colors.text, ...numeric },
+  limitValue: { fontSize: 13, fontWeight: '900', color: colors.text, ...numeric },
   limitUnit: { ...typography.caption, color: colors.textSecondary },
   count: { ...typography.caption, color: colors.textTertiary, marginTop: 2, ...numeric },
   note: {

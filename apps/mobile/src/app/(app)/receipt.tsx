@@ -8,7 +8,7 @@ import { ErrorState, ListSkeleton } from '@/components/states';
 import { Button, Card, Icon, Pill, Row } from '@/components/ui';
 import { formatDateTime, formatDistance, formatDuration } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
-import { colors, spacing, typography } from '@/lib/theme';
+import { caps, colors, outline, radius, shadows, spacing, typography } from '@/lib/theme';
 
 const SCREEN_PADDING = 20;
 
@@ -44,7 +44,7 @@ export default function ReceiptScreen() {
       <View style={styles.body}>
         <View style={styles.headerBlock}>
           <Animated.View entering={ZoomIn.springify()} style={styles.badge}>
-            <Icon name="check" size={40} color={colors.primary} />
+            <Icon name="check" size={40} color={colors.onPrimary} />
           </Animated.View>
           <Text style={styles.title}>{t.receiptTitle}</Text>
           {ride.endedAt !== null && (
@@ -58,7 +58,7 @@ export default function ReceiptScreen() {
             <View style={styles.covered}>
               <Pill
                 label={t.coveredBySubscription}
-                colour={colors.primary}
+                colour={colors.primaryInk}
                 faint={colors.primaryFaint}
               />
             </View>
@@ -114,12 +114,14 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: colors.primaryFaint,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    ...outline,
+    ...shadows.md,
   },
   title: { ...typography.heading, color: colors.text, textAlign: 'center' },
-  meta: { ...typography.label, color: colors.textSecondary, textAlign: 'center' },
+  meta: { fontSize: 12, ...caps, color: colors.textSecondary, textAlign: 'center' },
   total: {
     ...typography.display,
     color: colors.text,
@@ -129,9 +131,10 @@ const styles = StyleSheet.create({
   covered: { alignItems: 'center', marginTop: spacing.s },
   card: { gap: 0 },
   divider: {
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: colors.border,
+    borderColor: colors.borderSoft,
+    borderRadius: radius.s,
     marginVertical: spacing.s,
   },
   totalRowValue: { ...typography.heading, color: colors.text, fontVariant: ['tabular-nums'] },

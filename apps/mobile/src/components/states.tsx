@@ -3,7 +3,7 @@ import type { StyleProp, ViewStyle } from 'react-native';
 import { Button, Icon, Skeleton } from '@/components/ui';
 import type { IconName } from '@/components/ui';
 import { useI18n } from '@/lib/i18n';
-import { colors, radius, spacing, typography } from '@/lib/theme';
+import { colors, outline, radius, spacing, typography } from '@/lib/theme';
 
 /**
  * Leading glyph for empty/error states. When an icon name is given it renders
@@ -14,7 +14,7 @@ function StateGlyph({ icon, emoji }: { icon?: IconName; emoji: string }) {
   if (icon !== undefined) {
     return (
       <View style={styles.iconCircle}>
-        <Icon name={icon} size={40} color={colors.textSecondary} />
+        <Icon name={icon} size={40} color={colors.text} />
       </View>
     );
   }
@@ -94,10 +94,11 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.surfaceBrand,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.s,
+    ...outline,
   },
   emoji: { fontSize: 40, marginBottom: spacing.s },
   title: { ...typography.heading, color: colors.text, textAlign: 'center' },

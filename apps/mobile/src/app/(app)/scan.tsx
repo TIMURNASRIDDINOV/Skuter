@@ -15,7 +15,7 @@ import { Button, Icon, IconButton } from '@/components/ui';
 import { DEMO_CONTROLS_ENABLED } from '@/lib/demo';
 import { useI18n } from '@/lib/i18n';
 import { DURATION, useMotion } from '@/lib/motion';
-import { chrome, colors, radius, shadows, spacing, typography } from '@/lib/theme';
+import { caps, chrome, colors, outline, radius, shadows, spacing, typography } from '@/lib/theme';
 
 /** With no successful read after this long, suggest typing the code. */
 const SCAN_TROUBLE_MS = 6000;
@@ -132,7 +132,7 @@ export default function ScanScreen() {
         entering={reduced ? undefined : ZoomIn.duration(DURATION.base)}
         style={styles.confirmBadge}
       >
-        <Icon name="check" size={44} color={colors.textInverse} />
+        <Icon name="check" size={44} color={colors.onPrimary} />
       </Animated.View>
       <Text style={styles.confirmLabel}>{t.scanConfirmed}</Text>
     </View>
@@ -183,7 +183,7 @@ export default function ScanScreen() {
         </View>
         <View style={styles.deniedBody}>
           <View style={styles.deniedBadge}>
-            <Icon name="scan" size={30} color={colors.textSecondary} />
+            <Icon name="scan" size={30} color={colors.text} />
           </View>
           <Text style={styles.deniedTitle}>{t.cameraDenied}</Text>
           <Text style={styles.deniedHint}>{t.cameraDeniedHint}</Text>
@@ -308,8 +308,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    ...outline,
   },
-  confirmLabel: { ...typography.heading, color: colors.textInverse },
+  confirmLabel: { fontSize: 20, ...caps, color: colors.textInverse },
   viewfinder: { width: VIEWFINDER_SIZE, height: VIEWFINDER_SIZE },
   // Longer arms and a wider radius than the old 26/3/14 — the reference
   // frame reads as a bracket around the code rather than a hairline crop mark.
@@ -368,7 +369,7 @@ const styles = StyleSheet.create({
     height: 44,
     ...shadows.md,
   },
-  manualButtonLabel: { ...typography.label, color: chrome.text },
+  manualButtonLabel: { fontSize: 13, ...caps, color: chrome.text },
   devButton: {
     alignSelf: 'center',
     marginTop: spacing.m,
@@ -380,7 +381,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.4)',
     borderStyle: 'dashed',
   },
-  devButtonLabel: { ...typography.label, color: chrome.textSecondary },
+  devButtonLabel: { fontSize: 12, ...caps, color: chrome.textSecondary },
   denied: { flex: 1, backgroundColor: colors.background, justifyContent: 'space-between' },
   deniedTop: {
     flexDirection: 'row',
@@ -397,19 +398,22 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.surfaceBrand,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.s,
+    ...outline,
   },
   deniedTitle: { ...typography.heading, color: colors.text, textAlign: 'center' },
   deniedHint: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
   deniedActions: { padding: EDGE, gap: spacing.m },
-  sheetHandle: { backgroundColor: colors.border, width: 44 },
+  sheetHandle: { backgroundColor: colors.text, width: 48, height: 5 },
   sheetBackground: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     borderRadius: radius.xl,
-    ...shadows.lg,
+    borderWidth: 2,
+    borderColor: colors.border,
+    ...shadows.sheet,
   },
   sheetContent: {
     paddingHorizontal: EDGE,
@@ -429,9 +433,9 @@ const styles = StyleSheet.create({
   codeInput: {
     ...typography.title,
     color: colors.text,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     borderRadius: radius.m,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
     paddingHorizontal: spacing.l,
     paddingVertical: spacing.s,

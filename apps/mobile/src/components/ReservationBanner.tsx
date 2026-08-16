@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Icon } from '@/components/ui';
 import { formatCountdown } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
-import { colors, numeric, radius, shadows, spacing, typography } from '@/lib/theme';
+import { caps, colors, numeric, outline, radius, shadows, spacing, typography } from '@/lib/theme';
 
 /**
  * The live hold, pinned over the map.
@@ -49,7 +49,7 @@ export function ReservationBanner({
   return (
     <Pressable style={styles.banner} onPress={onPress} testID="reservation-banner">
       <View style={styles.icon}>
-        <Icon name="lock" size={16} color={colors.primary} />
+        <Icon name="lock" size={16} color={colors.onPrimary} />
       </View>
 
       <View style={styles.body}>
@@ -91,24 +91,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.m,
+    ...outline,
     ...shadows.lg,
   },
   icon: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: 'rgba(16, 185, 129, 0.18)',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   body: { flex: 1, gap: 1 },
-  title: { ...typography.label, color: colors.textInverse, ...numeric },
-  subtitle: { ...typography.caption, color: 'rgba(255,255,255,0.72)', ...numeric },
+  title: { fontSize: 13, ...caps, color: colors.textInverse, ...numeric },
+  subtitle: { ...typography.caption, color: 'rgba(255,255,255,0.76)', ...numeric },
   cancel: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },

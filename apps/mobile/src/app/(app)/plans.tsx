@@ -14,7 +14,7 @@ import { Button, Icon, ScreenHeader } from '@/components/ui';
 import { formatDate } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
 import type { Strings } from '@/lib/i18n';
-import { colors, radius, shadows, spacing, typography } from '@/lib/theme';
+import { caps, colors, outline, radius, shadows, spacing, typography } from '@/lib/theme';
 
 function daysWord(days: number, t: Strings): string {
   if (days % 10 === 1 && days % 100 !== 11) return t.day;
@@ -86,8 +86,8 @@ export default function PlansScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={[styles.grow, styles.success]}>
-          <Animated.View entering={ZoomIn.springify()}>
-            <Icon name="check" size={72} color={colors.primary} />
+          <Animated.View entering={ZoomIn.springify()} style={styles.successBadge}>
+            <Icon name="check" size={48} color={colors.onPrimary} />
           </Animated.View>
           <Text style={styles.successTitle}>{t.purchaseSuccessTitle}</Text>
           <Text style={styles.successHint}>
@@ -211,13 +211,14 @@ const styles = StyleSheet.create({
   planCard: {
     backgroundColor: colors.surface,
     borderRadius: radius.l,
-    borderWidth: 2,
-    borderColor: 'transparent',
     padding: spacing.l,
     gap: spacing.xs,
+    ...outline,
     ...shadows.sm,
   },
-  planCardActive: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
+  // Selection is a volt fill and a lift off the page, not a border-colour
+  // change — every card is already outlined, so the outline cannot carry it.
+  planCardActive: { backgroundColor: colors.primary, ...shadows.md },
   planHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   planName: { ...typography.heading, color: colors.text },
   radio: {
@@ -229,30 +230,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radioActive: { borderColor: colors.primary },
-  radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.primary },
+  radioActive: { backgroundColor: colors.surface },
+  radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.text },
   planPrice: {
     ...typography.title,
-    color: colors.primaryPressed,
+    color: colors.text,
     fontVariant: ['tabular-nums'],
   },
-  planDuration: { ...typography.label, color: colors.textSecondary },
+  planDuration: { fontSize: 12, ...caps, color: colors.textSecondary },
   errorCard: {
     backgroundColor: colors.dangerFaint,
     borderRadius: radius.m,
     padding: spacing.l,
+    ...outline,
   },
-  errorText: { ...typography.body, color: colors.danger },
+  errorText: { ...typography.body, fontWeight: '700', color: colors.text },
   footer: {
     padding: 20,
     gap: spacing.m,
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
-    ...shadows.lg,
+    borderWidth: 2,
+    borderColor: colors.border,
+    ...shadows.sheet,
   },
   expiryNote: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
   success: { alignItems: 'center', gap: spacing.m, padding: spacing.xl },
+  successBadge: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...outline,
+    ...shadows.md,
+  },
   successTitle: { ...typography.title, color: colors.text, textAlign: 'center' },
   successHint: { ...typography.heading, color: colors.text },
   successNote: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },

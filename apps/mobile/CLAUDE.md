@@ -85,12 +85,35 @@ never means two things across the apps. The `chrome` tokens are for controls
 over a **dark** surface — the camera viewfinder — not over the map: the map's
 floating row is white circles on `shadows.lg`.
 
-**The map screen is the app's only root.** No tab bar, no section switcher, and
-the sheet is closed at rest — the map is bare but for the banners at the top and
-one floating row at the bottom: ☰, the scan circle, locate. Everything else
-(`/profile`, `/rent`, `/history`, `/rules`) is pushed from the ☰ sheet, and
+**The look is bold, and it comes from `lib/theme.ts`.** Cream canvas, an ink
+outline on every surface, volt green for the one thing you are meant to press,
+heavy uppercase micro-labels. Three rules follow from that and are easy to get
+wrong:
+
+- **`colors.primary` (volt `#BCF246`) is a fill, never a foreground.** At 15sp
+  on white it is unreadable. Text or an icon that wants to look primary on a
+  light surface uses `colors.primaryInk`; anything sitting *on* a volt fill uses
+  `colors.onPrimary` (ink), not `textInverse`.
+- **Selection is a fill and a lift, not a border colour.** Every tile is already
+  outlined at rest, so the outline cannot also carry "chosen" — the tariff
+  tiles, the plan cards and the OTP cells all switch to a volt fill plus
+  `shadows.md` instead.
+- **Spread `outline` / `outlineHair`, not a hand-written border pair**, and take
+  elevation from `shadows` — those are hard offset shadows, so the pressed state
+  is `PRESS_SINK` (translate down, drop the offset), never an opacity fade.
+
+**The map screen is the app's only root.** No tab bar and no section switcher,
+and the sheet is closed at rest. The map carries one chrome row at the top —
+the SCOOT/TAS brand pill, the balance, and the zones toggle — the banners under
+it, and one floating row at the bottom: ☰, the scan circle, locate. Everything
+else (`/profile`, `/rent`, `/history`, `/rules`) is pushed from the ☰ sheet, and
 `navigateFromMenu` closes the sheet *before* pushing, so a route never opens
 behind it.
+
+**Zones are drawn by default and the toggle only hides them.** `showZones` in
+`index.tsx` gates both `ZoneOverlays` and `ZoneMarkers`. A rider who does not
+know the rules is the one who needs the polygons; the switch exists for the
+other case — four overlapping shapes over the pin you are trying to tap.
 
 **Estimates are derived, never invented.** Walk time and remaining ride time
 come from `walkMinutes` / `rideMinutesLeft` in `lib/fleet.ts`, built on the

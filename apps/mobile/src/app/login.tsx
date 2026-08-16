@@ -15,7 +15,7 @@ import { ApiRequestError, apiFetch } from '@/api/client';
 import { useTelegramLogin } from '@/api/telegram';
 import { Button, Icon } from '@/components/ui';
 import { useI18n } from '@/lib/i18n';
-import { colors, radius, spacing, typography } from '@/lib/theme';
+import { caps, colors, outline, radius, shadows, spacing, typography } from '@/lib/theme';
 
 interface OtpResponse {
   retryAfterS: number;
@@ -75,7 +75,7 @@ export default function LoginScreen() {
       >
         <View style={styles.hero}>
           <View style={styles.brandMark}>
-            <Icon name="scooter" size={44} color={colors.primary} />
+            <Icon name="scooter" size={44} color={colors.onPrimary} />
           </View>
           <Text style={styles.title}>{t.loginTitle}</Text>
           <Text style={styles.subtitle}>{t.loginSubtitle}</Text>
@@ -148,17 +148,19 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
+  safe: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1, padding: 20, justifyContent: 'center', gap: spacing.xxl },
   hero: { alignItems: 'center', gap: spacing.s },
   brandMark: {
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: colors.primaryFaint,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.s,
+    ...outline,
+    ...shadows.md,
   },
   title: { ...typography.title, color: colors.text },
   subtitle: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
@@ -166,35 +168,37 @@ const styles = StyleSheet.create({
   phoneField: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     borderRadius: radius.m,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: colors.border,
     paddingHorizontal: spacing.l,
     height: 60,
     gap: spacing.s,
   },
-  phoneFieldFocused: { borderColor: colors.primary },
+  // The outline is already ink at rest, so focus cannot be a border colour —
+  // it is the field lifting off the page instead.
+  phoneFieldFocused: { ...shadows.md },
   phoneFieldError: { borderColor: colors.danger },
   phonePrefix: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: -0.2,
     color: colors.textSecondary,
   },
   phoneInput: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: -0.2,
     fontVariant: ['tabular-nums'],
     color: colors.text,
     flex: 1,
     paddingVertical: 0,
   },
-  error: { ...typography.label, color: colors.danger },
+  error: { fontSize: 13, ...caps, color: colors.danger },
   separatorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.m },
-  separatorLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-  separatorText: { ...typography.caption, color: colors.textSecondary },
+  separatorLine: { flex: 1, height: 2, backgroundColor: colors.borderSoft },
+  separatorText: { fontSize: 11, ...caps, color: colors.textSecondary },
   telegramWaiting: { gap: spacing.s, alignItems: 'center' },
   telegramWaitingText: {
     ...typography.body,
@@ -211,14 +215,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.m,
     backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    ...outline,
+    ...shadows.md,
   },
-  telegramButtonPressed: { backgroundColor: colors.surfaceMuted },
+  telegramButtonPressed: {
+    backgroundColor: colors.surfaceMuted,
+    transform: [{ translateY: 2 }],
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
   telegramLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: -0.2,
+    fontSize: 15,
+    ...caps,
+    letterSpacing: 0.4,
     color: colors.text,
   },
 });

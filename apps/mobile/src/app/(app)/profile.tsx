@@ -8,7 +8,7 @@ import { Button, Icon, ScreenHeader } from '@/components/ui';
 import { formatPhone } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
 import type { Language } from '@/lib/i18n';
-import { colors, radius, shadows, spacing, typography } from '@/lib/theme';
+import { caps, colors, outline, outlineHair, radius, shadows, spacing, typography } from '@/lib/theme';
 
 /**
  * Settings, not a dashboard.
@@ -53,7 +53,7 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.avatar}>
           {initial === null || initial === '' ? (
-            <Icon name="person" size={36} color={colors.textTertiary} />
+            <Icon name="person" size={36} color={colors.onPrimary} />
           ) : (
             <Text style={styles.avatarInitial}>{initial}</Text>
           )}
@@ -136,17 +136,18 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.l,
+    ...outline,
+    ...shadows.md,
   },
-  avatarInitial: { fontSize: 40, fontWeight: '800', color: colors.textSecondary },
+  avatarInitial: { fontSize: 40, fontWeight: '900', color: colors.onPrimary },
   sectionTitle: {
-    ...typography.caption,
+    fontSize: 12,
+    ...caps,
     color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
     marginTop: spacing.m,
     paddingHorizontal: spacing.xs,
   },
@@ -155,11 +156,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.l,
     padding: spacing.l,
     gap: spacing.m,
+    ...outline,
     ...shadows.sm,
   },
   readonlyRow: { gap: 2 },
-  rowLabel: { ...typography.label, color: colors.textSecondary },
-  rowValue: { ...typography.body, color: colors.text, fontWeight: '600' },
+  rowLabel: { fontSize: 12, ...caps, color: colors.textSecondary },
+  rowValue: { ...typography.body, color: colors.text, fontWeight: '800' },
   nameRow: { gap: spacing.s },
   nameField: { flexDirection: 'row', gap: spacing.s, alignItems: 'center' },
   nameInput: {
@@ -170,17 +172,30 @@ const styles = StyleSheet.create({
     borderRadius: radius.m,
     paddingHorizontal: spacing.m,
     height: 48,
+    // `outlineHair` is a ViewStyle: spreading it here widens the whole entry
+    // and stops it matching TextStyle — the same trap `numeric` is annotated
+    // against in theme.ts. Written out rather than spread.
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   saveButton: { minHeight: 48, paddingVertical: 0, paddingHorizontal: spacing.l },
   segmentTrack: {
     flexDirection: 'row',
     backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.s,
-    padding: 3,
+    borderRadius: radius.m,
+    padding: 4,
+    gap: 4,
+    ...outline,
   },
-  segment: { flex: 1, height: 40, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-  segmentActive: { backgroundColor: colors.surface, ...shadows.sm },
-  segmentLabel: { ...typography.label, color: colors.textSecondary },
+  segment: {
+    flex: 1,
+    height: 40,
+    borderRadius: radius.s,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentActive: { backgroundColor: colors.primary, ...outlineHair },
+  segmentLabel: { fontSize: 13, ...caps, color: colors.textSecondary },
   segmentLabelActive: { color: colors.text },
   logoutRow: {
     flexDirection: 'row',
@@ -189,7 +204,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.l,
     padding: spacing.l,
+    ...outline,
     ...shadows.sm,
   },
-  logoutLabel: { ...typography.body, fontWeight: '600', color: colors.danger },
+  logoutLabel: { fontSize: 15, ...caps, color: colors.danger },
 });

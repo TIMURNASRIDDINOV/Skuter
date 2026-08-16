@@ -7,7 +7,7 @@ import Supercluster from 'supercluster';
 import { Icon } from '@/components/ui';
 import { needsAttention } from '@/lib/fleet';
 import { DURATION, useMotion } from '@/lib/motion';
-import { colors, shadows, spacing, VEHICLE_STATUS_COLOUR } from '@/lib/theme';
+import { colors, outline, outlineHair, shadows, spacing, VEHICLE_STATUS_COLOUR } from '@/lib/theme';
 
 interface VehicleMarkersProps {
   vehicles: Vehicle[];
@@ -118,20 +118,25 @@ function VehicleMarker({
   // put a padlock on every scooter on the map.
   const held = typeof vehicle.reservedUntil === 'string';
 
-  // The selected pin becomes a teardrop bubble — bigger, white-filled, with a
-  // stem pointing at the actual coordinate. A pin that only scales up is easy
-  // to lose among its neighbours; one that changes silhouette is not, and the
-  // stem keeps the position unambiguous at the larger size.
+  // Status is the pin's **fill**, not the colour of its outline or its glyph.
+  // The outline is always ink, which is what makes a pin read as an object on
+  // the pale basemap; a status hue drawn as a 3px ring disappears at pin size
+  // and a saturated one as a glyph is unreadable. A held scooter fills volt —
+  // the one fill in the app that means "yours".
+  const fill = held ? colors.primary : `${statusColour}73`;
+
+  // The selected pin becomes a teardrop bubble — bigger, squarer, with a stem
+  // pointing at the actual coordinate. A pin that only scales up is easy to
+  // lose among its neighbours; one that changes silhouette is not, and the stem
+  // keeps the position unambiguous at the larger size.
   if (selected) {
     return (
       <Marker lngLat={[position.lon, position.lat]} onPress={() => onPress(vehicle)}>
         <View style={styles.bubbleWrap}>
-          <View style={[styles.bubble, { borderColor: held ? colors.primary : statusColour }]}>
-            <Icon name="scooter" size={26} color={held ? colors.primary : statusColour} />
+          <View style={[styles.bubble, { backgroundColor: fill }]}>
+            <Icon name="scooter" size={26} color={colors.text} />
           </View>
-          <View
-            style={[styles.bubbleStem, { borderTopColor: held ? colors.primary : statusColour }]}
-          />
+          <View style={styles.bubbleStem} />
         </View>
       </Marker>
     );
@@ -140,14 +145,14 @@ function VehicleMarker({
   return (
     <Marker lngLat={[position.lon, position.lat]} onPress={() => onPress(vehicle)}>
       <View style={styles.pinWrap}>
-        <View style={[styles.pin, { borderColor: held ? colors.primary : statusColour }]}>
-          <Icon name="scooter" size={18} color={held ? colors.primary : statusColour} />
+        <View style={[styles.pin, { backgroundColor: fill }]}>
+          <Icon name="scooter" size={18} color={colors.text} />
         </View>
         {/* A held scooter is the rider's own — the only one on their map with
             a lock on it, so the badge says which without needing the sheet. */}
         {held && (
           <View style={styles.holdBadge}>
-            <Icon name="lock" size={9} color={colors.textInverse} />
+            <Icon name="lock" size={9} color={colors.onPrimary} />
           </View>
         )}
         {/* Colour alone would carry this; the badge states it, which survives
@@ -212,8 +217,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 3,
+    ...outline,
     ...shadows.lg,
   },
   // A CSS-triangle stem: a zero-size box with only its top border drawn.
@@ -226,6 +230,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 9,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
+    borderTopColor: colors.border,
   },
   holdBadge: {
     marginTop: -6,
@@ -235,8 +240,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
-    borderWidth: 1.5,
-    borderColor: colors.surface,
+    ...outlineHair,
   },
   batteryBadge: {
     marginTop: -6,
@@ -244,13 +248,12 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
     borderRadius: 6,
     backgroundColor: VEHICLE_STATUS_COLOUR.low_battery,
-    borderWidth: 1.5,
-    borderColor: colors.surface,
+    ...outlineHair,
   },
   batteryBadgeText: {
     fontSize: 10,
-    fontWeight: '800',
-    color: colors.textInverse,
+    fontWeight: '900',
+    color: colors.text,
     fontVariant: ['tabular-nums'],
   },
   cluster: {
@@ -258,22 +261,20 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     paddingHorizontal: 6,
-    backgroundColor: colors.text,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2.5,
-    borderColor: colors.surface,
+    ...outline,
     ...shadows.md,
   },
-  clusterCount: { color: colors.textInverse, fontSize: 14, fontWeight: '700' },
+  clusterCount: { color: colors.onPrimary, fontSize: 14, fontWeight: '900' },
   pin: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 3,
+    ...outline,
     ...shadows.md,
   },
 });
