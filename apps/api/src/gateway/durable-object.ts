@@ -62,9 +62,41 @@ export class FleetSimulator extends DurableObject<FleetBindings> {
     }
   }
 
+  /**
+   * How long the alarm waits when nothing is happening.
+   *
+   * With no ride in flight and no admin watching, a tick animates GPS jitter
+   * for an empty room and still pays for a Hyperdrive round-trip. Backing off
+   * to 30 s turns an unattended day from 28,800 ticks into 2,880. Anything
+   * that creates motion or an audience calls `#wake()` to pull the next tick
+   * back to the normal cadence, so the back-off is never something a viewer
+   * can notice.
+   */
+  static readonly #IDLE_TICK_MS = 30_000;
+
+  /** Cadence for the next alarm, from in-memory state only — no queries. */
+  async #nextTickDelayMs(): Promise<number> {
+    const snapshot = await this.#gateway.snapshot();
+    const idle = snapshot.activeRides === 0 && this.#bus.subscriberCount === 0;
+    return idle ? FleetSimulator.#IDLE_TICK_MS : env.SIMULATOR_TICK_MS;
+  }
+
+  /**
+   * Pull the next tick forward to the normal cadence. Called whenever work
+   * arrives while the simulator is backed off — a ride starting, or an admin
+   * opening the event stream — so the fleet is moving by the next tick rather
+   * than up to 30 s later.
+   */
+  async #wake(): Promise<void> {
+    const next = Date.now() + env.SIMULATOR_TICK_MS;
+    const current = await this.ctx.storage.getAlarm();
+    if (current === null || current > next) await this.ctx.storage.setAlarm(next);
+  }
+
   override async alarm(): Promise<void> {
-    // Reschedule first so a slow tick delays the next one, not the clock.
-    await this.ctx.storage.setAlarm(Date.now() + env.SIMULATOR_TICK_MS);
+    // Reschedule first so a slow tick delays the next one, not the clock —
+    // and so a throwing tick can never leave the DO with no alarm armed.
+    await this.ctx.storage.setAlarm(Date.now() + (await this.#nextTickDelayMs()));
     try {
       await this.#withRuntime(() => this.#gateway.tickOnce());
     } catch (error: unknown) {
@@ -84,17 +116,24 @@ export class FleetSimulator extends DurableObject<FleetBindings> {
   beep(vehicleId: string): Promise<CommandResult> {
     return this.#withRuntime(() => this.#gateway.beep(vehicleId));
   }
-  resetFleet(): Promise<{ vehicles: number }> {
-    return this.#withRuntime(() => this.#gateway.resetFleet());
+  async resetFleet(): Promise<{ vehicles: number }> {
+    const result = await this.#withRuntime(() => this.#gateway.resetFleet());
+    await this.#wake();
+    return result;
   }
-  beginRide(vehicleId: string, rideId: string): Promise<void> {
-    return this.#withRuntime(() => this.#gateway.beginRide(vehicleId, rideId));
+  async beginRide(vehicleId: string, rideId: string): Promise<void> {
+    await this.#withRuntime(() => this.#gateway.beginRide(vehicleId, rideId));
+    // A rider just unlocked — the scooter has to start moving on the next
+    // tick, not whenever a backed-off alarm happens to come round.
+    await this.#wake();
   }
   finishRide(vehicleId: string): Promise<{ distanceM: number; path: LatLon[] } | null> {
     return this.#withRuntime(() => this.#gateway.finishRide(vehicleId));
   }
-  forceRide(vehicleId: string): Promise<{ rideId: string; routePoints: number }> {
-    return this.#withRuntime(() => this.#gateway.forceRide(vehicleId));
+  async forceRide(vehicleId: string): Promise<{ rideId: string; routePoints: number }> {
+    const result = await this.#withRuntime(() => this.#gateway.forceRide(vehicleId));
+    await this.#wake();
+    return result;
   }
   drainBattery(vehicleId: string, toPct: number): Promise<{ batteryPct: number }> {
     return this.#withRuntime(() => this.#gateway.drainBattery(vehicleId, toPct));
@@ -119,6 +158,9 @@ export class FleetSimulator extends DurableObject<FleetBindings> {
    * implementation in routes/admin.ts, so apps/admin needs no changes.
    */
   override fetch(_request: Request): Response {
+    // An admin just started watching; resume the normal cadence.
+    this.ctx.waitUntil(this.#wake());
+
     const encoder = new TextEncoder();
     let unsubscribe: (() => void) | null = null;
     let timer: ReturnType<typeof setInterval> | null = null;
