@@ -104,7 +104,12 @@ row, so a mid-demo restart can't lock the phone out. On a deployed instance it
 is a **secret, never a var** — with `DEV_FEATURES=true` it signs anybody in as
 any number, and `wrangler.jsonc` is public. `env.ts` refuses to start a
 production instance that has dev features on without it, so a forgotten secret
-cannot quietly become the shared default. Sending a real SMS is a
+cannot quietly become the shared default.
+
+`OTP_TEST_PHONES` is a secret for the same reason plus one of its own: **empty
+means everyone, not nobody**, so omitting it on a deployed instance running the
+fixed OTP opens sign-in to any number. It is required in that combination, with
+`*` as the explicit way to ask for an open sign-in. Sending a real SMS is a
 marked stub — it is outside the demo path.
 
 Admins: email + password, bcrypt. `bcryptjs` over argon2 deliberately — pure JS,

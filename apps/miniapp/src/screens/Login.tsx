@@ -9,9 +9,17 @@ import { getInitData } from '../telegram';
  * token). The phone OTP form remains for plain browsers; in development the
  * API returns the fixed code with the request, so the field pre-fills and
  * the demo never depends on an SMS provider.
+ *
+ * The number to pre-fill comes from `VITE_DEMO_PHONE` rather than the source.
+ * It used to be hardcoded, which put a real personal number in a public
+ * repository — and, with the sign-in allowlist, told a reader exactly which
+ * number the deployed build accepts. `.env` is gitignored; empty is fine, it
+ * just means typing it.
  */
+const DEMO_PHONE: string = import.meta.env['VITE_DEMO_PHONE'] ?? '';
+
 export function Login({ onLoggedIn }: { onLoggedIn: () => void }) {
-  const [phone, setPhone] = useState('+998882196446');
+  const [phone, setPhone] = useState(DEMO_PHONE);
   const [code, setCode] = useState('');
   const [stage, setStage] = useState<'phone' | 'code'>('phone');
   const [busy, setBusy] = useState(false);

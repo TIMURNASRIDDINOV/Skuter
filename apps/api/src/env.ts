@@ -47,7 +47,11 @@ const envSchema = z.object({
   // Comma-separated E.164 allowlist. Non-empty = only these numbers may sign
   // in — for test builds handed out while there is no SMS provider. Empty =
   // any number (normal behaviour).
-  OTP_TEST_PHONES: z.string().default(''),
+  //
+  // A secret rather than a var: it is a list of real personal phone numbers,
+  // and wrangler.jsonc is in a public repository. Optional here so an absent
+  // one can be caught below — see the note on `otpTestPhones`.
+  OTP_TEST_PHONES: z.string().optional(),
   SIMULATOR_TICK_MS: z.coerce.number().int().min(250).max(60_000).default(3000),
   SIMULATOR_UNLOCK_FAILURE_RATE: z.coerce.number().min(0).max(1).default(0.08),
   // `durable` = the Cloudflare Workers deployment, where the simulator lives
@@ -119,7 +123,41 @@ export const devRoutesSecret: string | null = env.DEV_ROUTES_SECRET ?? null;
 /** Telegram login is available only when the bot token is configured. */
 export const telegramAuthEnabled = env.TELEGRAM_BOT_TOKEN !== undefined;
 
-/** Parsed OTP_TEST_PHONES. Non-empty = sign-in restricted to these numbers. */
-export const otpTestPhones: readonly string[] = env.OTP_TEST_PHONES.split(',')
-  .map((phone) => phone.trim())
-  .filter((phone) => phone.length > 0);
+/** Set OTP_TEST_PHONES to this to allow any number, deliberately and on record. */
+const OTP_ALLOWLIST_OPEN = '*';
+
+/**
+ * Parsed OTP_TEST_PHONES. Non-empty = sign-in restricted to these numbers.
+ *
+ * **An absent allowlist is the permissive case**, which is why a deployed
+ * instance running dev affordances has to say something rather than nothing.
+ * `DEV_FEATURES=true` means a fixed OTP signs a caller in; with no allowlist
+ * that is any phone number on a public URL, so forgetting this secret would
+ * quietly open the door that setting it is meant to hold shut.
+ *
+ * Wanting it open is legitimate — that is what `*` is for. What must not
+ * happen is arriving there by omission.
+ */
+export const otpTestPhones: readonly string[] = ((): readonly string[] => {
+  const raw = env.OTP_TEST_PHONES;
+
+  if (raw === undefined) {
+    if (devFeaturesEnabled && isProduction) {
+      throw new Error(
+        'OTP_TEST_PHONES is required when DEV_FEATURES=true on a deployed instance —\n' +
+          'without it the fixed dev OTP signs anybody in as any number.\n' +
+          'Set it as a secret, never as a var in wrangler.jsonc:\n' +
+          '  pnpm -F @scoot/api exec wrangler secret put OTP_TEST_PHONES\n' +
+          `Use "${OTP_ALLOWLIST_OPEN}" if an open sign-in really is what you want.`,
+      );
+    }
+    return [];
+  }
+
+  if (raw.trim() === OTP_ALLOWLIST_OPEN) return [];
+
+  return raw
+    .split(',')
+    .map((phone) => phone.trim())
+    .filter((phone) => phone.length > 0);
+})();
