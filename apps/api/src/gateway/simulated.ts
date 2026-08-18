@@ -446,7 +446,7 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
       batteryPct: number;
       status: VehicleStatus;
     }[] = [];
-    const rideWrites: Promise<void>[] = [];
+    const rideWrites: { id: string; path: LatLon[]; distanceM: number; durationS: number }[] = [];
     const rideProgress: {
       rideId: string;
       distanceM: number;
@@ -469,13 +469,12 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
         const ride = vehicle.ride;
         if (ride !== null) {
           const durationS = (now.getTime() - ride.startedAt.getTime()) / 1000;
-          rideWrites.push(
-            this.#repositories.rides.updateProgress(ride.rideId, {
-              path: ride.travelled,
-              distanceM: ride.distanceM,
-              durationS,
-            }),
-          );
+          rideWrites.push({
+            id: ride.rideId,
+            path: ride.travelled,
+            distanceM: ride.distanceM,
+            durationS,
+          });
           rideProgress.push({
             rideId: ride.rideId,
             distanceM: Math.round(ride.distanceM),
@@ -515,7 +514,7 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
     }
 
     await this.#repositories.vehicles.updateTelemetryBatch(updates);
-    await Promise.all(rideWrites);
+    await this.#repositories.rides.updateProgressBatch(rideWrites);
 
     // Feed the admin panel's live map and rides table. Without this the panel
     // would have to poll, which the brief rules out.

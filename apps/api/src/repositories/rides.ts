@@ -222,6 +222,46 @@ export function createRidesRepository(db: Database) {
     },
 
     /**
+     * One statement for every ride in flight.
+     *
+     * The simulator advances each active ride on every tick. Issued one row at
+     * a time this was the largest single source of query volume on Cloudflare:
+     * a tick cost 1 + N round-trips through Hyperdrive, all day, whether or not
+     * anybody was connected. Batched, a tick costs two statements regardless of
+     * how many rides are running.
+     *
+     * `ST_GeomFromGeoJSON(NULL)` is NULL, so the COALESCE keeps whatever path a
+     * ride already had — a ride that has not yet moved twice cannot form a
+     * LineString and must not have its path overwritten with null.
+     */
+    async updateProgressBatch(
+      items: readonly { id: string; path: LatLon[]; distanceM: number; durationS: number }[],
+    ): Promise<void> {
+      if (items.length === 0) return;
+
+      const rows = items.map((item) => {
+        const path =
+          item.path.length >= 2
+            ? JSON.stringify({
+                type: 'LineString',
+                coordinates: item.path.map((p) => [p.lon, p.lat]),
+              })
+            : null;
+
+        return sql`(${item.id}::uuid, ${Math.round(item.distanceM)}::integer, ${Math.round(item.durationS)}::integer, ${path}::text)`;
+      });
+
+      await db.execute(sql`
+        UPDATE rides AS r
+        SET distance_m = t.distance_m,
+            duration_s = t.duration_s,
+            path = COALESCE(ST_SetSRID(ST_GeomFromGeoJSON(t.path), 4326), r.path)
+        FROM (VALUES ${sql.join(rows, sql`, `)}) AS t(id, distance_m, duration_s, path)
+        WHERE r.id = t.id
+      `);
+    },
+
+    /**
      * Writes the accumulated track. A LineString needs at least two positions,
      * so a ride that has not moved yet keeps a null path.
      */
