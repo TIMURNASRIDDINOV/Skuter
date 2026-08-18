@@ -99,9 +99,20 @@ export function createRidesRepository(db: Database) {
       return row === undefined ? null : toRide(row as RideRow);
     },
 
-    async listActive(): Promise<Ride[]> {
-      const rows = await db.select(columns).from(rides).where(eq(rides.status, 'active'));
-      return rows.map((row) => toRide(row as RideRow));
+    /**
+     * Every ride in flight, with the rider's phone.
+     *
+     * The phone is what lets the simulator tell its own reserved accounts from
+     * a real rider when it rehydrates — it must never adopt a person's ride as
+     * something it may end on a timer. Joined rather than looked up per ride.
+     */
+    async listActive(): Promise<(Ride & { userPhone: string | null })[]> {
+      const rows = await db
+        .select({ ...columns, userPhone: users.phone })
+        .from(rides)
+        .innerJoin(users, eq(rides.userId, users.id))
+        .where(eq(rides.status, 'active'));
+      return rows.map((row) => ({ ...toRide(row as RideRow), userPhone: row.userPhone }));
     },
 
     async countActive(): Promise<number> {

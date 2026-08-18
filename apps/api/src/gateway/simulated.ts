@@ -14,6 +14,7 @@ import { logError, logInfo } from '../lib/logger.js';
 import type { Repositories } from '../repositories/index.js';
 import { mulberry32, offsetMetres, type Rng } from '../seed/random.js';
 import { isSimulatorRider } from '../seed/riders.js';
+import { settleRide } from '../services/settlement.js';
 import { generateStreetRoute, pickDestination, pickSpeedMps } from '../simulator/paths.js';
 import type {
   ManagedVehicleGateway,
@@ -81,6 +82,21 @@ const UNLOCK_FAILURE_REASONS = [
   'Controller timed out — weak cellular signal',
   'Lock actuator reported a fault',
 ] as const;
+
+/**
+ * How many street legs a simulated ride runs before it settles.
+ *
+ * A leg is one `generateStreetRoute` — roughly 2 km, so a few minutes of
+ * motion. Rides used to be endless: `#advanceRide` handed out a fresh leg
+ * whenever one ran out, so a demo ride started at seed time was still running
+ * days later. That kept `activeRides` permanently above zero, which pinned the
+ * Durable Object alarm at its 3 s cadence and meant the fleet was never idle
+ * enough for the back-off in `durable-object.ts` to engage.
+ *
+ * Randomised so the seeded rides do not all finish on the same tick.
+ */
+const SIMULATED_RIDE_MIN_LEGS = 1;
+const SIMULATED_RIDE_MAX_LEGS = 3;
 
 const NO_FREE_RIDER =
   'No simulator rider account free — all are mid-ride, or the seed is stale. Run pnpm db:seed.';
@@ -203,7 +219,8 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
   // eslint-disable-next-line @typescript-eslint/require-await
   async beginRide(vehicleId: string, rideId: string): Promise<void> {
     const vehicle = this.#require(vehicleId);
-    vehicle.ride = this.#buildRide(rideId, vehicle.position);
+    // A person is on this scooter. Never auto-finish it.
+    vehicle.ride = this.#buildRide(rideId, vehicle.position, false);
     vehicle.status = 'in_use';
   }
 
@@ -233,7 +250,7 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
       startedAt: new Date(),
     });
 
-    vehicle.ride = this.#buildRide(rideId, vehicle.position);
+    vehicle.ride = this.#buildRide(rideId, vehicle.position, true);
     vehicle.status = 'in_use';
     await this.#repositories.vehicles.updateStatus(vehicleId, 'in_use');
 
@@ -328,7 +345,7 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
 
     // One read for the whole fleet, rather than a findActiveByVehicle each.
     const active = new Map(
-      (await this.#repositories.rides.listActive()).map((ride) => [ride.vehicleId, ride.id]),
+      (await this.#repositories.rides.listActive()).map((ride) => [ride.vehicleId, ride]),
     );
 
     // Drawn once and consumed. Re-reading per vehicle would both cost a query
@@ -339,7 +356,14 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
     const planId = await this.#perMinutePlanId();
 
     for (const vehicle of stranded) {
-      let rideId = active.get(vehicle.id);
+      const existing = active.get(vehicle.id);
+      let rideId = existing?.id;
+      // An adopted ride is only ours to end if a reserved simulator account
+      // owns it. A real rider's ride surviving an eviction stays theirs.
+      let autoFinish =
+        existing !== undefined &&
+        existing.userPhone !== null &&
+        isSimulatorRider(existing.userPhone);
 
       if (rideId === undefined) {
         const userId = pool.shift();
@@ -350,16 +374,22 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
           planId,
           startedAt: new Date(),
         });
+        // Created here, so it is a simulator account by construction.
+        autoFinish = true;
       }
 
-      vehicle.ride = this.#buildRide(rideId, vehicle.position);
+      vehicle.ride = this.#buildRide(rideId, vehicle.position, autoFinish);
     }
   }
 
-  #buildRide(rideId: string, from: LatLon): SimulatedRide {
+  #buildRide(rideId: string, from: LatLon, autoFinish: boolean): SimulatedRide {
     const destination = pickDestination(from, this.#rng);
+    const spread = SIMULATED_RIDE_MAX_LEGS - SIMULATED_RIDE_MIN_LEGS + 1;
     return {
       rideId,
+      autoFinish,
+      legsRemaining: SIMULATED_RIDE_MIN_LEGS + Math.floor(this.#rng() * spread),
+      spent: false,
       route: generateStreetRoute(from, destination, this.#rng),
       cursor: 1,
       speedMps: pickSpeedMps(this.#rng),
@@ -511,6 +541,8 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
     }[] = [];
     const updates: typeof frames = [];
     const rideWrites: { id: string; path: LatLon[]; distanceM: number; durationS: number }[] = [];
+    /** Simulated rides that ran out of legs this tick and need settling. */
+    const finished: { rideId: string; distanceM: number; path: LatLon[] }[] = [];
     const rideProgress: {
       rideId: string;
       distanceM: number;
@@ -531,7 +563,20 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
         vehicle.batteryPct = Math.max(0, vehicle.batteryPct - RIDING_DRAIN_PCT_PER_TICK);
 
         const ride = vehicle.ride;
-        if (ride !== null) {
+
+        if (ride.spent) {
+          // Stop the motion now, so the scooter is parked on this tick's map
+          // whatever the settlement below does. Settling is a database
+          // conversation and belongs after the batch writes.
+          finished.push({
+            rideId: ride.rideId,
+            distanceM: ride.distanceM,
+            path: ride.travelled,
+          });
+          vehicle.ride = null;
+          vehicle.anchor = vehicle.position;
+          vehicle.status = this.#statusForBattery({ ...vehicle, status: 'available' });
+        } else {
           const durationS = (now.getTime() - ride.startedAt.getTime()) / 1000;
           rideWrites.push({
             id: ride.rideId,
@@ -595,6 +640,7 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
 
     await this.#repositories.vehicles.updateTelemetryBatch(updates);
     await this.#repositories.rides.updateProgressBatch(rideWrites);
+    await this.#settleFinished(finished);
 
     // Feed the admin panel's live map and rides table. Without this the panel
     // would have to poll, which the brief rules out.
@@ -624,6 +670,50 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
 
     this.#ticks += 1;
     this.#lastTickAt = now;
+  }
+
+  /**
+   * Close out simulated rides that ran out of legs.
+   *
+   * Runs through the same `settleRide` the rider-facing end-ride uses, so a
+   * demo ride produces a real cost, a payment row and a `ride.ended` event —
+   * the admin revenue chart is reading genuine completed rides, not a fixture.
+   *
+   * Rare (once per ride, not per tick), so the per-ride reads are affordable
+   * here in a way they would never be inside the fleet loop.
+   *
+   * A settle that throws leaves an active ride row behind while the vehicle is
+   * already parked and available. That is deliberate: the motion has stopped
+   * either way, and a stranded row is exactly what the operator force-end path
+   * exists to clear. Retrying on the next tick would hammer a failing query
+   * every three seconds instead.
+   */
+  async #settleFinished(
+    finished: readonly { rideId: string; distanceM: number; path: LatLon[] }[],
+  ): Promise<void> {
+    for (const item of finished) {
+      try {
+        const ride = await this.#repositories.rides.findById(item.rideId);
+        if (ride === null || ride.status !== 'active') continue;
+
+        const settled = await settleRide(this.#repositories, ride, {
+          endZoneId: null,
+          finished: { distanceM: item.distanceM, path: item.path },
+        });
+
+        // settleRide wrote `available`; keep the flush markers in step so the
+        // next tick does not rewrite a row that already says this.
+        const vehicle = this.#fleet.get(ride.vehicleId);
+        if (vehicle !== undefined) vehicle.flushedStatus = 'available';
+
+        logInfo(
+          `Simulated ride ${ride.id.slice(0, 8)} finished — ` +
+            `${settled.distanceM}m in ${settled.durationS}s, ${settled.breakdown.total} tiyin`,
+        );
+      } catch (error: unknown) {
+        logError(`Failed to settle simulated ride ${item.rideId}`, error);
+      }
+    }
   }
 
   /** Random walk around the anchor — parked scooters jitter, they don't wander. */
@@ -668,9 +758,17 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
       }
     }
 
-    // Route exhausted: give the rider a fresh leg so demo rides keep moving
-    // rather than parking themselves mid-demo.
+    // Route exhausted. A rider's own ride simply gets another leg — only they
+    // decide when it is over. A simulated one spends a leg and, once out,
+    // parks itself for #tick to settle.
     if (ride.cursor >= ride.route.length) {
+      ride.legsRemaining -= 1;
+
+      if (ride.autoFinish && ride.legsRemaining <= 0) {
+        ride.spent = true;
+        return 0;
+      }
+
       const destination = pickDestination(vehicle.position, this.#rng);
       ride.route = generateStreetRoute(vehicle.position, destination, this.#rng);
       ride.cursor = 1;

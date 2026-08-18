@@ -90,6 +90,23 @@ export interface SimulatedVehicle {
 
 export interface SimulatedRide {
   rideId: string;
+  /**
+   * Whether the simulator may end this ride itself.
+   *
+   * True only for rides the simulator started under a reserved simulator
+   * account. **A real rider's ride is never auto-finished** — ending it from a
+   * timer would settle and charge somebody mid-demo — so `beginRide` builds
+   * these false and only an explicit end-ride or an operator force-end closes
+   * them.
+   */
+  autoFinish: boolean;
+  /**
+   * Street legs left before an auto-finishing ride settles. Meaningless when
+   * `autoFinish` is false, where a route that runs out is simply extended.
+   */
+  legsRemaining: number;
+  /** Set when the last leg is spent; the next tick settles and clears it. */
+  spent: boolean;
   /** Densified street-like polyline the vehicle follows. */
   route: LatLon[];
   /** Index of the next route point to reach. */

@@ -1,8 +1,6 @@
 import {
   API_ERROR_CODES,
   RIDEABLE_VEHICLE_STATUSES,
-  calculateRideCost,
-  lineStringLengthM,
   type ActiveRide,
   type LatLon,
   type ParkingCheck,
@@ -13,10 +11,10 @@ import {
 import { publishEvent } from '../events/bus.js';
 import { getSimulationControl, getVehicleGateway } from '../gateway/index.js';
 import { conflict, notFound } from '../lib/errors.js';
-import { getPaymentProvider } from '../payments/index.js';
 import type { Repositories } from '../repositories/index.js';
 import { checkParking } from './parking.js';
 import { releaseExpiredReservations, releaseVehicle } from './reservations.js';
+import { elapsedSeconds, priceRide, settleRide } from './settlement.js';
 
 /**
  * Ride lifecycle. This is the demo script's spine: scan, unlock, ride, fail to
@@ -155,7 +153,7 @@ export async function getActiveRide(
 
   return {
     ...ride,
-    planId: (await ridePlanId(repositories, ride.id)) ?? '',
+    planId: (await repositories.rides.findPlanId(ride.id)) ?? '',
     currentCost: breakdown.total,
     vehicle: {
       id: vehicle.id,
@@ -201,7 +199,7 @@ export async function endRide(
     throw conflict(code, parkingMessage(parking.reason), { check: parking });
   }
 
-  return settleRide(repositories, ride, parking.zoneId);
+  return endThroughGateway(repositories, ride, parking.zoneId);
 }
 
 /**
@@ -220,65 +218,20 @@ export async function forceEndRide(
     throw conflict(API_ERROR_CODES.CONFLICT, 'This ride has already ended');
   }
 
-  return settleRide(repositories, ride, null);
+  return endThroughGateway(repositories, ride, null);
 }
 
-/** The one settlement pipeline — charge, persist, free the vehicle, notify. */
-async function settleRide(
+/**
+ * Settle a ride a person ended. The motion comes from the gateway, which is
+ * the half `settlement.ts` cannot reach without closing an import cycle.
+ */
+async function endThroughGateway(
   repositories: Repositories,
   ride: Ride,
   endZoneId: string | null,
 ): Promise<EndRideOutcome> {
-  // Take the distance the vehicle actually travelled, rather than recomputing
-  // from a path that is still being written.
   const finished = (await getSimulationControl()?.finishRide(ride.vehicleId)) ?? null;
-  const distanceM = Math.round(
-    finished?.distanceM ?? (ride.path === null ? ride.distanceM : lineStringLengthM(ride.path)),
-  );
-  const durationS = Math.round(elapsedSeconds(ride.startedAt));
-
-  const breakdown = await priceRide(repositories, ride, { durationS, distanceM });
-
-  if (breakdown.total > 0) {
-    const charge = await getPaymentProvider().charge({
-      userId: ride.userId,
-      amount: breakdown.total,
-      description: `Ride ${ride.id}`,
-      rideId: ride.id,
-    });
-    await repositories.payments.record({
-      userId: ride.userId,
-      rideId: ride.id,
-      subscriptionId: null,
-      amount: breakdown.total,
-      provider: getPaymentProvider().name,
-      providerRef: charge.providerRef,
-      status: charge.status,
-    });
-  }
-
-  await repositories.rides.settle(ride.id, {
-    endedAt: new Date(),
-    distanceM,
-    durationS,
-    cost: breakdown.total,
-    endZoneId,
-    path: finished?.path ?? null,
-  });
-
-  await repositories.vehicles.updateStatus(ride.vehicleId, 'available');
-
-  publishEvent({
-    type: 'ride.ended',
-    rideId: ride.id,
-    userId: ride.userId,
-    vehicleId: ride.vehicleId,
-    status: 'completed',
-    cost: breakdown.total,
-    distanceM,
-    durationS,
-  });
-
+  const { breakdown } = await settleRide(repositories, ride, { endZoneId, finished });
   return { receipt: await buildReceipt(repositories, ride.id, breakdown, endZoneId) };
 }
 
@@ -291,7 +244,7 @@ export async function buildReceipt(
   const ride = await repositories.rides.findById(rideId);
   if (ride === null) throw notFound('No such ride');
 
-  const planId = await ridePlanId(repositories, rideId);
+  const planId = await repositories.rides.findPlanId(rideId);
   const plan = planId === null ? null : await repositories.plans.findById(planId);
   const endZone = endZoneId === null ? null : await repositories.zones.findById(endZoneId);
 
@@ -304,10 +257,6 @@ export async function buildReceipt(
 }
 
 // --- helpers -------------------------------------------------------------
-
-function elapsedSeconds(startedAtIso: string): number {
-  return (Date.now() - new Date(startedAtIso).getTime()) / 1000;
-}
 
 /** Total over every reason — `ParkingCheck` is not discriminated on `allowed`. */
 function parkingMessage(reason: ParkingCheck['reason']): string {
@@ -323,34 +272,4 @@ function parkingMessage(reason: ParkingCheck['reason']): string {
   }
 }
 
-async function ridePlanId(repositories: Repositories, rideId: string): Promise<string | null> {
-  return repositories.rides.findPlanId(rideId);
-}
 
-/**
- * Prices a ride through the one shared pure function, honouring an active
- * subscription binding the rider to this vehicle.
- */
-async function priceRide(
-  repositories: Repositories,
-  ride: Ride,
-  usage: { durationS: number; distanceM: number },
-): Promise<RideCostBreakdownPayload> {
-  const planId = await ridePlanId(repositories, ride.id);
-  const plan = planId === null ? null : await repositories.plans.findById(planId);
-  if (plan === null) {
-    throw new Error(`Ride ${ride.id} has no resolvable plan`);
-  }
-
-  const subscription = await repositories.subscriptions.findActiveForUserAndVehicle(
-    ride.userId,
-    ride.vehicleId,
-  );
-
-  return calculateRideCost({
-    plan: { kind: plan.kind, unlockFee: plan.unlockFee, price: plan.price },
-    durationS: usage.durationS,
-    distanceM: usage.distanceM,
-    coveredBySubscription: subscription !== null || plan.kind !== 'per_minute',
-  });
-}
