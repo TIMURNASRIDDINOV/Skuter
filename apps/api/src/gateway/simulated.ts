@@ -54,6 +54,20 @@ const IDLE_DRAIN_FLOOR_PCT = 30;
 const IDLE_DRIFT_RADIUS_M = 8;
 const IDLE_DRIFT_STEP_M = 2.5;
 
+/**
+ * How often a parked vehicle's position is written to Postgres when nothing
+ * about it has changed.
+ *
+ * The live map is fed from memory over SSE, so the database write exists only
+ * so a restart or a Durable Object eviction rehydrates the fleet roughly where
+ * it left off. Once every idle vehicle has settled on the drain floor, writing
+ * all of them every tick means rewriting identical batteries and a couple of
+ * metres of GPS noise for the whole fleet, indefinitely. Anything that a rider
+ * or the back office can actually observe — a status move, a whole-percent
+ * battery step, a vehicle under way — still flushes on the tick it happens.
+ */
+const IDLE_FLUSH_EVERY_N_TICKS = 20;
+
 /** Unlock round-trip, matching a real cellular controller's latency. */
 const UNLOCK_MIN_MS = 1200;
 const UNLOCK_MAX_MS = 2000;
@@ -227,15 +241,21 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
     const vehicle = this.#require(vehicleId);
     vehicle.batteryPct = Math.max(0, Math.min(100, toPct));
     vehicle.status = this.#statusForBattery(vehicle);
+
+    const batteryPct = Math.round(vehicle.batteryPct);
     await this.#repositories.vehicles.updateTelemetryBatch([
       {
         id: vehicle.id,
         location: vehicle.position,
-        batteryPct: Math.round(vehicle.batteryPct),
+        batteryPct,
         status: vehicle.status,
       },
     ]);
-    return { batteryPct: Math.round(vehicle.batteryPct) };
+    // Written here, so the next tick has no change to flush.
+    vehicle.flushedStatus = vehicle.status;
+    vehicle.flushedBatteryPct = batteryPct;
+
+    return { batteryPct };
   }
 
   async setStatus(vehicleId: string, status: VehicleStatus): Promise<{ status: VehicleStatus }> {
@@ -244,6 +264,7 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
     // Taking a vehicle offline abandons whatever it was doing.
     if (status !== 'in_use') vehicle.ride = null;
     await this.#repositories.vehicles.updateStatus(vehicleId, status);
+    vehicle.flushedStatus = status;
     return { status };
   }
 
@@ -284,6 +305,9 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
         position: vehicle.location,
         anchor: vehicle.location,
         ride: null,
+        // Just read from Postgres, so it is already in sync.
+        flushedStatus: vehicle.status,
+        flushedBatteryPct: vehicle.batteryPct,
       });
     }
   }
@@ -440,12 +464,17 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
     const tickSeconds = env.SIMULATOR_TICK_MS / 1000;
 
     const telemetry: Telemetry[] = [];
-    const updates: {
+    // What the back office is told, every tick, for every vehicle that
+    // reported. Kept separate from `updates` — the SSE fan-out is cheap and
+    // must stay complete, while the database write below is filtered down to
+    // rows that actually changed.
+    const frames: {
       id: string;
       location: LatLon;
       batteryPct: number;
       status: VehicleStatus;
     }[] = [];
+    const updates: typeof frames = [];
     const rideWrites: { id: string; path: LatLon[]; distanceM: number; durationS: number }[] = [];
     const rideProgress: {
       rideId: string;
@@ -496,16 +525,32 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
 
       vehicle.status = this.#statusForBattery(vehicle);
 
-      updates.push({
+      const batteryPct = Math.round(vehicle.batteryPct);
+      const frame = {
         id: vehicle.id,
         location: vehicle.position,
-        batteryPct: Math.round(vehicle.batteryPct),
+        batteryPct,
         status: vehicle.status,
-      });
+      };
+      frames.push(frame);
+
+      // A vehicle under way moved; a status move or a whole-percent battery
+      // step is something a rider or the back office reads back out of
+      // Postgres. Anything else is jitter, and waits for the periodic flush.
+      const changed =
+        vehicle.ride !== null ||
+        vehicle.status !== vehicle.flushedStatus ||
+        batteryPct !== vehicle.flushedBatteryPct;
+
+      if (changed || this.#ticks % IDLE_FLUSH_EVERY_N_TICKS === 0) {
+        updates.push(frame);
+        vehicle.flushedStatus = vehicle.status;
+        vehicle.flushedBatteryPct = batteryPct;
+      }
 
       telemetry.push({
         vehicleId: vehicle.id,
-        batteryPct: Math.round(vehicle.batteryPct),
+        batteryPct,
         lat: vehicle.position.lat,
         lon: vehicle.position.lon,
         speedMps,
@@ -518,13 +563,13 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
 
     // Feed the admin panel's live map and rides table. Without this the panel
     // would have to poll, which the brief rules out.
-    for (const update of updates) {
+    for (const frame of frames) {
       publishEvent({
         type: 'vehicle.updated',
-        vehicleId: update.id,
-        status: update.status,
-        batteryPct: update.batteryPct,
-        location: update.location,
+        vehicleId: frame.id,
+        status: frame.status,
+        batteryPct: frame.batteryPct,
+        location: frame.location,
       });
     }
     for (const progress of rideProgress) {

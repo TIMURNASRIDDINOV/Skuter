@@ -78,6 +78,14 @@ export interface SimulatedVehicle {
   /** Anchor a parked vehicle drifts around, so it never wanders off. */
   anchor: LatLon;
   ride: SimulatedRide | null;
+  /**
+   * What Postgres was last told about this vehicle. The tick compares against
+   * these to skip writing rows that have not materially changed — a parked
+   * scooter at the drain floor otherwise rewrites the same battery and 2 m of
+   * GPS jitter every 3 seconds, forever. Null until the first flush.
+   */
+  flushedStatus: VehicleStatus | null;
+  flushedBatteryPct: number | null;
 }
 
 export interface SimulatedRide {
