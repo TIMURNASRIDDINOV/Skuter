@@ -10,7 +10,7 @@ import {
   type TelegramLoginStartResponse,
   type User,
 } from '@scoot/shared';
-import { devFeaturesEnabled, env, otpTestPhones } from '../env.js';
+import { devFeaturesEnabled, devOtpCode, env, otpTestPhones } from '../env.js';
 import {
   NotImplementedError,
   badRequest,
@@ -35,7 +35,7 @@ const OTP_MAX_ATTEMPTS = 5;
 
 function generateCode(): string {
   // Dev keeps a fixed code so the demo never waits on an SMS provider.
-  if (devFeaturesEnabled) return env.DEV_OTP_CODE;
+  if (devFeaturesEnabled) return devOtpCode;
   const value = Math.floor(Math.random() * 1_000_000);
   return value.toString().padStart(6, '0');
 }
@@ -91,7 +91,7 @@ authRoutes.post('/otp/verify', zValidator('json', verifyOtpRequestSchema), async
 
   // Development accepts the fixed code even with no pending row, so a restart
   // mid-demo can never lock the phone out.
-  const acceptedByDevCode = devFeaturesEnabled && code === env.DEV_OTP_CODE;
+  const acceptedByDevCode = devFeaturesEnabled && code === devOtpCode;
 
   if (!acceptedByDevCode) {
     const pending = await repositories.otp.findActive(phone);

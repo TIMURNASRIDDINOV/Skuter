@@ -98,8 +98,21 @@ pnpm -F @scoot/api exec wrangler secret put TELEGRAM_WEBHOOK_SECRET
 pnpm -F @scoot/api exec wrangler secret put DEV_ROUTES_SECRET
 ```
 
+```bash
+pnpm -F @scoot/api exec wrangler secret put DEV_OTP_CODE
+```
+
 `DEV_ROUTES_SECRET` — минимум 16 символов, `openssl rand -hex 24`. См. раздел
 про демо-контролы ниже: **без него `/dev/simulate/*` на деплое выключены.**
+
+`DEV_OTP_CODE` — шесть цифр. Пока `DEV_FEATURES=true`, это рабочий вход: с ним
+логинишься под любым номером. Поэтому он **секрет, а не var** — `wrangler.jsonc`
+лежит в публичном репозитории. Раньше он там и лежал (`473591`); это значение
+осталось в истории git и **использовать его повторно нельзя** — придумай новое.
+
+Деплой с `DEV_FEATURES=true` и без этого секрета падает на старте: `env.ts` не
+подставляет дефолт на боевом инстансе, чтобы забытый секрет не превратился в
+угадываемый код.
 
 **Секреты ставятся на окружение, а не на проект.** `wrangler secret put` без
 `--env` кладёт их в основной воркер; у `--env canary` свой отдельный набор.

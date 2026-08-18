@@ -33,7 +33,10 @@
     "SIMULATOR_TICK_MS": "3000",
     "SIMULATOR_UNLOCK_FAILURE_RATE": "0.08",
     "OTP_TEST_PHONES": "+998882196446",
-    "DEV_OTP_CODE": "473591",
+    // DEV_OTP_CODE is deliberately absent: it is a working credential while
+    // DEV_FEATURES is on, and this file is in a public repository. Set it as
+    // a secret instead — `wrangler secret put DEV_OTP_CODE`. env.ts refuses
+    // to start a deployed instance without it rather than defaulting.
     "JWT_EXPIRES_IN": "30d",
     "TELEGRAM_BOT_USERNAME": "Scootrentuzbot",
     // Placeholder: the real connection comes from the HYPERDRIVE binding;
@@ -60,7 +63,8 @@
         "SIMULATOR_TICK_MS": "3000",
         "SIMULATOR_UNLOCK_FAILURE_RATE": "0.08",
         "OTP_TEST_PHONES": "+998882196446",
-        "DEV_OTP_CODE": "473591",
+        // See the note above — set with:
+        //   wrangler secret put DEV_OTP_CODE --env canary
         "JWT_EXPIRES_IN": "30d",
         "TELEGRAM_BOT_USERNAME": "Scootrentuzbot",
         "DATABASE_URL": "hyperdrive"

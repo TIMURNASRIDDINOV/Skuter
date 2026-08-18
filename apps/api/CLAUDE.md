@@ -100,7 +100,11 @@ Three additions, all load-bearing:
 
 Riders: phone OTP (`POST /auth/otp/request` → `/auth/otp/verify`). In
 development `DEV_OTP_CODE` (default `000000`) is accepted even with no pending
-row, so a mid-demo restart can't lock the phone out. Sending a real SMS is a
+row, so a mid-demo restart can't lock the phone out. On a deployed instance it
+is a **secret, never a var** — with `DEV_FEATURES=true` it signs anybody in as
+any number, and `wrangler.jsonc` is public. `env.ts` refuses to start a
+production instance that has dev features on without it, so a forgotten secret
+cannot quietly become the shared default. Sending a real SMS is a
 marked stub — it is outside the demo path.
 
 Admins: email + password, bcrypt. `bcryptjs` over argon2 deliberately — pure JS,

@@ -35,10 +35,15 @@ const envSchema = z.object({
     .string()
     .min(32, 'JWT_SECRET must be at least 32 characters — generate with: openssl rand -hex 32'),
   JWT_EXPIRES_IN: z.string().default('30d'),
+  // Supplied as a **secret**, not a var — it is a working credential on any
+  // instance with dev features on, and vars live in wrangler.jsonc, which is
+  // in a public repository. Optional here so a missing one can be caught
+  // below with a message that says what to do, rather than silently becoming
+  // a guessable default on a deployed instance.
   DEV_OTP_CODE: z
     .string()
     .regex(/^\d{6}$/, 'DEV_OTP_CODE must be six digits')
-    .default('000000'),
+    .optional(),
   // Comma-separated E.164 allowlist. Non-empty = only these numbers may sign
   // in — for test builds handed out while there is no SMS provider. Empty =
   // any number (normal behaviour).
@@ -85,6 +90,28 @@ export const isProduction = env.NODE_ENV === 'production';
  */
 export const devFeaturesEnabled =
   env.DEV_FEATURES !== undefined ? env.DEV_FEATURES === 'true' : !isProduction;
+
+/**
+ * The fixed OTP accepted while dev features are on.
+ *
+ * Local development falls back to `000000` — convenient, and nothing there is
+ * reachable from outside. A deployed instance must set it explicitly, because
+ * with `DEV_FEATURES=true` this code signs anybody in as any phone number, and
+ * a shared fallback on a public URL is an open door. Refusing to start is the
+ * same contract as the rest of this file: bad config fails now, loudly, rather
+ * than later and quietly.
+ */
+export const devOtpCode: string = ((): string => {
+  if (env.DEV_OTP_CODE !== undefined) return env.DEV_OTP_CODE;
+  if (devFeaturesEnabled && isProduction) {
+    throw new Error(
+      'DEV_OTP_CODE is required when DEV_FEATURES=true on a deployed instance.\n' +
+        'Set it as a secret, never as a var in wrangler.jsonc:\n' +
+        '  pnpm -F @scoot/api exec wrangler secret put DEV_OTP_CODE',
+    );
+  }
+  return '000000';
+})();
 
 /** Shared secret guarding /dev/simulate/* on a deployed instance. */
 export const devRoutesSecret: string | null = env.DEV_ROUTES_SECRET ?? null;
