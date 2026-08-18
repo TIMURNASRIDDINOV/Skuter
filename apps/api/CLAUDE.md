@@ -131,9 +131,39 @@ live** — everything else calls `getVehicleGateway()` and programs against the
 `VehicleGateway` interface. Selected by `VEHICLE_GATEWAY` (`simulated` | `iot`).
 
 `SimulatedGateway` holds fleet state in memory, advances it every
-`SIMULATOR_TICK_MS`, and flushes positions and batteries to Postgres in **one
-batched UPDATE per tick** — 70 vehicles every 3s as 70 round-trips would
-dominate the tick. Ticks never overlap: a slow tick is skipped, not queued.
+`SIMULATOR_TICK_MS`, and flushes to Postgres in **two batched statements per
+tick** — one UPDATE for vehicles, one for every ride in flight. Either as
+round-trips per row would dominate the tick. Ticks never overlap: a slow tick
+is skipped, not queued.
+
+### The tick is metered — read this before adding a query to it
+
+On Cloudflare the tick is a Durable Object alarm that runs all day whether or
+not anybody is connected, so its cost is a standing bill rather than a cost per
+request. Left unmetered it billed ~116k Hyperdrive queries in a day against 62
+HTTP requests. Three rules keep it down, and a change that breaks one of them
+will not show up in any test:
+
+- **Nothing per-row.** Both writes are `VALUES`-join batches
+  (`updateTelemetryBatch`, `updateProgressBatch`). A repository method that
+  writes one row per call has no business inside the fleet loop.
+- **Only rows that changed are written.** A vehicle is flushed when it is under
+  way, when its status moves, or when its rounded battery steps; everything else
+  waits for `IDLE_FLUSH_EVERY_N_TICKS` (~60 s). Parked positions therefore land
+  in Postgres up to a minute late — that is jitter inside an 8 m anchor radius,
+  and the live map does not read it from Postgres anyway. `flushedStatus` /
+  `flushedBatteryPct` on `SimulatedVehicle` track what the database was last
+  told; any code path that writes a vehicle directly must update them.
+- **The SSE fan-out is separate from the write.** `#tick` builds `frames` (every
+  reporting vehicle, published every tick) and `updates` (the filtered subset
+  that is written). Publishing from `updates` would freeze idle pins on the
+  admin map — this is the one mistake this design invites.
+
+With no ride in flight and no admin on the event stream, the alarm backs off
+from 3 s to 30 s. Anything that creates motion or an audience must pull it back
+through `FleetSimulator#wake()` — `beginRide`, `forceRide`, `resetFleet` and an
+SSE connect already do. **A new way to start a ride that does not call `#wake()`
+leaves the scooter still for up to 30 s**, which reads as a broken unlock.
 
 `IotGateway` throws `NotImplementedError` everywhere and documents the phase-2
 MQTT design in its class comment.
@@ -159,6 +189,12 @@ releases row by row instead of issuing one bulk `UPDATE`.
 
 The hold columns themselves (`reserved_until`, `reserved_by`) are ordinary
 repository writes — only `status` has to cross the gateway seam.
+
+The hold-clearing statements return `batteryPct` and the position alongside
+`status` (`ReleasedVehicle`), so the `vehicle.updated` event is built entirely
+from the write. Do not reintroduce a `findById` to fill those in: it is a round
+trip per released vehicle, and it is the cached-read hazard this module exists
+to avoid.
 
 Two more things reservations touch:
 
