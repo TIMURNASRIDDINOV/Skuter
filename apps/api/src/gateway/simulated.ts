@@ -9,8 +9,8 @@ import {
   type VehicleStatus,
 } from '@scoot/shared';
 import { env } from '../env.js';
-import { publishEvent } from '../events/bus.js';
-import { logError, logInfo } from '../lib/logger.js';
+import { publishEvent, serverEvents } from '../events/bus.js';
+import { logError, logInfo, logWarn } from '../lib/logger.js';
 import type { Repositories } from '../repositories/index.js';
 import { mulberry32, offsetMetres, type Rng } from '../seed/random.js';
 import { isSimulatorRider } from '../seed/riders.js';
@@ -98,6 +98,40 @@ const UNLOCK_FAILURE_REASONS = [
 const SIMULATED_RIDE_MIN_LEGS = 1;
 const SIMULATED_RIDE_MAX_LEGS = 3;
 
+/**
+ * Hard wall-clock ceiling on a simulated ride, measured from the `started_at`
+ * on its row rather than from anything in memory.
+ *
+ * The leg budget alone is not enough. Fleet state is rehydrated on every
+ * Durable Object start — a deploy, an eviction, a migration — and
+ * `#reconcileActiveRides` adopts whatever is still in flight. Handing those a
+ * fresh budget means a ride's lease renews every restart, so under regular
+ * evictions a simulated ride never finishes and the fleet is never idle. That
+ * is exactly the state this whole change set exists to reach, and it hid in
+ * production behind a 3 s cadence that looked like rides legitimately running.
+ *
+ * The row's timestamp survives all of that, so this ceiling actually holds.
+ */
+const SIMULATED_RIDE_MAX_DURATION_MS = 20 * 60 * 1000;
+
+/**
+ * Spontaneous demo traffic, and the rule that makes it free.
+ *
+ * Once rides finish (see the leg budget above) the fleet parks and stays
+ * parked — nothing starts a simulated ride on its own, so a client opening the
+ * back office cold would see 70 stationary scooters. But keeping traffic
+ * running around the clock is exactly the standing bill the tick work was
+ * about removing.
+ *
+ * So the simulator only manufactures traffic **while somebody is watching**:
+ * an admin on the SSE stream. With no subscriber the fleet stays quiet, the
+ * alarm backs off to 30 s and a tick costs nothing. The moment the panel
+ * connects, the map fills up again within a minute.
+ */
+const DEMO_TRAFFIC_TARGET_RIDES = 3;
+/** Stagger starts, so three rides do not all begin on the same tick. */
+const DEMO_TRAFFIC_START_EVERY_N_TICKS = 8;
+
 const NO_FREE_RIDER =
   'No simulator rider account free — all are mid-ride, or the seed is stale. Run pnpm db:seed.';
 
@@ -116,6 +150,8 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
   #ticks = 0;
   #lastTickAt: Date | null = null;
   #ticking = false;
+  /** Tick index of the last spontaneous ride start, for the stagger above. */
+  #lastTrafficStartTick = Number.NEGATIVE_INFINITY;
   /** Cached so the live cost ticker does not hit the database every tick. */
   #perMinutePlan: { id: string; unlockFee: number; price: number } | null = null;
 
@@ -220,7 +256,7 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
   async beginRide(vehicleId: string, rideId: string): Promise<void> {
     const vehicle = this.#require(vehicleId);
     // A person is on this scooter. Never auto-finish it.
-    vehicle.ride = this.#buildRide(rideId, vehicle.position, false);
+    vehicle.ride = this.#buildRide(rideId, vehicle.position, false, null, new Date());
     vehicle.status = 'in_use';
   }
 
@@ -250,7 +286,7 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
       startedAt: new Date(),
     });
 
-    vehicle.ride = this.#buildRide(rideId, vehicle.position, true);
+    vehicle.ride = this.#buildRide(rideId, vehicle.position, true, rider, new Date());
     vehicle.status = 'in_use';
     await this.#repositories.vehicles.updateStatus(vehicleId, 'in_use');
 
@@ -358,6 +394,7 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
     for (const vehicle of stranded) {
       const existing = active.get(vehicle.id);
       let rideId = existing?.id;
+      let userId = existing?.userId ?? null;
       // An adopted ride is only ours to end if a reserved simulator account
       // owns it. A real rider's ride surviving an eviction stays theirs.
       let autoFinish =
@@ -366,8 +403,8 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
         isSimulatorRider(existing.userPhone);
 
       if (rideId === undefined) {
-        const userId = pool.shift();
-        if (userId === undefined) throw new Error(NO_FREE_RIDER);
+        userId = pool.shift() ?? null;
+        if (userId === null) throw new Error(NO_FREE_RIDER);
         rideId = await this.#repositories.rides.create({
           userId,
           vehicleId: vehicle.id,
@@ -378,15 +415,30 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
         autoFinish = true;
       }
 
-      vehicle.ride = this.#buildRide(rideId, vehicle.position, autoFinish);
+      // The row's own start time, so an adopted ride keeps its real age —
+      // both for the ceiling above and for the live duration the panel shows.
+      vehicle.ride = this.#buildRide(
+        rideId,
+        vehicle.position,
+        autoFinish,
+        userId,
+        existing === undefined ? new Date() : new Date(existing.startedAt),
+      );
     }
   }
 
-  #buildRide(rideId: string, from: LatLon, autoFinish: boolean): SimulatedRide {
+  #buildRide(
+    rideId: string,
+    from: LatLon,
+    autoFinish: boolean,
+    userId: string | null,
+    startedAt: Date,
+  ): SimulatedRide {
     const destination = pickDestination(from, this.#rng);
     const spread = SIMULATED_RIDE_MAX_LEGS - SIMULATED_RIDE_MIN_LEGS + 1;
     return {
       rideId,
+      userId,
       autoFinish,
       legsRemaining: SIMULATED_RIDE_MIN_LEGS + Math.floor(this.#rng() * spread),
       spent: false,
@@ -395,7 +447,7 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
       speedMps: pickSpeedMps(this.#rng),
       travelled: [from],
       distanceM: 0,
-      startedAt: new Date(),
+      startedAt,
     };
   }
 
@@ -469,9 +521,19 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
    * trips to find one free account.
    */
   async #idleSimulatorRiders(): Promise<string[]> {
+    // Anyone the simulator has already put on a scooter is excluded from
+    // memory rather than trusted to have disappeared from this read: the read
+    // follows the ride insert, and Hyperdrive can serve it from before.
+    const riding = new Set<string>();
+    for (const vehicle of this.#fleet.values()) {
+      if (vehicle.ride?.userId != null) riding.add(vehicle.ride.userId);
+    }
+
     const idle = await this.#repositories.users.listIdle();
     return idle
-      .filter((user) => user.phone !== null && isSimulatorRider(user.phone))
+      .filter(
+        (user) => user.phone !== null && isSimulatorRider(user.phone) && !riding.has(user.id),
+      )
       .map((user) => user.id);
   }
 
@@ -564,6 +626,12 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
 
         const ride = vehicle.ride;
 
+        // Age it out even mid-leg. A ride that has already been adopted across
+        // a restart or two is old however much route it has left.
+        if (ride.autoFinish && now.getTime() - ride.startedAt.getTime() >= SIMULATED_RIDE_MAX_DURATION_MS) {
+          ride.spent = true;
+        }
+
         if (ride.spent) {
           // Stop the motion now, so the scooter is parked on this tick's map
           // whatever the settlement below does. Settling is a database
@@ -641,6 +709,7 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
     await this.#repositories.vehicles.updateTelemetryBatch(updates);
     await this.#repositories.rides.updateProgressBatch(rideWrites);
     await this.#settleFinished(finished);
+    await this.#keepDemoTrafficAlive();
 
     // Feed the admin panel's live map and rides table. Without this the panel
     // would have to poll, which the brief rules out.
@@ -670,6 +739,59 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
 
     this.#ticks += 1;
     this.#lastTickAt = now;
+  }
+
+  /**
+   * Start a simulated ride when the map would otherwise be still, but only
+   * while an admin is connected to the event stream.
+   *
+   * This is what makes "rides finish" survivable as a demo: the fleet parks
+   * itself when nobody is looking, costs nothing there, and fills back up
+   * within a minute of the back office being opened. Deliberately at most one
+   * start per call and no more often than every
+   * `DEMO_TRAFFIC_START_EVERY_N_TICKS`, so traffic ramps up rather than
+   * arriving as a burst of inserts on one tick.
+   */
+  async #keepDemoTrafficAlive(): Promise<void> {
+    // No audience: the fleet stays parked and the alarm backs off.
+    if (serverEvents.subscriberCount === 0) return;
+    if (this.#ticks - this.#lastTrafficStartTick < DEMO_TRAFFIC_START_EVERY_N_TICKS) return;
+
+    const candidates: SimulatedVehicle[] = [];
+    let riding = 0;
+    for (const vehicle of this.#fleet.values()) {
+      if (vehicle.ride !== null) riding += 1;
+      else if (vehicle.status === 'available') candidates.push(vehicle);
+    }
+    if (riding >= DEMO_TRAFFIC_TARGET_RIDES || candidates.length === 0) return;
+
+    const vehicle = candidates[Math.floor(this.#rng() * candidates.length)];
+    if (vehicle === undefined) return;
+
+    // Whatever happens below, do not try again for another few ticks — a
+    // spent rider pool must not mean two queries every single tick.
+    this.#lastTrafficStartTick = this.#ticks;
+
+    try {
+      const userId = await this.#pickAvailableRider();
+      const rideId = await this.#repositories.rides.create({
+        userId,
+        vehicleId: vehicle.id,
+        planId: await this.#perMinutePlanId(),
+        startedAt: new Date(),
+      });
+
+      vehicle.ride = this.#buildRide(rideId, vehicle.position, true, userId, new Date());
+      vehicle.status = 'in_use';
+      // The status flush rides along with this tick's batch — `in_use` differs
+      // from what was last written, so no extra statement is needed.
+
+      publishEvent({ type: 'ride.started', rideId, userId, vehicleId: vehicle.id });
+    } catch (error: unknown) {
+      // Usually every reserved account is already out on a scooter. Not worth
+      // an error: the fleet simply carries the traffic it has.
+      logWarn(`Could not start demo traffic: ${error instanceof Error ? error.message : error}`);
+    }
   }
 
   /**

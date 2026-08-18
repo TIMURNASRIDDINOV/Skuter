@@ -91,6 +91,16 @@ export interface SimulatedVehicle {
 export interface SimulatedRide {
   rideId: string;
   /**
+   * Who is riding, when the simulator knows. Null for a real rider's ride,
+   * which arrives through `beginRide` as an id the gateway never resolves.
+   *
+   * Kept so the simulator can exclude riders it has already put on a scooter
+   * when picking the next one. Asking Postgres would be a read issued straight
+   * after the ride insert, and behind Hyperdrive that read can predate it —
+   * handing out the same account twice and tripping `rides_active_user_key`.
+   */
+  userId: string | null;
+  /**
    * Whether the simulator may end this ride itself.
    *
    * True only for rides the simulator started under a reserved simulator
