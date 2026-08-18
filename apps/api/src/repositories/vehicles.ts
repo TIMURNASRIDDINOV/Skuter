@@ -2,6 +2,8 @@ import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
   PUBLIC_VEHICLE_STATUSES,
   latLonToPoint,
+  pointToLatLon,
+  type GeoPoint,
   type AdminVehicle,
   type LatLon,
   type ListVehiclesQuery,
@@ -30,6 +32,41 @@ const columns = {
   areaId: vehicles.areaId,
   reservedUntil: vehicles.reservedUntil,
 } as const;
+
+/**
+ * What a hold-clearing statement reports back.
+ *
+ * Carries battery and position as well as status so the caller can announce
+ * the change without a follow-up SELECT — which behind Hyperdrive could be
+ * served from before the write anyway.
+ */
+export interface ReleasedVehicle {
+  id: string;
+  status: VehicleStatus;
+  batteryPct: number;
+  location: LatLon;
+}
+
+const releasedColumns = {
+  id: vehicles.id,
+  status: vehicles.status,
+  batteryPct: vehicles.batteryPct,
+  geom: selectPoint(vehicles.geom),
+} as const;
+
+function toReleased(row: {
+  id: string;
+  status: VehicleStatus;
+  batteryPct: number;
+  geom: GeoPoint;
+}): ReleasedVehicle {
+  return {
+    id: row.id,
+    status: row.status,
+    batteryPct: row.batteryPct,
+    location: pointToLatLon(row.geom),
+  };
+}
 
 export interface NewVehicle {
   qrCode: string;
@@ -222,10 +259,7 @@ export function createVehiclesRepository(db: Database) {
      * Returns null when there was no live hold or it belonged to somebody
      * else — the caller cannot tell those apart, and does not need to.
      */
-    async clearHoldOwnedBy(
-      id: string,
-      userId: string,
-    ): Promise<{ status: VehicleStatus } | null> {
+    async clearHoldOwnedBy(id: string, userId: string): Promise<ReleasedVehicle | null> {
       const [row] = await db
         .update(vehicles)
         .set({ reservedUntil: null, reservedBy: null })
@@ -236,8 +270,8 @@ export function createVehiclesRepository(db: Database) {
             sql`${vehicles.reservedUntil} IS NOT NULL AND ${vehicles.reservedUntil} > now()`,
           ),
         )
-        .returning({ status: vehicles.status });
-      return row === undefined ? null : { status: row.status };
+        .returning(releasedColumns);
+      return row === undefined ? null : toReleased(row as Parameters<typeof toReleased>[0]);
     },
 
     /**
@@ -248,8 +282,8 @@ export function createVehiclesRepository(db: Database) {
     async clearOtherHoldsOf(
       userId: string,
       keepVehicleId: string,
-    ): Promise<{ id: string; status: VehicleStatus }[]> {
-      return db
+    ): Promise<ReleasedVehicle[]> {
+      const rows = await db
         .update(vehicles)
         .set({ reservedUntil: null, reservedBy: null })
         .where(
@@ -259,16 +293,18 @@ export function createVehiclesRepository(db: Database) {
             sql`${vehicles.reservedUntil} IS NOT NULL`,
           ),
         )
-        .returning({ id: vehicles.id, status: vehicles.status });
+        .returning(releasedColumns);
+      return rows.map((row) => toReleased(row as Parameters<typeof toReleased>[0]));
     },
 
     /** Clear every lapsed hold in one statement, reporting what it touched. */
-    async clearLapsedHolds(): Promise<{ id: string; status: VehicleStatus }[]> {
-      return db
+    async clearLapsedHolds(): Promise<ReleasedVehicle[]> {
+      const rows = await db
         .update(vehicles)
         .set({ reservedUntil: null, reservedBy: null })
         .where(sql`${vehicles.reservedUntil} IS NOT NULL AND ${vehicles.reservedUntil} <= now()`)
-        .returning({ id: vehicles.id, status: vehicles.status });
+        .returning(releasedColumns);
+      return rows.map((row) => toReleased(row as Parameters<typeof toReleased>[0]));
     },
 
     /** The live hold this rider owns, if any. A rider holds at most one. */

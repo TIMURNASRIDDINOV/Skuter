@@ -1,7 +1,7 @@
-import { asc, count, eq } from 'drizzle-orm';
+import { and, asc, count, eq, sql } from 'drizzle-orm';
 import type { User } from '@scoot/shared';
 import type { Database } from '../db/client.js';
-import { users } from '../db/schema.js';
+import { rides, users } from '../db/schema.js';
 import { toUser, type UserRow } from './mappers.js';
 
 const columns = {
@@ -25,6 +25,30 @@ export function createUsersRepository(db: Database) {
   return {
     async listAll(): Promise<User[]> {
       const rows = await db.select(columns).from(users).orderBy(asc(users.createdAt));
+      return rows.map((row) => toUser(row as UserRow));
+    },
+
+    /**
+     * Active riders with no ride in flight, in one statement.
+     *
+     * The simulator needs a free account to hang a forced ride on. Doing that
+     * as `listAll()` plus a `findActiveByUser` per user is a round-trip per
+     * rider to answer a question Postgres can answer once.
+     */
+    async listIdle(): Promise<User[]> {
+      const rows = await db
+        .select(columns)
+        .from(users)
+        .where(
+          and(
+            eq(users.status, 'active'),
+            sql`NOT EXISTS (
+              SELECT 1 FROM ${rides}
+              WHERE ${rides.userId} = ${users.id} AND ${rides.status} = 'active'
+            )`,
+          ),
+        )
+        .orderBy(asc(users.createdAt));
       return rows.map((row) => toUser(row as UserRow));
     },
 

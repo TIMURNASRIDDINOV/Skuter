@@ -82,6 +82,9 @@ const UNLOCK_FAILURE_REASONS = [
   'Lock actuator reported a fault',
 ] as const;
 
+const NO_FREE_RIDER =
+  'No simulator rider account free — all are mid-ride, or the seed is stale. Run pnpm db:seed.';
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -98,7 +101,7 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
   #lastTickAt: Date | null = null;
   #ticking = false;
   /** Cached so the live cost ticker does not hit the database every tick. */
-  #perMinutePlan: { unlockFee: number; price: number } | null = null;
+  #perMinutePlan: { id: string; unlockFee: number; price: number } | null = null;
 
   constructor(repositories: Repositories) {
     this.#repositories = repositories;
@@ -318,18 +321,36 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
    * never in a state the rest of the system cannot explain.
    */
   async #reconcileActiveRides(): Promise<void> {
-    for (const vehicle of this.#fleet.values()) {
-      if (vehicle.status !== 'in_use' || vehicle.ride !== null) continue;
+    const stranded = [...this.#fleet.values()].filter(
+      (vehicle) => vehicle.status === 'in_use' && vehicle.ride === null,
+    );
+    if (stranded.length === 0) return;
 
-      const existing = await this.#repositories.rides.findActiveByVehicle(vehicle.id);
-      const rideId =
-        existing?.id ??
-        (await this.#repositories.rides.create({
-          userId: await this.#pickAvailableRider(),
+    // One read for the whole fleet, rather than a findActiveByVehicle each.
+    const active = new Map(
+      (await this.#repositories.rides.listActive()).map((ride) => [ride.vehicleId, ride.id]),
+    );
+
+    // Drawn once and consumed. Re-reading per vehicle would both cost a query
+    // each and read back rides created moments earlier — which behind
+    // Hyperdrive can be served from before the write, handing the same rider
+    // to two vehicles and tripping the one-active-ride-per-rider index.
+    const pool = stranded.length > active.size ? await this.#idleSimulatorRiders() : [];
+    const planId = await this.#perMinutePlanId();
+
+    for (const vehicle of stranded) {
+      let rideId = active.get(vehicle.id);
+
+      if (rideId === undefined) {
+        const userId = pool.shift();
+        if (userId === undefined) throw new Error(NO_FREE_RIDER);
+        rideId = await this.#repositories.rides.create({
+          userId,
           vehicleId: vehicle.id,
-          planId: await this.#perMinutePlanId(),
+          planId,
           startedAt: new Date(),
-        }));
+        });
+      }
 
       vehicle.ride = this.#buildRide(rideId, vehicle.position);
     }
@@ -368,7 +389,8 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
 
   async #cachePricing(): Promise<void> {
     const plan = await this.#repositories.plans.findByKind('per_minute');
-    this.#perMinutePlan = plan === null ? null : { unlockFee: plan.unlockFee, price: plan.price };
+    this.#perMinutePlan =
+      plan === null ? null : { id: plan.id, unlockFee: plan.unlockFee, price: plan.price };
   }
 
   /**
@@ -386,8 +408,14 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
     }).total;
   }
 
+  /**
+   * The cached plan's id. `#cachePricing` already read this row at startup; it
+   * used to be re-queried on every call, which made creating one simulated
+   * ride cost an extra round-trip for a value that cannot change under us.
+   */
   async #perMinutePlanId(): Promise<string> {
-    const plan = await this.#repositories.plans.findByKind('per_minute');
+    if (this.#perMinutePlan === null) await this.#cachePricing();
+    const plan = this.#perMinutePlan;
     if (plan === null) throw new Error('No per_minute plan seeded — run pnpm db:seed');
     return plan.id;
   }
@@ -398,16 +426,23 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
    * because a rider may only have one ride in flight.
    */
   async #pickAvailableRider(): Promise<string> {
-    const users = await this.#repositories.users.listAll();
-    for (const user of users) {
-      if (user.status !== 'active' || user.phone === null || !isSimulatorRider(user.phone))
-        continue;
-      const active = await this.#repositories.rides.findActiveByUser(user.id);
-      if (active === null) return user.id;
-    }
-    throw new Error(
-      'No simulator rider account free — all are mid-ride, or the seed is stale. Run pnpm db:seed.',
-    );
+    const [rider] = await this.#idleSimulatorRiders();
+    if (rider === undefined) throw new Error(NO_FREE_RIDER);
+    return rider;
+  }
+
+  /**
+   * Reserved simulator accounts with no ride in flight, newest last.
+   *
+   * One statement — this used to be `users.listAll()` followed by a
+   * `findActiveByUser` per user, which is the whole fleet's worth of round
+   * trips to find one free account.
+   */
+  async #idleSimulatorRiders(): Promise<string[]> {
+    const idle = await this.#repositories.users.listIdle();
+    return idle
+      .filter((user) => user.phone !== null && isSimulatorRider(user.phone))
+      .map((user) => user.id);
   }
 
   /** Simulates a command round-trip and records it in the commands table. */

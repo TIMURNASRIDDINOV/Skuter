@@ -8,6 +8,7 @@ import {
 import { publishEvent } from '../events/bus.js';
 import { getSimulationControl } from '../gateway/index.js';
 import { conflict, notFound } from '../lib/errors.js';
+import type { ReleasedVehicle } from '../repositories/vehicles.js';
 import type { Repositories } from '../repositories/index.js';
 
 /**
@@ -66,38 +67,35 @@ async function moveStatus(
 /**
  * Announce a hold change so the back office redraws the pin without a refresh.
  *
- * Takes the status from the caller rather than reading it back: the caller
- * just set it, and a re-read is exactly the cached-read hazard this module
- * avoids. Battery and position are cosmetic on this event and a few seconds
- * stale is fine, so they may come from an ordinary read.
+ * Every field is supplied by the caller — the status because the caller just
+ * set it, and battery and position because the statement that cleared or
+ * claimed the hold already returned them. Reading any of it back would be both
+ * a needless round-trip and exactly the cached-read hazard this module avoids.
  */
-async function announce(
-  repositories: Repositories,
-  vehicleId: string,
+function announce(
+  vehicle: { id: string; batteryPct: number; location: LatLon },
   status: VehicleStatus,
-): Promise<void> {
-  const vehicle = await repositories.vehicles.findById(vehicleId);
-  const location: LatLon = vehicle?.location ?? { lat: 0, lon: 0 };
+): void {
   publishEvent({
     type: 'vehicle.updated',
-    vehicleId,
+    vehicleId: vehicle.id,
     status,
-    batteryPct: vehicle?.batteryPct ?? 0,
-    location,
+    batteryPct: vehicle.batteryPct,
+    location: vehicle.location,
   });
 }
 
 /** Put a released vehicle back on the map, if the hold was what held it there. */
 async function restore(
   repositories: Repositories,
-  released: { id: string; status: VehicleStatus },
+  released: ReleasedVehicle,
 ): Promise<void> {
   // Only a vehicle still sitting in `reserved` needs its status moved back.
   // One taken for maintenance, or unlocked, while held has already been moved
   // by whoever did that, and must not be dragged to `available`.
   if (released.status !== 'reserved') return;
   await moveStatus(repositories, released.id, 'available');
-  await announce(repositories, released.id, 'available');
+  announce(released, 'available');
 }
 
 /**
@@ -178,7 +176,9 @@ export async function reserveVehicle(
   }
 
   await moveStatus(repositories, vehicle.id, 'reserved');
-  await announce(repositories, vehicle.id, 'reserved');
+  // `vehicle` was read before the claim; battery and position are cosmetic on
+  // this event and cannot have moved meaningfully in between.
+  announce(vehicle, 'reserved');
 
   // Built from what we just wrote, not read back.
   return { ...toPublic(vehicle), status: 'reserved', reservedUntil: until.toISOString() };
@@ -203,7 +203,7 @@ export async function releaseVehicle(
   if (released === null) return;
   if (input.silent === true) return;
 
-  await restore(repositories, { id: input.vehicleId, status: released.status });
+  await restore(repositories, released);
 }
 
 /** The rider's live hold, if they have one. Drives the countdown banner. */

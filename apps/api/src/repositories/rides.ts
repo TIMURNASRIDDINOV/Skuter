@@ -63,12 +63,6 @@ function toRide(row: RideRow): Ride {
   };
 }
 
-export interface RideProgress {
-  path: LatLon[];
-  distanceM: number;
-  durationS: number;
-}
-
 export function createRidesRepository(db: Database) {
   return {
     async create(input: {
@@ -261,28 +255,6 @@ export function createRidesRepository(db: Database) {
       `);
     },
 
-    /**
-     * Writes the accumulated track. A LineString needs at least two positions,
-     * so a ride that has not moved yet keeps a null path.
-     */
-    async updateProgress(id: string, progress: RideProgress): Promise<void> {
-      const path: GeoLineString | null =
-        progress.path.length >= 2
-          ? {
-              type: 'LineString',
-              coordinates: progress.path.map((p) => [p.lon, p.lat] as [number, number]),
-            }
-          : null;
-
-      await db
-        .update(rides)
-        .set({
-          distanceM: Math.round(progress.distanceM),
-          durationS: Math.round(progress.durationS),
-          ...(path === null ? {} : { path }),
-        })
-        .where(eq(rides.id, id));
-    },
   };
 }
 
