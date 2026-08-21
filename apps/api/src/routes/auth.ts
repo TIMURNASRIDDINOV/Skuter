@@ -1,115 +1,61 @@
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import {
+  googleLoginRequestSchema,
   requestOtpRequestSchema,
   telegramWebAppLoginRequestSchema,
   verifyOtpRequestSchema,
-  type RequestOtpResponse,
   type RiderSession,
   type TelegramLoginPollResponse,
   type TelegramLoginStartResponse,
   type User,
 } from '@scoot/shared';
-import { devFeaturesEnabled, devOtpCode, env, otpTestPhones } from '../env.js';
-import {
-  NotImplementedError,
-  badRequest,
-  forbidden,
-  notFound,
-  tooManyRequests,
-  unauthorized,
-} from '../lib/errors.js';
+import { env, googleClientIds } from '../env.js';
+import { NotImplementedError, badRequest, notFound, unauthorized } from '../lib/errors.js';
+import { verifyGoogleIdToken } from '../lib/google.js';
 import { issueToken } from '../lib/jwt.js';
-import { logInfo } from '../lib/logger.js';
-import { hashSecret, verifySecret } from '../lib/password.js';
 import { generateNonce, verifyInitData } from '../lib/telegram.js';
 import { repositories } from '../repositories/index.js';
+import { issueOtp, verifyOtp } from '../services/otp.js';
 import type { AppEnv } from '../middleware/auth.js';
 
 /** Rider phone authentication. */
 export const authRoutes = new Hono<AppEnv>();
 
-const OTP_TTL_MS = 5 * 60 * 1000;
-const OTP_RESEND_COOLDOWN_S = 60;
-const OTP_MAX_ATTEMPTS = 5;
-
-function generateCode(): string {
-  // Dev keeps a fixed code so the demo never waits on an SMS provider.
-  if (devFeaturesEnabled) return devOtpCode;
-  const value = Math.floor(Math.random() * 1_000_000);
-  return value.toString().padStart(6, '0');
-}
-
-/**
- * With OTP_TEST_PHONES set, sign-in is limited to those numbers — test builds
- * circulate before the SMS provider exists, and an open any-number login on a
- * fixed code would let anyone in. Checked on both request and verify.
- */
-function assertPhoneAllowed(phone: string): void {
-  if (otpTestPhones.length > 0 && !otpTestPhones.includes(phone)) {
-    throw forbidden('Sign-in on this build is limited to the test account');
-  }
-}
-
 authRoutes.post('/otp/request', zValidator('json', requestOtpRequestSchema), async (c) => {
   const { phone } = c.req.valid('json');
-  assertPhoneAllowed(phone);
-
-  const lastIssued = await repositories.otp.lastIssuedAt(phone);
-  if (lastIssued !== null) {
-    const elapsedS = Math.floor((Date.now() - lastIssued.getTime()) / 1000);
-    if (elapsedS < OTP_RESEND_COOLDOWN_S) {
-      throw tooManyRequests('A code was already sent — wait before requesting another', {
-        retryAfterS: OTP_RESEND_COOLDOWN_S - elapsedS,
-      });
-    }
-  }
-
-  const code = generateCode();
-  await repositories.otp.create({
-    phone,
-    codeHash: await hashSecret(code),
-    expiresAt: new Date(Date.now() + OTP_TTL_MS),
-  });
-
-  // STUB (outside the demo path): production would hand the code to an SMS
-  // provider here. Development returns it in the response instead.
-  if (devFeaturesEnabled) {
-    logInfo(`OTP for ${phone}: ${code}`);
-  }
-
-  const body: RequestOtpResponse = {
-    retryAfterS: OTP_RESEND_COOLDOWN_S,
-    ...(devFeaturesEnabled ? { devCode: code } : {}),
-  };
-  return c.json(body);
+  return c.json(await issueOtp(repositories, { phone, ip: clientIp(c.req.raw) }));
 });
 
 authRoutes.post('/otp/verify', zValidator('json', verifyOtpRequestSchema), async (c) => {
   const { phone, code } = c.req.valid('json');
-  assertPhoneAllowed(phone);
-
-  // Development accepts the fixed code even with no pending row, so a restart
-  // mid-demo can never lock the phone out.
-  const acceptedByDevCode = devFeaturesEnabled && code === devOtpCode;
-
-  if (!acceptedByDevCode) {
-    const pending = await repositories.otp.findActive(phone);
-    if (pending === null) {
-      throw unauthorized('No active code for this number — request a new one');
-    }
-    if (pending.attempts >= OTP_MAX_ATTEMPTS) {
-      throw tooManyRequests('Too many incorrect attempts — request a new code');
-    }
-    const matches = await verifySecret(code, pending.codeHash);
-    if (!matches) {
-      await repositories.otp.recordFailedAttempt(pending.id, pending.attempts + 1);
-      throw unauthorized('Incorrect code');
-    }
-    await repositories.otp.consume(pending.id);
-  }
+  await verifyOtp(repositories, { phone, code });
 
   const user = await repositories.users.findOrCreateByPhone(phone);
+  return c.json(await riderSession(user));
+});
+
+// --- Google login ----------------------------------------------------------
+
+/**
+ * The native app hands us the ID token from the Google sheet. Verification
+ * lives in `lib/google.ts`; this route only turns an identity into a session.
+ *
+ * A Google account arrives without a phone number. That is deliberate — the
+ * rider is signed in immediately, and `services/rides.ts` is where a verified
+ * phone is required, at the point it actually matters.
+ */
+authRoutes.post('/google', zValidator('json', googleLoginRequestSchema), async (c) => {
+  if (googleClientIds.length === 0) {
+    throw new NotImplementedError('Google sign-in is not configured on this server');
+  }
+
+  const identity = await verifyGoogleIdToken(c.req.valid('json').idToken, googleClientIds);
+  if (identity === null) {
+    throw unauthorized('Google sign-in data failed verification');
+  }
+
+  const user = await repositories.users.findOrCreateByGoogle(identity);
   return c.json(await riderSession(user));
 });
 
@@ -126,6 +72,15 @@ function telegramBotToken(): string {
   return env.TELEGRAM_BOT_TOKEN;
 }
 
+/**
+ * The caller's address, for the per-IP send cap. On Workers the socket belongs
+ * to Cloudflare, so the real client is in `CF-Connecting-IP`; locally there is
+ * usually no such header and the cap simply does not bind.
+ */
+function clientIp(request: Request): string | null {
+  return request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for');
+}
+
 async function riderSession(user: User): Promise<RiderSession> {
   if (user.status === 'blocked') {
     throw badRequest('This account is blocked');
@@ -135,9 +90,8 @@ async function riderSession(user: User): Promise<RiderSession> {
 
 /**
  * Mini App login: Telegram already authenticated the user — we only verify
- * that initData really came from our bot. Deliberately bypasses the
- * OTP_TEST_PHONES allowlist, which exists because a fixed OTP code is
- * guessable; a forged initData is not.
+ * that initData really came from our bot. Like Google, this creates an account
+ * with no phone; `services/rides.ts` is where one is required.
  */
 authRoutes.post(
   '/telegram/webapp',
@@ -166,6 +120,7 @@ authRoutes.post('/telegram/start', async (c) => {
   const nonce = generateNonce();
   await repositories.telegramNonces.create({
     nonce,
+    purpose: 'login',
     expiresAt: new Date(Date.now() + TELEGRAM_NONCE_TTL_MS),
   });
 
@@ -178,7 +133,14 @@ authRoutes.post('/telegram/start', async (c) => {
   return c.json(body);
 });
 
-/** Step 2: the app polls until the bot's webhook has completed the nonce. */
+/**
+ * Step 2: the app polls until the bot's webhook has completed the nonce.
+ *
+ * Completion now waits for the rider to share their number, not merely to tap
+ * Start — see routes/telegram-webhook.ts. So a session handed out here always
+ * carries a verified phone, and Telegram is a full substitute for an SMS
+ * provider rather than a way in that skips one.
+ */
 authRoutes.get('/telegram/poll', async (c) => {
   telegramBotToken();
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseStartCommand, verifyInitData } from './telegram.js';
+import { normalisePhone, parseSharedContact, parseStartCommand, verifyInitData } from './telegram.js';
 
 const BOT_TOKEN = '12345:TEST_TOKEN_abcdef';
 
@@ -94,5 +94,65 @@ describe('parseStartCommand', () => {
     expect(parseStartCommand({ message: { text: '/start short', chat, from } })).toBeNull();
     expect(parseStartCommand({ callback_query: {} })).toBeNull();
     expect(parseStartCommand(null)).toBeNull();
+  });
+});
+
+describe('parseSharedContact', () => {
+  const chat = { id: 42 };
+  const from = { id: 7, first_name: 'Aziz' };
+
+  const update = (contact: Record<string, unknown>, sender = from) => ({
+    message: { chat, from: sender, contact },
+  });
+
+  it('accepts a contact the sender shared about themselves', () => {
+    const result = parseSharedContact(update({ phone_number: '998901234567', user_id: 7 }));
+
+    expect(result).toEqual({ kind: 'shared', chatId: 42, telegramId: 7, phone: '+998901234567' });
+  });
+
+  /**
+   * The check this whole flow rests on. Telegram's attachment menu lets anyone
+   * forward somebody else's contact card, and it arrives in this same shape —
+   * without the user_id comparison a rider could register another person's
+   * number and receive their account.
+   */
+  it('rejects a forwarded contact belonging to somebody else', () => {
+    const result = parseSharedContact(update({ phone_number: '998907654321', user_id: 999 }));
+
+    expect(result).toEqual({ kind: 'notOwn', chatId: 42 });
+  });
+
+  it('rejects a contact card with no Telegram user behind it', () => {
+    const result = parseSharedContact(update({ phone_number: '998907654321' }));
+
+    expect(result).toEqual({ kind: 'notOwn', chatId: 42 });
+  });
+
+  it('reports a foreign number distinctly, so the bot can explain itself', () => {
+    const result = parseSharedContact(update({ phone_number: '79161234567', user_id: 7 }));
+
+    expect(result).toEqual({ kind: 'unsupportedCountry', chatId: 42 });
+  });
+
+  it('ignores updates that carry no contact at all', () => {
+    expect(parseSharedContact({ message: { chat, from, text: 'hi' } })).toBeNull();
+    expect(parseSharedContact(null)).toBeNull();
+  });
+});
+
+describe('normalisePhone', () => {
+  it.each([
+    ['998901234567', '+998901234567'],
+    ['+998901234567', '+998901234567'],
+    ['+998 90 123 45 67', '+998901234567'],
+    // Telegram sometimes omits the country code for local numbers.
+    ['901234567', '+998901234567'],
+  ])('normalises %j to %j', (raw, expected) => {
+    expect(normalisePhone(raw)).toBe(expected);
+  });
+
+  it.each(['79161234567', '12025550123', '99890123', ''])('rejects %j', (raw) => {
+    expect(normalisePhone(raw)).toBeNull();
   });
 });

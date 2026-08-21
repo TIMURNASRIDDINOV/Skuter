@@ -104,12 +104,19 @@ export function generateNonce(): string {
   return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
 }
 
+const telegramContactSchema = z.object({
+  phone_number: z.string().min(1),
+  /** Absent when the shared card is not a Telegram user at all. */
+  user_id: z.number().optional(),
+});
+
 const telegramUpdateSchema = z.object({
   message: z
     .object({
       text: z.string().optional(),
       chat: z.object({ id: z.number() }),
       from: telegramUserSchema.optional(),
+      contact: telegramContactSchema.optional(),
     })
     .optional(),
 });
@@ -141,6 +148,88 @@ export function parseStartCommand(update: unknown): StartCommand | null {
   };
 }
 
+/**
+ * Outcome of a `contact` message. The failures are distinguished rather than
+ * collapsed to null because the bot has to say something useful about each,
+ * and "share your own number" is actively wrong advice for someone whose
+ * Telegram is simply on a foreign number.
+ */
+export type SharedContactResult =
+  | { kind: 'shared'; chatId: number; telegramId: number; phone: string }
+  /** A forwarded third-party contact card. */
+  | { kind: 'notOwn'; chatId: number }
+  /** Their own number, but not `+998`. */
+  | { kind: 'unsupportedCountry'; chatId: number };
+
+/**
+ * Extract a shared phone number from a webhook update. Returns null when the
+ * update is not a contact message at all.
+ *
+ * **The `user_id === from.id` check is the whole security of this flow.**
+ * Telegram's attachment menu lets anyone forward a *third party's* contact
+ * card, which arrives as the same `contact` message shape. Only a card whose
+ * `user_id` matches the sender is that sender's own verified number; without
+ * this check a rider could register somebody else's phone.
+ */
+export function parseSharedContact(update: unknown): SharedContactResult | null {
+  const parsed = telegramUpdateSchema.safeParse(update);
+  if (!parsed.success) return null;
+  const message = parsed.data.message;
+  if (message?.contact === undefined || message.from === undefined) return null;
+
+  const chatId = message.chat.id;
+  const { phone_number: rawPhone, user_id: contactUserId } = message.contact;
+  if (contactUserId === undefined || contactUserId !== message.from.id) {
+    return { kind: 'notOwn', chatId };
+  }
+
+  const phone = normalisePhone(rawPhone);
+  if (phone === null) return { kind: 'unsupportedCountry', chatId };
+
+  return { kind: 'shared', chatId, telegramId: message.from.id, phone };
+}
+
+/**
+ * Telegram reports numbers inconsistently — `998901234567`, `+998901234567`,
+ * sometimes with spaces. Normalise to the `+998XXXXXXXXX` form `phoneSchema`
+ * accepts, or null if this is not an Uzbek mobile number.
+ *
+ * A foreign number is a deliberate null rather than a stored value: the whole
+ * product is Tashkent-only and `phoneSchema` is `+998`-only, so accepting one
+ * here would just push the failure somewhere less explainable.
+ */
+export function normalisePhone(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '');
+  const withCountry = digits.startsWith('998') ? digits : `998${digits}`;
+  return /^998\d{9}$/.test(withCountry) ? `+${withCountry}` : null;
+}
+
+/**
+ * Ask the user to share their own number. `request_contact` renders a button
+ * that sends their verified contact — the one Telegram checked at signup — so
+ * there is no code to type and no SMS to pay for.
+ */
+export async function requestContact(
+  botToken: string,
+  chatId: number,
+  text: string,
+  buttonLabel: string,
+): Promise<void> {
+  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      reply_markup: {
+        keyboard: [[{ text: buttonLabel, request_contact: true }]],
+        one_time_keyboard: true,
+        resize_keyboard: true,
+      },
+    }),
+  });
+}
+
 /** Fire-and-forget confirmation message; failures are the caller's to log. */
 export async function sendTelegramMessage(
   botToken: string,
@@ -150,6 +239,8 @@ export async function sendTelegramMessage(
   await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text }),
+    // remove_keyboard clears the "share my number" button once it has been
+    // used; leaving it sitting there invites a second, meaningless tap.
+    body: JSON.stringify({ chat_id: chatId, text, reply_markup: { remove_keyboard: true } }),
   });
 }

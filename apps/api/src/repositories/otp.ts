@@ -1,13 +1,18 @@
-import { and, desc, eq, gt, isNull, lt } from 'drizzle-orm';
+import { and, count, desc, eq, gt, isNull, lt } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { otpCodes } from '../db/schema.js';
 
 /**
  * One-time codes for phone login. Codes are stored hashed, expire, and count
- * failed attempts — the same shape a real SMS integration would need.
+ * failed attempts.
  *
- * In development the API accepts a fixed code (DEV_OTP_CODE) without consulting
- * this table, so the demo never depends on an SMS provider.
+ * This table doubles as the rate-limit ledger. Every issued code is a row with
+ * a phone, an IP and a timestamp, which is all the counters below need — real
+ * SMS costs money per message, so "how many did this number/address ask for
+ * lately" has to be answerable before another one goes out.
+ *
+ * Numbers in OTP_BYPASS_PHONES are verified against the fixed DEV_OTP_CODE
+ * without consulting this table, so a rehearsed demo never waits on a carrier.
  */
 
 export interface PendingOtp {
@@ -18,7 +23,12 @@ export interface PendingOtp {
 
 export function createOtpRepository(db: Database) {
   return {
-    async create(input: { phone: string; codeHash: string; expiresAt: Date }): Promise<void> {
+    async create(input: {
+      phone: string;
+      codeHash: string;
+      expiresAt: Date;
+      requestIp: string | null;
+    }): Promise<void> {
       await db.insert(otpCodes).values(input);
     },
 
@@ -48,6 +58,27 @@ export function createOtpRepository(db: Database) {
         .orderBy(desc(otpCodes.createdAt))
         .limit(1);
       return row?.createdAt ?? null;
+    },
+
+    /** Codes issued to a phone since `since` — the per-number daily cap. */
+    async countRecentByPhone(phone: string, since: Date): Promise<number> {
+      const [row] = await db
+        .select({ total: count() })
+        .from(otpCodes)
+        .where(and(eq(otpCodes.phone, phone), gt(otpCodes.createdAt, since)));
+      return row?.total ?? 0;
+    },
+
+    /**
+     * Codes issued from one address since `since` — the per-IP cap, which is
+     * what stops someone cycling through numbers to burn the SMS balance.
+     */
+    async countRecentByIp(ip: string, since: Date): Promise<number> {
+      const [row] = await db
+        .select({ total: count() })
+        .from(otpCodes)
+        .where(and(eq(otpCodes.requestIp, ip), gt(otpCodes.createdAt, since)));
+      return row?.total ?? 0;
     },
 
     async recordFailedAttempt(id: string, attempts: number): Promise<void> {

@@ -14,6 +14,7 @@
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.14",
     "@maplibre/maplibre-react-native": "^11.3.6",
+    "@react-native-google-signin/google-signin": "^16.1.4",
     "@scoot/shared": "workspace:*",
     "@tanstack/react-query": "^5.101.4",
     "expo": "~56.0.17",

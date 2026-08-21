@@ -69,6 +69,9 @@ export const paymentProviderEnum = pgEnum('payment_provider', ['mock', 'payme', 
 
 export const adminRoleEnum = pgEnum('admin_role', ['owner', 'operator', 'viewer']);
 
+/** `login` signs a rider in; `link` attaches a number to an existing account. */
+export const telegramNoncePurposeEnum = pgEnum('telegram_nonce_purpose', ['login', 'link']);
+
 // --- tables --------------------------------------------------------------
 
 export const areas = pgTable(
@@ -90,6 +93,14 @@ export const users = pgTable(
     name: text('name'),
     /** Telegram account id for users who signed in via the bot / mini app. */
     telegramId: bigint('telegram_id', { mode: 'number' }),
+    /**
+     * Google's `sub` claim — stable per account, and the *only* key a Google
+     * login matches on. Matching on email instead would let anyone who can
+     * receive mail at a rider's address take over the account.
+     */
+    googleSub: text('google_sub'),
+    /** Google account email. Display and support only; never a match key. */
+    email: text('email'),
     status: userStatusEnum('status').notNull().default('active'),
     /** Wallet balance in tiyin. */
     balance: bigint('balance', { mode: 'number' }).notNull().default(0),
@@ -98,6 +109,8 @@ export const users = pgTable(
   (t) => [
     uniqueIndex('users_phone_key').on(t.phone),
     uniqueIndex('users_telegram_id_key').on(t.telegramId),
+    uniqueIndex('users_google_sub_key').on(t.googleSub),
+    uniqueIndex('users_email_key').on(t.email),
   ],
 );
 
@@ -318,25 +331,52 @@ export const otpCodes = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     attempts: smallint('attempts').notNull().default(0),
     consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    /**
+     * Who asked. Null for codes issued before this column existed, and for
+     * callers behind a proxy that strips the header. Real SMS costs money, so
+     * the per-IP cap in routes/auth.ts counts rows by this.
+     */
+    requestIp: text('request_ip'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('otp_codes_phone_idx').on(t.phone), index('otp_codes_expires_idx').on(t.expiresAt)],
+  (t) => [
+    index('otp_codes_phone_idx').on(t.phone),
+    index('otp_codes_expires_idx').on(t.expiresAt),
+    index('otp_codes_ip_created_idx').on(t.requestIp, t.createdAt),
+  ],
 );
 
 /**
- * One-time nonces for "login via Telegram" from the native app. The app opens
- * t.me/<bot>?start=<nonce>; the bot webhook fills in the Telegram identity;
- * the app polls until the nonce completes, then it is consumed. Nonces are
- * 32 random bytes — unguessable, so stored in plain text (unlike OTP codes).
+ * One-time nonces for the Telegram flows in the native app. The app opens
+ * t.me/<bot>?start=<nonce>; the bot webhook fills in the Telegram identity and
+ * asks for the user's number; the app polls until the nonce completes, then it
+ * is consumed. Nonces are 32 random bytes — unguessable, so stored in plain
+ * text (unlike OTP codes).
+ *
+ * Two purposes share the mechanism. `login` signs a rider in and attaches the
+ * number Telegram vouches for; `link` attaches a number to an account that
+ * already exists (a Google sign-up), so `user_id` is set at creation instead of
+ * by the webhook.
+ *
+ * `chat_id` is what makes the second leg work: the shared contact arrives as a
+ * plain message with **no nonce in it**, so the webhook has to find the nonce
+ * this chat is currently answering.
  */
 export const telegramLoginNonces = pgTable(
   'telegram_login_nonces',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     nonce: text('nonce').notNull(),
-    /** Set by the webhook once the user taps Start in the bot. */
+    purpose: telegramNoncePurposeEnum('purpose').notNull().default('login'),
+    /** Set by the webhook for `login`; set at creation for `link`. */
     userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
     telegramId: bigint('telegram_id', { mode: 'number' }),
+    /** The chat that tapped Start, so its later contact message finds us. */
+    chatId: bigint('chat_id', { mode: 'number' }),
+    /** Display name seen at Start, used only if a new rider is created. */
+    name: text('name'),
+    /** The verified number Telegram handed over, E.164. */
+    phone: text('phone'),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     consumedAt: timestamp('consumed_at', { withTimezone: true }),
@@ -345,6 +385,7 @@ export const telegramLoginNonces = pgTable(
   (t) => [
     uniqueIndex('telegram_login_nonces_nonce_key').on(t.nonce),
     index('telegram_login_nonces_expires_idx').on(t.expiresAt),
+    index('telegram_login_nonces_chat_idx').on(t.chatId, t.createdAt),
   ],
 );
 

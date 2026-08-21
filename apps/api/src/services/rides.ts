@@ -40,6 +40,18 @@ export async function startRide(
   // First, so nothing below reads a vehicle still carrying a lapsed hold.
   await releaseExpiredReservations(repositories);
 
+  // Google and Telegram sign-ups have no phone. A scooter goes out on the
+  // street under somebody's name, so a reachable number is required here —
+  // at the point it matters — rather than blocking sign-up itself.
+  const rider = await repositories.users.findById(input.userId);
+  if (rider === null) throw notFound('Account no longer exists');
+  if (rider.phone === null) {
+    throw conflict(
+      API_ERROR_CODES.PHONE_REQUIRED,
+      'Confirm your phone number before starting a ride',
+    );
+  }
+
   const vehicle = await repositories.vehicles.findByQrCode(input.qrCode);
   if (vehicle === null) {
     throw notFound(`No scooter with code ${input.qrCode}`);

@@ -44,14 +44,27 @@ const envSchema = z.object({
     .string()
     .regex(/^\d{6}$/, 'DEV_OTP_CODE must be six digits')
     .optional(),
-  // Comma-separated E.164 allowlist. Non-empty = only these numbers may sign
-  // in — for test builds handed out while there is no SMS provider. Empty =
-  // any number (normal behaviour).
+  // Comma-separated E.164 numbers that may ALSO sign in with the fixed
+  // DEV_OTP_CODE, skipping the SMS. Empty = nobody bypasses, which is the safe
+  // default. This is a demo affordance, not a gate: everyone can sign in, and
+  // these numbers simply do not have to wait on a carrier.
   //
   // A secret rather than a var: it is a list of real personal phone numbers,
-  // and wrangler.jsonc is in a public repository. Optional here so an absent
-  // one can be caught below — see the note on `otpTestPhones`.
-  OTP_TEST_PHONES: z.string().optional(),
+  // and wrangler.jsonc is in a public repository.
+  OTP_BYPASS_PHONES: z.string().optional(),
+  // Which SmsGateway to use. `console` writes the code to the log; `eskiz`
+  // sends a real SMS. Defaults to `console` unless Eskiz credentials are set,
+  // so local development never spends provider credit by accident.
+  SMS_GATEWAY: z.enum(['console', 'eskiz']).optional(),
+  ESKIZ_EMAIL: z.string().optional(),
+  ESKIZ_PASSWORD: z.string().optional(),
+  // Sender id ("alpha name"). 4546 is Eskiz's shared default; a branded one
+  // has to be requested from them and needs a signed contract.
+  ESKIZ_FROM: z.string().default('4546'),
+  // Comma-separated Google OAuth client ids (iOS, Android, Web) accepted as
+  // the `aud` of an ID token. Not secret — client ids are public by design —
+  // so these live as vars in wrangler.jsonc. Unset = /auth/google answers 501.
+  GOOGLE_CLIENT_IDS: z.string().optional(),
   SIMULATOR_TICK_MS: z.coerce.number().int().min(250).max(60_000).default(3000),
   SIMULATOR_UNLOCK_FAILURE_RATE: z.coerce.number().min(0).max(1).default(0.08),
   // `durable` = the Cloudflare Workers deployment, where the simulator lives
@@ -123,41 +136,74 @@ export const devRoutesSecret: string | null = env.DEV_ROUTES_SECRET ?? null;
 /** Telegram login is available only when the bot token is configured. */
 export const telegramAuthEnabled = env.TELEGRAM_BOT_TOKEN !== undefined;
 
-/** Set OTP_TEST_PHONES to this to allow any number, deliberately and on record. */
-const OTP_ALLOWLIST_OPEN = '*';
+/**
+ * Numbers that may sign in with the fixed `DEV_OTP_CODE` instead of waiting
+ * for an SMS. Empty means nobody — the safe default, and the normal state of
+ * a production instance.
+ *
+ * This list used to be `OTP_TEST_PHONES`, an *allowlist* that decided who was
+ * allowed to sign in at all, because a fixed code plus no SMS provider meant
+ * an open door. With real SMS the door is no longer open, and the direction
+ * has flipped: an empty list is now the restrictive case, not the permissive
+ * one. Same values, opposite meaning — which is exactly why the variable was
+ * renamed rather than quietly repurposed. See the startup check below.
+ */
+export const otpBypassPhones: readonly string[] = (env.OTP_BYPASS_PHONES ?? '')
+  .split(',')
+  .map((phone) => phone.trim())
+  .filter((phone) => phone.length > 0);
 
 /**
- * Parsed OTP_TEST_PHONES. Non-empty = sign-in restricted to these numbers.
- *
- * **An absent allowlist is the permissive case**, which is why a deployed
- * instance running dev affordances has to say something rather than nothing.
- * `DEV_FEATURES=true` means a fixed OTP signs a caller in; with no allowlist
- * that is any phone number on a public URL, so forgetting this secret would
- * quietly open the door that setting it is meant to hold shut.
- *
- * Wanting it open is legitimate — that is what `*` is for. What must not
- * happen is arriving there by omission.
+ * A config file carried over from before real SMS would silently change
+ * meaning: `OTP_TEST_PHONES` restricted sign-in to a handful of numbers, while
+ * `OTP_BYPASS_PHONES` grants those numbers an SMS-free shortcut and lets
+ * everyone else in. Refusing to start beats booting with the opposite of the
+ * intended policy.
  */
-export const otpTestPhones: readonly string[] = ((): readonly string[] => {
-  const raw = env.OTP_TEST_PHONES;
+if (process.env.OTP_TEST_PHONES !== undefined) {
+  throw new Error(
+    'OTP_TEST_PHONES no longer exists, and its replacement means the opposite.\n' +
+      'It was an allowlist: only those numbers could sign in.\n' +
+      'OTP_BYPASS_PHONES is a bypass list: everyone can sign in via real SMS, and\n' +
+      'these numbers may additionally use the fixed DEV_OTP_CODE.\n' +
+      'Rename it once you have confirmed that is what you want:\n' +
+      '  pnpm -F @scoot/api exec wrangler secret put OTP_BYPASS_PHONES\n' +
+      '  pnpm -F @scoot/api exec wrangler secret delete OTP_TEST_PHONES',
+  );
+}
 
-  if (raw === undefined) {
-    if (devFeaturesEnabled && isProduction) {
-      throw new Error(
-        'OTP_TEST_PHONES is required when DEV_FEATURES=true on a deployed instance —\n' +
-          'without it the fixed dev OTP signs anybody in as any number.\n' +
-          'Set it as a secret, never as a var in wrangler.jsonc:\n' +
-          '  pnpm -F @scoot/api exec wrangler secret put OTP_TEST_PHONES\n' +
-          `Use "${OTP_ALLOWLIST_OPEN}" if an open sign-in really is what you want.`,
-      );
-    }
-    return [];
+/**
+ * Which SMS implementation is live. Explicit `SMS_GATEWAY` wins; otherwise
+ * having Eskiz credentials is taken as intent to use them. Local development
+ * with no credentials lands on `console`, so `pnpm dev` works out of the box
+ * and nobody spends provider credit by accident.
+ */
+export const smsGatewayName: 'console' | 'eskiz' =
+  env.SMS_GATEWAY ?? (env.ESKIZ_EMAIL !== undefined && env.ESKIZ_PASSWORD !== undefined ? 'eskiz' : 'console');
+
+/** Eskiz credentials, narrowed. Null unless the Eskiz gateway is selected. */
+export const eskizConfig: { email: string; password: string; from: string } | null = (() => {
+  if (smsGatewayName !== 'eskiz') return null;
+  const { ESKIZ_EMAIL: email, ESKIZ_PASSWORD: password, ESKIZ_FROM: from } = env;
+  if (email === undefined || password === undefined) {
+    throw new Error(
+      'SMS_GATEWAY=eskiz needs ESKIZ_EMAIL and ESKIZ_PASSWORD.\n' +
+        'Both are on the "\u0421\u041c\u0421 \u0448\u043b\u044e\u0437" tab at https://my.eskiz.uz/sms/settings.\n' +
+        'The password is a credential — set it as a secret, never as a var:\n' +
+        '  pnpm -F @scoot/api exec wrangler secret put ESKIZ_PASSWORD',
+    );
   }
-
-  if (raw.trim() === OTP_ALLOWLIST_OPEN) return [];
-
-  return raw
-    .split(',')
-    .map((phone) => phone.trim())
-    .filter((phone) => phone.length > 0);
+  return { email, password, from };
 })();
+
+/**
+ * Google OAuth client ids accepted as an ID token's `aud`. One per platform
+ * (iOS, Android, Web), all three public values.
+ */
+export const googleClientIds: readonly string[] = (env.GOOGLE_CLIENT_IDS ?? '')
+  .split(',')
+  .map((id) => id.trim())
+  .filter((id) => id.length > 0);
+
+/** Google sign-in is available only once at least one client id is configured. */
+export const googleAuthEnabled = googleClientIds.length > 0;

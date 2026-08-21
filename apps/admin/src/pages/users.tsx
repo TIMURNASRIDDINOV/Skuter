@@ -7,6 +7,17 @@ import { formatDateTime } from '../lib/format.js';
 import { formatSom } from '../lib/money.js';
 import { EmptyState, ErrorState, TableSkeleton } from '../components/states.js';
 
+/**
+ * How this rider got in. `email` is only ever set by Google sign-in and
+ * `telegramId` only by the bot, so the account's origin is readable off the
+ * row without another column in the database.
+ */
+function authMethod(user: User): { key: string; label: string; colour: string } {
+  if (user.email !== null) return { key: 'google', label: 'Google', colour: 'red' };
+  if (user.telegramId !== null) return { key: 'telegram', label: 'Telegram', colour: 'blue' };
+  return { key: 'phone', label: 'Телефон', colour: 'default' };
+}
+
 export function UsersPage(): React.ReactElement {
   const [items, setItems] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,15 +44,43 @@ export function UsersPage(): React.ReactElement {
       title: 'Телефон',
       dataIndex: 'phone',
       width: 170,
+      // A rider who signed up with Google or Telegram has no number until they
+      // link one, which they must do before their first ride.
       render: (value: string | null) =>
-        value !== null ? <Typography.Text strong>{value}</Typography.Text> : <Tag>Telegram</Tag>,
+        value !== null ? (
+          <Typography.Text strong>{value}</Typography.Text>
+        ) : (
+          <Tag color="warning">не подтверждён</Tag>
+        ),
+    },
+    {
+      title: 'Вход',
+      key: 'authMethod',
+      width: 130,
+      filters: [
+        { text: 'Телефон', value: 'phone' },
+        { text: 'Google', value: 'google' },
+        { text: 'Telegram', value: 'telegram' },
+      ],
+      onFilter: (value, user) => authMethod(user).key === value,
+      render: (_, user) => {
+        const method = authMethod(user);
+        return <Tag color={method.colour}>{method.label}</Tag>;
+      },
     },
     {
       title: 'Имя',
       dataIndex: 'name',
-      width: 220,
+      width: 200,
       render: (value: string | null) =>
         value ?? <Typography.Text type="secondary">не указано</Typography.Text>,
+    },
+    {
+      title: 'Email',
+      dataIndex: 'email',
+      width: 220,
+      render: (value: string | null) =>
+        value ?? <Typography.Text type="secondary">—</Typography.Text>,
     },
     {
       title: 'Статус',

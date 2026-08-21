@@ -72,6 +72,7 @@ export interface UserRow {
   phone: string | null;
   name: string | null;
   telegramId: number | null;
+  email: string | null;
   status: User['status'];
   balance: number;
   createdAt: Date;
@@ -83,6 +84,7 @@ export function toUser(row: UserRow): User {
     phone: row.phone,
     name: row.name,
     telegramId: row.telegramId,
+    email: row.email,
     status: row.status,
     balance: row.balance,
     createdAt: toIso(row.createdAt),

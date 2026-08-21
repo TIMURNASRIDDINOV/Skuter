@@ -70,8 +70,14 @@ export default function UnlockScreen() {
           await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           router.replace('/ride');
         },
-        onError: () => {
+        onError: (cause) => {
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          // Signed in with Google or Telegram and no number on file yet. This
+          // is the one point a phone is actually required, so send them to
+          // link one rather than showing a dead end — /verify comes back here.
+          if (cause instanceof ApiRequestError && cause.code === 'phone_required') {
+            router.push('/link-phone');
+          }
         },
       },
     );

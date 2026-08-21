@@ -25,21 +25,31 @@
   ],
   "vars": {
     "NODE_ENV": "production",
-    // Pre-release runs with dev affordances on: the fixed OTP code is the
-    // only working phone login until an SMS provider exists, and the demo
-    // controls in the clients depend on /dev/simulate/*.
+    // Pre-release runs with dev affordances on: the demo controls in the
+    // clients depend on /dev/simulate/*, and the fixed OTP lets the demo phone
+    // skip the SMS. Real sign-in no longer depends on it.
     "DEV_FEATURES": "true",
+    // `console` until the Eskiz message template clears moderation; flip to
+    // `eskiz` to start sending real codes. See docs/deploy.md.
+    "SMS_GATEWAY": "console",
+    "ESKIZ_FROM": "4546",
+    // Google OAuth client ids (iOS, Android, Web). Public values by design —
+    // the confidential half of an OAuth client never reaches a mobile app —
+    // so vars rather than secrets. Empty = /auth/google answers 501.
+    "GOOGLE_CLIENT_IDS": "154515300398-5sa4rgrdj9rhr0t7hu1p7m3s3rq1uhb5.apps.googleusercontent.com,154515300398-6psqfspvvo3uhknfiraidv6t3sf3tie4.apps.googleusercontent.com,154515300398-9455mi0v91khrtj15nsnmk25q097hom8.apps.googleusercontent.com",
     "VEHICLE_GATEWAY": "durable",
     "SIMULATOR_TICK_MS": "3000",
     "SIMULATOR_UNLOCK_FAILURE_RATE": "0.08",
-    // DEV_OTP_CODE and OTP_TEST_PHONES are deliberately absent. One is a
-    // working credential while DEV_FEATURES is on; the other is a list of real
-    // phone numbers. This file is in a public repository, so both are secrets:
+    // DEV_OTP_CODE, OTP_BYPASS_PHONES and ESKIZ_PASSWORD are deliberately
+    // absent. A working credential, a list of real phone numbers, and a
+    // provider password — this file is in a public repository, so all three
+    // are secrets:
     //   wrangler secret put DEV_OTP_CODE
-    //   wrangler secret put OTP_TEST_PHONES
+    //   wrangler secret put OTP_BYPASS_PHONES
+    //   wrangler secret put ESKIZ_EMAIL
+    //   wrangler secret put ESKIZ_PASSWORD
     // env.ts refuses to start a deployed instance that has dev features on
-    // without them, rather than falling back to a guessable code and an open
-    // sign-in.
+    // without a DEV_OTP_CODE, rather than falling back to a guessable default.
     "JWT_EXPIRES_IN": "30d",
     "TELEGRAM_BOT_USERNAME": "Scootrentuzbot",
     // Placeholder: the real connection comes from the HYPERDRIVE binding;
@@ -65,9 +75,14 @@
         "VEHICLE_GATEWAY": "durable",
         "SIMULATOR_TICK_MS": "3000",
         "SIMULATOR_UNLOCK_FAILURE_RATE": "0.08",
-        // See the note above — set both with:
+        "SMS_GATEWAY": "console",
+        "ESKIZ_FROM": "4546",
+        "GOOGLE_CLIENT_IDS": "154515300398-5sa4rgrdj9rhr0t7hu1p7m3s3rq1uhb5.apps.googleusercontent.com,154515300398-6psqfspvvo3uhknfiraidv6t3sf3tie4.apps.googleusercontent.com,154515300398-9455mi0v91khrtj15nsnmk25q097hom8.apps.googleusercontent.com",
+        // See the note above — set these with:
         //   wrangler secret put DEV_OTP_CODE --env canary
-        //   wrangler secret put OTP_TEST_PHONES --env canary
+        //   wrangler secret put OTP_BYPASS_PHONES --env canary
+        //   wrangler secret put ESKIZ_EMAIL --env canary
+        //   wrangler secret put ESKIZ_PASSWORD --env canary
         "JWT_EXPIRES_IN": "30d",
         "TELEGRAM_BOT_USERNAME": "Scootrentuzbot",
         "DATABASE_URL": "hyperdrive"

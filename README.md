@@ -52,6 +52,32 @@ Simulator  running, 70 vehicles, tick 3s
 > Expo dev server. The rider app needs a one-time dev-client build first —
 > `pnpm -F @scoot/mobile ios` (or `android`) — see `apps/mobile/CLAUDE.md`.
 
+### Signing in
+
+Any +998 number can register. `SMS_GATEWAY=console` (the local default) writes
+the code to the API log instead of sending it — grep for `SMS →`:
+
+```bash
+pnpm dev 2>&1 | grep 'SMS →'
+```
+
+Set `SMS_GATEWAY=eskiz` with `ESKIZ_EMAIL` / `ESKIZ_PASSWORD` to send real
+messages through [eskiz.uz](https://my.eskiz.uz/sms/settings). Numbers listed
+in `OTP_BYPASS_PHONES` skip the SMS entirely and accept the fixed
+`DEV_OTP_CODE`, so a rehearsed demo never waits on a carrier.
+
+**Telegram verifies a number without any SMS provider at all**, which is the
+working path today — Eskiz sells OTP traffic only to registered companies.
+"Continue with Telegram" opens the bot, the bot asks the rider to tap *Поделиться
+номером*, and Telegram hands over the number it verified when the account was
+made. No code to type, nothing to pay for, and a stronger proof than an SMS —
+the number is bound to the account rather than merely reachable once.
+
+**Google sign-in** appears once `GOOGLE_CLIENT_IDS` (API) and
+`GOOGLE_WEB_CLIENT_ID` / `GOOGLE_IOS_CLIENT_ID` (app) are set; without them the
+endpoint answers 501 and the app hides the button. Google and Telegram accounts
+have no phone number, so the app asks for one before the first ride.
+
 ### Everyday commands
 
 ```bash
@@ -85,6 +111,15 @@ The definition of done. Phone in one hand, admin panel on the laptop.
       pins to the map and the pin gains a padlock. Nobody else can see or
       unlock it; on the admin panel it flips to `reserved` with no refresh.
       The hold releases itself when it lapses, and when the ride starts.
+
+- [ ] **1c. Sign in with Telegram.** The bot opens, asks for the number, one tap
+      on *Поделиться номером* — and the app is already on the map, signed in
+      with a verified phone. No code typed, no SMS sent.
+
+- [ ] **1d. Sign in with Google.** The native Google sheet, then straight to the
+      map. The first unlock asks to confirm a phone number — a scooter goes out
+      on the street under somebody's name — and offers either SMS or the same
+      one-tap Telegram share. Then it comes back to the same scooter.
 
 - [ ] **2. Scan a QR.** Unlock animation, ride starts. QR values match the
       seeded codes (`SCOOT-0001` … `SCOOT-0070`); there is a dev **simulate

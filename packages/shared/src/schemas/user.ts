@@ -16,11 +16,17 @@ export type Phone = z.infer<typeof phoneSchema>;
 
 export const userSchema = z.object({
   id: idSchema,
-  /** Null for accounts created through Telegram login (no phone yet). */
+  /**
+   * Null for accounts created through Telegram or Google login. Riders link a
+   * phone before their first ride — a scooter on the street needs a reachable
+   * number — so this is null only between sign-up and that step.
+   */
   phone: phoneSchema.nullable(),
   name: z.string().nullable(),
   /** Telegram account id for users who signed in via the bot / mini app. */
   telegramId: z.int().nullable(),
+  /** Google account email, for users who signed in with Google. */
+  email: z.email().nullable(),
   status: userStatusSchema,
   /** Wallet balance in tiyin. */
   balance: tiyinSchema,
@@ -34,6 +40,7 @@ export const userProfileSchema = userSchema.pick({
   phone: true,
   name: true,
   telegramId: true,
+  email: true,
   status: true,
   balance: true,
   createdAt: true,

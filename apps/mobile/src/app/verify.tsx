@@ -1,4 +1,4 @@
-import type { RiderSession } from '@scoot/shared';
+import type { RiderSession, UserProfile } from '@scoot/shared';
 import { useMutation } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -20,12 +20,28 @@ import { caps, colors, radius, shadows, spacing, typography } from '@/lib/theme'
 
 const CODE_LENGTH = 6;
 
+/** Signing in yields a session; linking yields the updated profile. */
+type VerifyResult =
+  | { kind: 'session'; session: RiderSession }
+  | { kind: 'linked'; user: UserProfile };
+
 export default function VerifyScreen() {
   const { t } = useI18n();
   const router = useRouter();
-  const { signIn } = useSession();
-  const params = useLocalSearchParams<{ phone: string; retryAfterS?: string; devCode?: string }>();
+  const { signIn, setUser } = useSession();
+  const params = useLocalSearchParams<{
+    phone: string;
+    retryAfterS?: string;
+    devCode?: string;
+    /** '1' when attaching a phone to an account that is already signed in. */
+    link?: string;
+  }>();
   const phone = params.phone ?? '';
+
+  // The same six digits either sign you in or attach a number to the account
+  // you are already signed in as. Only the endpoint and what we do with the
+  // answer differ, so the screen is shared rather than duplicated.
+  const linking = params.link === '1';
 
   const [code, setCode] = useState(params.devCode ?? '');
   const [cooldown, setCooldown] = useState(Number(params.retryAfterS ?? '60'));
@@ -49,16 +65,34 @@ export default function VerifyScreen() {
   }, []);
 
   const verify = useMutation({
-    mutationFn: (otp: string) =>
-      apiFetch<RiderSession>('/auth/otp/verify', {
+    mutationFn: async (otp: string): Promise<VerifyResult> => {
+      if (linking) {
+        const user = await apiFetch<UserProfile>('/me/phone/verify', {
+          method: 'POST',
+          body: { phone, code: otp },
+        });
+        return { kind: 'linked', user };
+      }
+      const session = await apiFetch<RiderSession>('/auth/otp/verify', {
         method: 'POST',
         body: { phone, code: otp },
         anonymous: true,
-      }),
-    onSuccess: async (session) => {
+      });
+      return { kind: 'session', session };
+    },
+    onSuccess: async (result) => {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (result.kind === 'linked') {
+        // Already signed in — refresh the cached profile and drop back past the
+        // phone-entry screen to whatever sent us here, which is the scooter
+        // they were trying to unlock.
+        setUser(result.user);
+        router.back();
+        router.back();
+        return;
+      }
       // Stack.Protected swaps the navigator to (app) once the session lands.
-      await signIn(session);
+      await signIn(result.session);
     },
     onError: async () => {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -75,11 +109,16 @@ export default function VerifyScreen() {
 
   const resend = useMutation({
     mutationFn: () =>
-      apiFetch<{ retryAfterS: number; devCode?: string }>('/auth/otp/request', {
-        method: 'POST',
-        body: { phone },
-        anonymous: true,
-      }),
+      linking
+        ? apiFetch<{ retryAfterS: number; devCode?: string }>('/me/phone/request', {
+            method: 'POST',
+            body: { phone },
+          })
+        : apiFetch<{ retryAfterS: number; devCode?: string }>('/auth/otp/request', {
+            method: 'POST',
+            body: { phone },
+            anonymous: true,
+          }),
     onSuccess: (response) => {
       setCooldown(response.retryAfterS);
       if (response.devCode !== undefined) setCode(response.devCode);

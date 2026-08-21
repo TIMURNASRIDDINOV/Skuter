@@ -6,13 +6,21 @@ import { apiFetch } from '@/api/client';
 import { useSession } from '@/api/session';
 
 /**
- * "Continue with Telegram" for the native app. The API issues a one-time
- * nonce and a t.me deep link; the user taps Start in the bot; the bot's
- * webhook completes the nonce; we poll until it turns into a session and
- * feed it to the same signIn funnel the OTP flow uses.
+ * The Telegram flows for the native app. The API issues a one-time nonce and a
+ * t.me deep link; the user taps Start in the bot; the bot asks them to share
+ * their number; the webhook completes the nonce; we poll until it turns into a
+ * session and feed it to the same signIn funnel the OTP flow uses.
+ *
+ * Two modes over one mechanism:
+ *  - `login`  — signing in, and the shared number becomes the account's phone;
+ *  - `link`   — already signed in (via Google), attaching a number.
+ *
+ * The rider shares their number rather than typing a code, so this path needs
+ * no SMS provider at all — Telegram already verified the number and vouches
+ * for it. See apps/api/src/routes/telegram-webhook.ts.
  */
-export function useTelegramLogin() {
-  const { signIn } = useSession();
+export function useTelegramLogin(mode: 'login' | 'link' = 'login') {
+  const { signIn, setUser } = useSession();
   const [waiting, setWaiting] = useState(false);
   const [failed, setFailed] = useState(false);
   const stopRef = useRef<(() => void) | null>(null);
@@ -29,10 +37,11 @@ export function useTelegramLogin() {
     setFailed(false);
     setWaiting(true);
     try {
-      const session = await apiFetch<TelegramLoginStartResponse>('/auth/telegram/start', {
-        method: 'POST',
-        anonymous: true,
-      });
+      const session = await apiFetch<TelegramLoginStartResponse>(
+        mode === 'link' ? '/me/phone/telegram/start' : '/auth/telegram/start',
+        // Linking runs as the signed-in rider; login has no token yet.
+        mode === 'link' ? { method: 'POST' } : { method: 'POST', anonymous: true },
+      );
 
       await Linking.openURL(session.deepLink);
 
@@ -51,7 +60,13 @@ export function useTelegramLogin() {
             );
             if (result.status === 'complete') {
               stop();
-              await signIn({ token: result.token, user: result.user });
+              if (mode === 'link') {
+                // Already signed in — the session is for the same account, so
+                // only the freshly-linked profile is worth taking.
+                setUser(result.user);
+              } else {
+                await signIn({ token: result.token, user: result.user });
+              }
               resolve();
             }
           } catch (error) {
@@ -94,7 +109,7 @@ export function useTelegramLogin() {
       stopRef.current = null;
       setWaiting(false);
     }
-  }, [signIn]);
+  }, [mode, signIn, setUser]);
 
   return { start, cancel, waiting, failed };
 }

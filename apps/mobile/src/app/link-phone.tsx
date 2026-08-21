@@ -2,7 +2,6 @@ import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,78 +12,68 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiRequestError, apiFetch } from '@/api/client';
-import { googleSignInAvailable, useGoogleLogin } from '@/api/google';
 import { useTelegramLogin } from '@/api/telegram';
-import { Button, Icon } from '@/components/ui';
+import { Button, Icon, IconButton } from '@/components/ui';
 import { useI18n } from '@/lib/i18n';
 import { caps, colors, outline, radius, shadows, spacing, typography } from '@/lib/theme';
 
-interface OtpResponse {
-  retryAfterS: number;
-  devCode?: string;
-}
-
-export default function LoginScreen() {
+/**
+ * Attaching a phone number to an account that signed up with Google or
+ * Telegram. Reached from the unlock screen when the API answers
+ * `phone_required` — a scooter goes out under somebody's name, so a reachable
+ * number is required before the first ride, not at sign-up.
+ *
+ * Deliberately the same shape as login.tsx: the rider has seen this field
+ * before, and the code entry it hands off to is literally the same screen.
+ */
+export default function LinkPhoneScreen() {
   const { t } = useI18n();
   const router = useRouter();
   const [digits, setDigits] = useState('');
   const [focused, setFocused] = useState(false);
   const phone = `+998${digits}`;
-  const telegram = useTelegramLogin();
-  const google = useGoogleLogin();
+  // Telegram hands over a number it has already verified, so this path works
+  // with no SMS provider at all — the reliable option while Eskiz is blocked.
+  const telegram = useTelegramLogin('link');
 
   const request = useMutation({
     mutationFn: () =>
-      apiFetch<OtpResponse>('/auth/otp/request', {
+      apiFetch<{ retryAfterS: number; devCode?: string }>('/me/phone/request', {
         method: 'POST',
         body: { phone },
-        anonymous: true,
       }),
     onSuccess: (response) => {
       router.push({
         pathname: '/verify',
         params: {
           phone,
+          link: '1',
           retryAfterS: String(response.retryAfterS),
           ...(response.devCode !== undefined ? { devCode: response.devCode } : {}),
         },
       });
     },
-    onError: (error) => {
-      // A cooldown means a code is already on its way — proceed to entry.
-      if (error instanceof ApiRequestError && error.status === 429) {
-        const retryAfterS =
-          typeof (error.details as { retryAfterS?: unknown } | null)?.retryAfterS === 'number'
-            ? String((error.details as { retryAfterS: number }).retryAfterS)
-            : '60';
-        router.push({ pathname: '/verify', params: { phone, retryAfterS } });
-      }
-    },
   });
 
   const valid = /^\d{9}$/.test(digits);
-  const failed =
-    request.isError && !(request.error instanceof ApiRequestError && request.error.status === 429);
-  // Sign-in is open to any number now, so the interesting failure is no longer
-  // "not allowed" but "the SMS did not go out" — which the API reports as 429,
-  // either a rate limit or a provider failure it refuses to paper over.
+  const status = request.error instanceof ApiRequestError ? request.error.status : null;
   const errorMessage =
-    request.error instanceof ApiRequestError && request.error.status === 429
-      ? t.smsSendFailed
-      : t.loadingError;
+    status === 409 ? t.linkPhoneTaken : status === 429 ? t.smsSendFailed : t.loadingError;
 
   return (
     <SafeAreaView style={styles.safe}>
+      <IconButton name="back" onPress={() => router.back()} style={styles.back} />
+
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.hero}>
           <View style={styles.brandMark}>
-            <Icon name="scooter" size={44} color={colors.onPrimary} />
+            <Icon name="keypad" size={40} color={colors.onPrimary} />
           </View>
-          <Text style={styles.title}>{t.loginTitle}</Text>
-          <Text style={styles.subtitle}>{t.loginSubtitle}</Text>
+          <Text style={styles.title}>{t.linkPhoneTitle}</Text>
+          <Text style={styles.subtitle}>{t.linkPhoneSubtitle}</Text>
         </View>
 
         <View style={styles.form}>
@@ -92,7 +81,7 @@ export default function LoginScreen() {
             style={[
               styles.phoneField,
               focused && styles.phoneFieldFocused,
-              failed && styles.phoneFieldError,
+              request.isError && styles.phoneFieldError,
             ]}
           >
             <Text style={styles.phonePrefix}>+998</Text>
@@ -106,12 +95,12 @@ export default function LoginScreen() {
               placeholder={t.phonePlaceholder}
               placeholderTextColor={colors.textSecondary}
               autoFocus
-              testID="phone-input"
+              testID="link-phone-input"
             />
           </View>
-          {failed && <Text style={styles.error}>{errorMessage}</Text>}
+          {request.isError && <Text style={styles.error}>{errorMessage}</Text>}
           <Button
-            label={t.sendCode}
+            label={t.linkPhoneCta}
             onPress={() => request.mutate()}
             disabled={!valid}
             loading={request.isPending}
@@ -129,45 +118,24 @@ export default function LoginScreen() {
               <Button label={t.telegramCancel} variant="ghost" onPress={telegram.cancel} />
             </View>
           ) : (
-            // Button has no icon slot — this mirrors its secondary variant exactly,
-            // with a leading Telegram send glyph.
-            <Pressable
-              accessibilityRole="button"
-              testID="telegram-login"
-              onPress={() => void telegram.start()}
-              style={({ pressed }) => [
-                styles.telegramButton,
-                pressed && styles.telegramButtonPressed,
-              ]}
-            >
-              <Icon name="send" size={18} color={colors.info} />
-              <Text style={styles.telegramLabel}>{t.continueWithTelegram}</Text>
-            </Pressable>
-          )}
-          {telegram.failed && !telegram.waiting && (
-            <Text style={styles.error}>{t.telegramFailed}</Text>
-          )}
-
-          {googleSignInAvailable && (
             <>
               <Pressable
                 accessibilityRole="button"
-                testID="google-login"
-                disabled={google.waiting}
-                onPress={() => void google.start()}
+                testID="telegram-link-phone"
+                onPress={() => void telegram.start()}
                 style={({ pressed }) => [
                   styles.telegramButton,
                   pressed && styles.telegramButtonPressed,
-                  google.waiting && styles.providerButtonBusy,
                 ]}
               >
-                <Image source={require('../../assets/images/google.png')} style={styles.googleMark} />
-                <Text style={styles.telegramLabel}>{t.continueWithGoogle}</Text>
+                <Icon name="send" size={18} color={colors.info} />
+                <Text style={styles.telegramLabel}>{t.linkPhoneViaTelegram}</Text>
               </Pressable>
-              {google.failed && !google.waiting && (
-                <Text style={styles.error}>{t.googleFailed}</Text>
-              )}
+              <Text style={styles.telegramHint}>{t.telegramShareHint}</Text>
             </>
+          )}
+          {telegram.failed && !telegram.waiting && (
+            <Text style={styles.error}>{t.telegramFailed}</Text>
           )}
         </View>
       </KeyboardAvoidingView>
@@ -177,6 +145,7 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  back: { alignSelf: 'flex-start', marginLeft: 20, marginTop: spacing.s },
   container: { flex: 1, padding: 20, justifyContent: 'center', gap: spacing.xxl },
   hero: { alignItems: 'center', gap: spacing.s },
   brandMark: {
@@ -204,8 +173,7 @@ const styles = StyleSheet.create({
     height: 60,
     gap: spacing.s,
   },
-  // The outline is already ink at rest, so focus cannot be a border colour —
-  // it is the field lifting off the page instead.
+  // As on login: the outline is already ink at rest, so focus is a lift.
   phoneFieldFocused: { ...shadows.md },
   phoneFieldError: { borderColor: colors.danger },
   phonePrefix: {
@@ -228,11 +196,8 @@ const styles = StyleSheet.create({
   separatorLine: { flex: 1, height: 2, backgroundColor: colors.borderSoft },
   separatorText: { fontSize: 11, ...caps, color: colors.textSecondary },
   telegramWaiting: { gap: spacing.s, alignItems: 'center' },
-  telegramWaitingText: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
+  telegramWaitingText: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
+  // Mirrors the button on login.tsx exactly — same affordance, same look.
   telegramButton: {
     minHeight: 56,
     borderRadius: radius.m,
@@ -252,14 +217,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
-  // Google requires its own mark on the button; the rest matches the Telegram
-  // one exactly so the two providers read as one row of choices.
-  googleMark: { width: 18, height: 18 },
-  providerButtonBusy: { opacity: 0.6 },
-  telegramLabel: {
-    fontSize: 15,
-    ...caps,
-    letterSpacing: 0.4,
-    color: colors.text,
+  telegramLabel: { fontSize: 15, ...caps, letterSpacing: 0.4, color: colors.text },
+  telegramHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 16,
   },
 });

@@ -55,6 +55,10 @@ export const API_ERROR_CODES = {
   INSIDE_FORBIDDEN_ZONE: 'inside_forbidden_zone',
   OUTSIDE_SERVICE_AREA: 'outside_service_area',
   RIDE_ALREADY_ACTIVE: 'ride_already_active',
+  /** Signed in, but no verified phone yet — Google and Telegram accounts
+   *  start without one. The app routes to the link-phone flow rather than
+   *  showing a generic failure. */
+  PHONE_REQUIRED: 'phone_required',
   INSUFFICIENT_BALANCE: 'insufficient_balance',
   PAYMENT_FAILED: 'payment_failed',
   NOT_IMPLEMENTED: 'not_implemented',

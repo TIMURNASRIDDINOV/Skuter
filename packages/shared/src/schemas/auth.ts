@@ -27,6 +27,16 @@ export const verifyOtpRequestSchema = z.object({
 });
 export type VerifyOtpRequest = z.infer<typeof verifyOtpRequestSchema>;
 
+/**
+ * Google sign-in: the ID token from the native Google sheet. The API verifies
+ * its RS256 signature against Google's published keys and checks the audience,
+ * so a forged token is not accepted — no OTP round-trip needed.
+ */
+export const googleLoginRequestSchema = z.object({
+  idToken: z.string().min(1),
+});
+export type GoogleLoginRequest = z.infer<typeof googleLoginRequestSchema>;
+
 export const riderSessionSchema = z.object({
   token: z.string(),
   user: userProfileSchema,

@@ -25,9 +25,10 @@ src/
   simulator/
     paths.ts        street-like route generation
   repositories/     THE ONLY code that touches Drizzle
+  sms/              THE ONLY code that knows which SMS provider is live
   routes/           HTTP surface, one file per area
   middleware/       auth + the single error boundary
-  lib/              errors, jwt, password, logger
+  lib/              errors, jwt, password, logger, telegram + google token checks
   seed/             deterministic demo dataset
 ```
 
@@ -86,10 +87,13 @@ concern only.
 
 ## Deviations from the specced data model
 
-Three additions, all load-bearing:
+Four additions, all load-bearing:
 
 - **`otp_codes` table** — phone-OTP auth needs somewhere to keep a hashed code
-  with an expiry and an attempt counter.
+  with an expiry and an attempt counter. It doubles as the rate-limit ledger:
+  `request_ip` plus `created_at` is what the per-number and per-IP caps count.
+- **`users.google_sub` / `users.email`** — Google sign-in. `google_sub` is the
+  only match key; `email` is display only.
 - **`rides.plan_id`** — without it a ride's cost can't be recomputed or
   explained, and editing a plan's price would retroactively rewrite historical
   receipts.
@@ -98,23 +102,87 @@ Three additions, all load-bearing:
 
 ## Auth
 
-Riders: phone OTP (`POST /auth/otp/request` → `/auth/otp/verify`). In
-development `DEV_OTP_CODE` (default `000000`) is accepted even with no pending
-row, so a mid-demo restart can't lock the phone out. On a deployed instance it
-is a **secret, never a var** — with `DEV_FEATURES=true` it signs anybody in as
-any number, and `wrangler.jsonc` is public. `env.ts` refuses to start a
-production instance that has dev features on without it, so a forgotten secret
-cannot quietly become the shared default.
+Riders sign in three ways, all landing on `riderSession()` in `routes/auth.ts`:
+**phone OTP**, **Google**, and **Telegram**.
 
-`OTP_TEST_PHONES` is a secret for the same reason plus one of its own: **empty
-means everyone, not nobody**, so omitting it on a deployed instance running the
-fixed OTP opens sign-in to any number. It is required in that combination, with
-`*` as the explicit way to ask for an open sign-in. Sending a real SMS is a
-marked stub — it is outside the demo path.
+**Phone OTP** (`POST /auth/otp/request` → `/auth/otp/verify`). Any +998 number
+can register; the code is random and goes out over the SMS gateway.
+`services/otp.ts` is the single implementation, shared with `/me/phone/*` so a
+linked number is verified exactly as strictly as one used to sign in.
 
-Admins: email + password, bcrypt. `bcryptjs` over argon2 deliberately — pure JS,
-no native binary to fail installing on a demo machine. For production, argon2id
-via `@node-rs/argon2`.
+`DEV_OTP_CODE` is accepted **only** for numbers in `OTP_BYPASS_PHONES`, and
+only while dev features are on — it exists so a rehearsed demo never waits on a
+carrier. Read the direction carefully, because it inverted: `OTP_TEST_PHONES`
+used to be an *allowlist* deciding who could sign in at all, when a fixed code
+plus no SMS provider meant an open door. `OTP_BYPASS_PHONES` is a *bypass
+list* — everyone signs in, these numbers skip the SMS — so **empty now means
+nobody, which is the safe default**. `env.ts` throws on startup if the old
+variable is still set rather than applying the opposite of the intended policy.
+Both stay secrets on a deployed instance: one is a working credential for those
+numbers, the other is a list of real personal numbers.
+
+**Rate limits are not optional here.** Every SMS is billed, so
+`services/otp.ts` enforces a 60 s resend cooldown, 5 codes per number per day,
+and 20 per IP per hour, all counted off `otp_codes` rows. A send that fails
+consumes its row before returning 429 — telling a rider a code is coming when
+it is not is worse than an error, and leaving the row would strand them behind
+the cooldown holding a code they never got.
+
+**Google** (`POST /auth/google`). The app sends the ID token from the native
+sheet; `lib/google.ts` verifies it against Google's published keys with
+WebCrypto only, pinning RS256 and checking `iss`, `exp`, `email_verified` and —
+the check that matters — `aud` against our own client ids. Without that last
+one any validly-signed Google token from any project would be accepted.
+Accounts match on `sub` alone, never on email: adopting an account because its
+address matches would be an account-takeover path.
+
+**Telegram** (`POST /auth/telegram/start` → `/auth/telegram/poll`, driven by
+`routes/telegram-webhook.ts`). This is the path that makes Scoot able to verify
+a phone number **with no SMS provider at all**, which matters because Eskiz
+requires a company contract — see the SMS gateway section.
+
+The bot conversation has two legs, and the second is the point of it:
+
+1. `/start <nonce>` — the webhook claims the nonce, records the chat, and
+   replies with a `request_contact` keyboard button.
+2. the shared contact — Telegram hands over the number it verified when the
+   account was created, and only then does the nonce complete.
+
+Sharing is **required**: tapping Start no longer signs anybody in. Two
+consequences that are easy to undo by accident:
+
+- **No account is created on Start.** Identity is resolved on the contact leg,
+  by `findOrCreateForTelegramContact`. Creating a rider at Start would leave an
+  orphan behind every abandoned attempt, and would dead-end anyone whose number
+  is already on a Google account.
+- **`contact.user_id` must equal `message.from.id`.** Telegram's attachment
+  menu lets anyone forward a *third party's* contact card, arriving in exactly
+  the same shape. That single comparison in `parseSharedContact` is the whole
+  security of the flow — without it a rider registers somebody else's number.
+  Guarded in `telegram.test.ts`.
+
+Matching order on the contact leg is Telegram id, then **phone**, then create.
+Falling back to the phone is deliberate and is the opposite of the Google rule
+above: an email is merely asserted, whereas a shared contact is proven, so it is
+safe to treat as the same person and merge the identities onto one account.
+
+Foreign numbers are rejected distinctly from forwarded cards (`normalisePhone`
+returns null for anything that is not `+998`), because "share your own number"
+is useless advice to someone whose Telegram is simply on a Russian SIM.
+
+`POST /me/phone/telegram/start` is the same mechanism for a signed-in rider
+attaching a number — a `link` nonce carries the account, so the number lands on
+*that* rider rather than on whoever the Telegram identity maps to.
+
+**Google and Telegram accounts have no phone at sign-up**, so
+`services/rides.ts` requires one before a ride starts (`phone_required`) — a
+scooter goes out on the street under somebody's name. That is the only place
+the requirement lives; sign-up itself is deliberately not blocked. Telegram
+riders satisfy it during login and never see the gate.
+
+Admins: email + password, bcrypt. `bcryptjs` over argon2 deliberately — pure
+JS, no native binary to fail installing on a demo machine. For production,
+argon2id via `@node-rs/argon2`.
 
 JWT via Hono's built-in `hono/jwt`, HS256 pinned explicitly on both sign and
 verify. `role` claim (`rider` | `admin`) selects the middleware that accepts it.
@@ -131,6 +199,43 @@ pnpm -F @scoot/api typecheck
 
 `db:seed` is deterministic — same 70 vehicles in the same places every run, so a
 rehearsed demo stays rehearsed. It truncates before seeding.
+
+## The SMS gateway
+
+`src/sms/` is the seam between this application and an SMS provider, the same
+shape as `src/payments/` and the vehicle gateway: **`sms/index.ts` is the only
+module that knows which implementation is live.** Selected by `SMS_GATEWAY`
+(`console` | `eskiz`), defaulting to `console` unless Eskiz credentials are
+present, so `pnpm dev` works out of the box and nobody burns provider credit by
+accident.
+
+**Eskiz needs a company.** OTP traffic is sold only to registered legal
+entities (ООО / ИП), so an individual cannot get the contract at all. That is
+why the Telegram contact flow above exists: it verifies a number without any
+provider, and is the working path today. Everything below applies once a
+contract does exist.
+
+`EskizSmsGateway` uses `fetch` only, so it runs unchanged on Workers. It is
+proven against production — login, token refresh and a real send all work. What
+stands between it and real OTP delivery is **account state at eskiz.uz**, and
+the gates come in this order:
+
+1. **A signed contract.** Until then the account is `role: "test"`, which can
+   send only Eskiz's own fixed strings ("Bu Eskiz dan test" and friends) — and,
+   less obviously, **cannot submit message texts for moderation at all**. The
+   cabinet answers *«В Вашем статусе доступ к этой функции ограничено»*. So the
+   contract is the first gate, not the last one. Contact @eskizhelpbot.
+2. **Moderation of the message text**, once submitting is possible. Moderation
+   runs every 3 hours, 10:00–16:00 on weekdays. The operators reject
+   authorisation codes that do not name the service *and* state what the code
+   is for, and the text must be submitted in the exact form it will be sent,
+   with a literal example code rather than a placeholder.
+
+Both are why `smsText()` in `services/otp.ts` is a hardcoded string rather than
+a template built at call time: each distinct wording is separately approved, so
+changing it means going back through moderation. An unapproved text is accepted
+by the send endpoint and then dropped by the operator — it fails silently, which
+is the trap worth knowing about.
 
 ## The vehicle gateway
 

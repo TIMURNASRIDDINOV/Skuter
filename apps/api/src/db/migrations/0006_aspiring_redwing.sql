@@ -1,0 +1,1 @@
+ALTER TABLE "telegram_login_nonces" ADD COLUMN "name" text;
