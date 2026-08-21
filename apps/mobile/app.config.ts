@@ -24,7 +24,11 @@ const googleIosUrlScheme =
 
 const config: ExpoConfig = {
   name: 'Ozo Thunder',
-  slug: 'ozothunder',
+  // Kept as the original registered EAS project slug — eas-cli's config
+  // codemod chokes on this TS config file when reconciling a slug rename
+  // (`eas init --force` throws reading app.config.ts), and the slug is
+  // internal project plumbing, never shown to a user, unlike `name`.
+  slug: 'scoot',
   // Required for `eas build --non-interactive`, which cannot otherwise work
   // out which account owns the project.
   owner: 'temurnasriddinov',
