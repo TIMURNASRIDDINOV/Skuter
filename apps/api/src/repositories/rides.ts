@@ -1,5 +1,5 @@
 import { and, desc, eq, sql } from 'drizzle-orm';
-import type { GeoLineString, LatLon, Ride, RideStatus } from '@scoot/shared';
+import type { GeoLineString, LatLon, Ride, RideStatus } from '@ozothunder/shared';
 import type { Database } from '../db/client.js';
 import { selectLineString } from '../db/sql.js';
 import { rides, users, vehicles } from '../db/schema.js';
@@ -197,10 +197,10 @@ export function createRidesRepository(db: Database) {
       }));
     },
 
-    /** Revenue and ride counts per day in Asia/Tashkent, for the admin chart. */
+    /** Revenue and ride counts per day in Asia/Samarkand, for the admin chart. */
     async revenueByDay(days: number): Promise<{ date: string; revenueTiyin: number; rides: number }[]> {
       const result = await db.execute<{ date: string; revenue: number; rides: number }>(sql`
-        SELECT to_char((ended_at AT TIME ZONE 'Asia/Tashkent')::date, 'YYYY-MM-DD') AS date,
+        SELECT to_char((ended_at AT TIME ZONE 'Asia/Samarkand')::date, 'YYYY-MM-DD') AS date,
                COALESCE(sum(cost), 0)::bigint AS revenue,
                count(*)::int AS rides
         FROM rides

@@ -1,4 +1,4 @@
-import type { VehicleStatus, ZoneKind } from '@scoot/shared';
+import type { VehicleStatus, ZoneKind } from '@ozothunder/shared';
 import type { TextStyle, ViewStyle } from 'react-native';
 
 /**

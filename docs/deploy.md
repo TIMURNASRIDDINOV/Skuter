@@ -69,11 +69,11 @@ set -a && . ./.env && set +a && DATABASE_URL="$SUPABASE_DB_URL" pnpm db:seed
 ### 3. Cloudflare
 
 ```bash
-pnpm -F @scoot/api exec wrangler login
+pnpm -F @ozothunder/api exec wrangler login
 ```
 
 ```bash
-set -a && . ./.env && set +a && pnpm -F @scoot/api exec wrangler hyperdrive create scoot-db --connection-string="$SUPABASE_DB_URL"
+set -a && . ./.env && set +a && pnpm -F @ozothunder/api exec wrangler hyperdrive create ozothunder-db --connection-string="$SUPABASE_DB_URL"
 ```
 
 Команда вернёт `id`. Впиши его в [`apps/api/wrangler.jsonc`](../apps/api/wrangler.jsonc)
@@ -83,32 +83,32 @@ set -a && . ./.env && set +a && pnpm -F @scoot/api exec wrangler hyperdrive crea
 ### 4. Секреты
 
 ```bash
-pnpm -F @scoot/api exec wrangler secret put JWT_SECRET
+pnpm -F @ozothunder/api exec wrangler secret put JWT_SECRET
 ```
 
 ```bash
-pnpm -F @scoot/api exec wrangler secret put TELEGRAM_BOT_TOKEN
+pnpm -F @ozothunder/api exec wrangler secret put TELEGRAM_BOT_TOKEN
 ```
 
 ```bash
-pnpm -F @scoot/api exec wrangler secret put TELEGRAM_WEBHOOK_SECRET
+pnpm -F @ozothunder/api exec wrangler secret put TELEGRAM_WEBHOOK_SECRET
 ```
 
 ```bash
-pnpm -F @scoot/api exec wrangler secret put DEV_ROUTES_SECRET
+pnpm -F @ozothunder/api exec wrangler secret put DEV_ROUTES_SECRET
 ```
 
 ```bash
-pnpm -F @scoot/api exec wrangler secret put DEV_OTP_CODE
+pnpm -F @ozothunder/api exec wrangler secret put DEV_OTP_CODE
 ```
 
 ```bash
-pnpm -F @scoot/api exec wrangler secret put OTP_BYPASS_PHONES
+pnpm -F @ozothunder/api exec wrangler secret put OTP_BYPASS_PHONES
 ```
 
 ```bash
-pnpm -F @scoot/api exec wrangler secret put ESKIZ_EMAIL
-pnpm -F @scoot/api exec wrangler secret put ESKIZ_PASSWORD
+pnpm -F @ozothunder/api exec wrangler secret put ESKIZ_EMAIL
+pnpm -F @ozothunder/api exec wrangler secret put ESKIZ_PASSWORD
 ```
 
 `DEV_ROUTES_SECRET` — минимум 16 символов, `openssl rand -hex 24`. См. раздел
@@ -140,7 +140,7 @@ git и **использовать его повторно нельзя** — п�
 политику. Убери его:
 
 ```bash
-pnpm -F @scoot/api exec wrangler secret delete OTP_TEST_PHONES
+pnpm -F @ozothunder/api exec wrangler secret delete OTP_TEST_PHONES
 ```
 
 `ESKIZ_EMAIL` / `ESKIZ_PASSWORD` — с вкладки «СМС шлюз» в
@@ -159,22 +159,22 @@ Canary нужен, только когда боевой воркер уже ра
 `wrangler deploy --env=""`.
 
 ```bash
-pnpm -F @scoot/api exec wrangler deploy --env canary
+pnpm -F @ozothunder/api exec wrangler deploy --env canary
 ```
 
 ```bash
-curl https://scoot-api-canary.<твой-субдомен>.workers.dev/health
+curl https://ozothunder-api-canary.<твой-субдомен>.workers.dev/health
 ```
 
 Убедился — **удали canary**, иначе два симулятора будут гонять один и тот же
 парк и состояние поедет:
 
 ```bash
-pnpm -F @scoot/api exec wrangler delete --name scoot-api-canary
+pnpm -F @ozothunder/api exec wrangler delete --name ozothunder-api-canary
 ```
 
 ```bash
-pnpm -F @scoot/api exec wrangler deploy
+pnpm -F @ozothunder/api exec wrangler deploy
 ```
 
 ### 6. Вебхук Telegram
@@ -183,13 +183,13 @@ pnpm -F @scoot/api exec wrangler deploy
 молча перестанет доходить:
 
 ```bash
-curl -X POST "https://api.telegram.org/bot<BOT_TOKEN>/setWebhook" -d "url=https://scoot-api.<твой-субдомен>.workers.dev/telegram/webhook" -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
+curl -X POST "https://api.telegram.org/bot<BOT_TOKEN>/setWebhook" -d "url=https://ozothunder-api.<твой-субдомен>.workers.dev/telegram/webhook" -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
 ```
 
 ### 7. Клиенты
 
 Пересобирать ничего не нужно. `apps/mobile/.env` и мини-апп уже указывают на
-`scoot-api.<субдомен>.workers.dev` — этот адрес и занимает воркер.
+`ozothunder-api.<субдомен>.workers.dev` — этот адрес и занимает воркер.
 
 ## Обновление уже работающего деплоя
 
@@ -211,7 +211,7 @@ set -a && . ./.env && set +a && DATABASE_URL="$SUPABASE_DB_URL" pnpm db:migrate
 Затем воркер:
 
 ```bash
-pnpm -F @scoot/api exec wrangler deploy
+pnpm -F @ozothunder/api exec wrangler deploy
 ```
 
 **Пока воркер не передеплоен, новых полей в ответах API не будет**, даже если
@@ -232,7 +232,7 @@ pnpm -F @scoot/api exec wrangler deploy
 Поэтому в продакшене эти маршруты требуют заголовок:
 
 ```bash
-curl -X POST https://scoot-api.<субдомен>.workers.dev/dev/simulate/ride -H "X-Dev-Secret: <DEV_ROUTES_SECRET>" -H 'Content-Type: application/json' -d '{"vehicle":"SCOOT-0005"}'
+curl -X POST https://ozothunder-api.<субдомен>.workers.dev/dev/simulate/ride -H "X-Dev-Secret: <DEV_ROUTES_SECRET>" -H 'Content-Type: application/json' -d '{"vehicle":"000000005"}'
 ```
 
 Если `DEV_ROUTES_SECRET` не задан — маршруты выключены целиком. Забыть про

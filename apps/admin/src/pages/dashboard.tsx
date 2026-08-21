@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { DashboardStats, Ride, RevenuePoint, Zone } from '@scoot/shared';
+import type { DashboardStats, Ride, RevenuePoint, Zone } from '@ozothunder/shared';
 import { apiFetch, type ListResponse } from '../lib/api.js';
 import { useServerEvents } from '../lib/events.js';
 import { useLiveFleet } from '../lib/useLiveFleet.js';

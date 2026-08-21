@@ -1,5 +1,5 @@
 {
-  "name": "@scoot/mobile",
+  "name": "@ozothunder/mobile",
   "version": "0.1.0",
   "private": true,
   "main": "expo-router/entry",
@@ -15,7 +15,7 @@
     "@gorhom/bottom-sheet": "^5.2.14",
     "@maplibre/maplibre-react-native": "^11.3.6",
     "@react-native-google-signin/google-signin": "^16.1.4",
-    "@scoot/shared": "workspace:*",
+    "@ozothunder/shared": "workspace:*",
     "@tanstack/react-query": "^5.101.4",
     "expo": "~56.0.17",
     "expo-build-properties": "~56.0.24",

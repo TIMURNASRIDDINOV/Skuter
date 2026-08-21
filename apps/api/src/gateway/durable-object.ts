@@ -1,7 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { DurableObject } from 'cloudflare:workers';
 import pg from 'pg';
-import type { CommandResult, LatLon, ServerEvent, VehicleStatus } from '@scoot/shared';
+import type { CommandResult, LatLon, ServerEvent, VehicleStatus } from '@ozothunder/shared';
 import { createDatabase } from '../db/client.js';
 import { env } from '../env.js';
 import { ServerEventBus } from '../events/bus.js';

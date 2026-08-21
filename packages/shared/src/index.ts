@@ -1,5 +1,5 @@
 /**
- * @scoot/shared — the single source of truth for schemas, types and domain
+ * @ozothunder/shared — the single source of truth for schemas, types and domain
  * constants. The API, the rider app and the admin panel all import from here.
  * A type defined in this package must never be redefined in a consumer.
  */

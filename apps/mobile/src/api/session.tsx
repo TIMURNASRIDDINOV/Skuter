@@ -1,4 +1,4 @@
-import type { RiderSession, UserProfile } from '@scoot/shared';
+import type { RiderSession, UserProfile } from '@ozothunder/shared';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import {

@@ -97,7 +97,7 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>{t.language}</Text>
         <View style={styles.group}>
           <View style={styles.segmentTrack}>
-            {(['ru', 'uz'] as Language[]).map((code) => (
+            {(['ru', 'uz', 'zh-Hant'] as Language[]).map((code) => (
               <Pressable
                 key={code}
                 accessibilityRole="button"
@@ -106,7 +106,7 @@ export default function ProfileScreen() {
                 onPress={() => setLang(code)}
               >
                 <Text style={[styles.segmentLabel, lang === code && styles.segmentLabelActive]}>
-                  {code === 'ru' ? 'Русский' : 'O‘zbekcha'}
+                  {code === 'ru' ? 'Русский' : code === 'uz' ? 'O‘zbekcha' : '繁體中文'}
                 </Text>
               </Pressable>
             ))}

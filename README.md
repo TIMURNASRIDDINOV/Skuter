@@ -1,6 +1,6 @@
-# Scoot
+# Ozo Thunder
 
-Scooter-sharing demo for Tashkent — a native rider app, a back-office panel, and
+Scooter-sharing demo for Bukhara — a native rider app, a back-office panel, and
 a simulated fleet convincing enough to pitch on.
 
 There is no scooter hardware and no real payments. The fleet runs behind a
@@ -43,14 +43,14 @@ Once running:
 API        http://localhost:8787        (health: /health)
 Admin      http://localhost:5173        (login: admin@demo.uz / demo1234)
 Mobile     scan the QR above with the dev client
-DB         postgres://localhost:5432/scoot
+DB         postgres://localhost:5432/ozothunder
 Simulator  running, 70 vehicles, tick 3s
 ```
 
 > **Status.** API, database, seed, fleet simulator, admin panel and the native
 > rider app are all live. `pnpm dev` starts the API, the admin panel and the
 > Expo dev server. The rider app needs a one-time dev-client build first —
-> `pnpm -F @scoot/mobile ios` (or `android`) — see `apps/mobile/CLAUDE.md`.
+> `pnpm -F @ozothunder/mobile ios` (or `android`) — see `apps/mobile/CLAUDE.md`.
 
 ### Signing in
 
@@ -98,7 +98,7 @@ every run, so a rehearsed demo stays rehearsed.
 The definition of done. Phone in one hand, admin panel on the laptop.
 
 - [ ] **1. Open the app.** Native map fills with clustered scooter pins across
-      Tashkent. The sheet rests on a carousel of the nearest scooters — walk
+      Bukhara. The sheet rests on a carousel of the nearest scooters — walk
       time, charge, and how long that charge lasts — beside the scan button.
       Tap a card → the pin becomes a bubble, a dashed walking line and its ETA
       appear, and the sheet shows the tariff picker.
@@ -122,7 +122,7 @@ The definition of done. Phone in one hand, admin panel on the laptop.
       one-tap Telegram share. Then it comes back to the same scooter.
 
 - [ ] **2. Scan a QR.** Unlock animation, ride starts. QR values match the
-      seeded codes (`SCOOT-0001` … `SCOOT-0070`); there is a dev **simulate
+      seeded codes (`000000001` … `000000070`); there is a dev **simulate
       scan** button since there is no physical sticker.
       *Unlock fails ~8% of the time on purpose — that is the retry UI, not a bug.
       Tap retry.*
@@ -161,15 +161,15 @@ curl localhost:8787/dev/simulate/status
 
 # put a scooter on a ride — it starts moving along a generated street route
 curl -X POST localhost:8787/dev/simulate/ride -H 'Content-Type: application/json' \
-  -d '{"vehicle":"SCOOT-0005"}'
+  -d '{"vehicle":"000000005"}'
 
 # drop a battery (below 20% flips it to low_battery on the map)
 curl -X POST localhost:8787/dev/simulate/battery -H 'Content-Type: application/json' \
-  -d '{"vehicle":"SCOOT-0009","pct":8}'
+  -d '{"vehicle":"000000009","pct":8}'
 
 # take one offline — it stops reporting telemetry entirely
 curl -X POST localhost:8787/dev/simulate/offline -H 'Content-Type: application/json' \
-  -d '{"vehicle":"SCOOT-0011"}'
+  -d '{"vehicle":"000000011"}'
 
 # put the fleet back the way it was
 curl -X POST localhost:8787/dev/simulate/reset

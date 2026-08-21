@@ -48,12 +48,11 @@ export const RIDEABLE_VEHICLE_STATUSES: readonly VehicleStatus[] = ['available',
 /** Statuses that appear as pins on the public rider map. */
 export const PUBLIC_VEHICLE_STATUSES: readonly VehicleStatus[] = ['available', 'low_battery'];
 
-/** Printed on the scooter and encoded in its QR sticker, e.g. `SCOOT-0042`. */
+/** Printed on the scooter and encoded in its QR sticker, e.g. `000000042`. */
 export const qrCodeSchema = z
   .string()
   .trim()
-  .toUpperCase()
-  .regex(/^SCOOT-\d{4}$/, 'QR code must look like SCOOT-0042');
+  .regex(/^\d{9}$/, 'QR code must look like 000000042');
 
 export const batteryPctSchema = z.int().min(0).max(100);
 

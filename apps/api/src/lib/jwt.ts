@@ -1,5 +1,5 @@
 import { sign, verify } from 'hono/jwt';
-import { jwtClaimsSchema, type JwtClaims, type JwtRole } from '@scoot/shared';
+import { jwtClaimsSchema, type JwtClaims, type JwtRole } from '@ozothunder/shared';
 import { env } from '../env.js';
 import { unauthorized } from './errors.js';
 

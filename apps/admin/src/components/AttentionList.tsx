@@ -46,7 +46,7 @@ export function AttentionList({
           <Link
             key={row.id}
             to={row.href}
-            className="scoot-enter"
+            className="fleet-enter"
             style={{
               display: 'flex',
               alignItems: 'center',

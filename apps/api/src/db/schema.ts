@@ -23,7 +23,7 @@ import { lineString4326, point4326, polygon4326 } from './types.js';
  * Conventions:
  * - Money is integer **tiyin** in `bigint` (mode: 'number'). `integer` would
  *   cap at ~21.5M so'm, too tight for a wallet balance.
- * - Timestamps are `timestamptz`, always stored UTC. Asia/Tashkent is applied
+ * - Timestamps are `timestamptz`, always stored UTC. Asia/Samarkand is applied
  *   at display time only.
  * - Every geometry column carries a GIST index; the geofence queries in
  *   Checkpoint 3 (ST_Contains / ST_DWithin) depend on them.
@@ -118,7 +118,7 @@ export const vehicles = pgTable(
   'vehicles',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    /** Printed on the sticker, e.g. SCOOT-0042. */
+    /** Printed on the sticker, e.g. 000000042. */
     qrCode: text('qr_code').notNull(),
     imei: text('imei').notNull(),
     model: text('model').notNull(),

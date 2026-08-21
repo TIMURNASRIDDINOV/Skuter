@@ -1,5 +1,5 @@
 {
-  "name": "@scoot/api",
+  "name": "@ozothunder/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -16,7 +16,7 @@
   "dependencies": {
     "@hono/node-server": "^2.0.12",
     "@hono/zod-validator": "^0.9.0",
-    "@scoot/shared": "workspace:*",
+    "@ozothunder/shared": "workspace:*",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.32",

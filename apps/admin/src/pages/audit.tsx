@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Card, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import type { AuditLogRow } from '@scoot/shared';
+import type { AuditLogRow } from '@ozothunder/shared';
 import { apiFetch, type ListResponse } from '../lib/api.js';
 import { useServerEvents } from '../lib/events.js';
 import { formatDateTime } from '../lib/format.js';

@@ -1,7 +1,7 @@
 import { Camera, GeoJSONSource, Layer, Map, Marker } from '@maplibre/maplibre-react-native';
 import type { CameraRef } from '@maplibre/maplibre-react-native';
-import type { LatLon, ParkingCheck } from '@scoot/shared';
-import { calculateRideCost, formatSom, isPointInPolygon } from '@scoot/shared';
+import type { LatLon, ParkingCheck } from '@ozothunder/shared';
+import { calculateRideCost, formatSom, isPointInPolygon } from '@ozothunder/shared';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';

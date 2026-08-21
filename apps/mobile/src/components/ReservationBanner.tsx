@@ -1,4 +1,4 @@
-import type { Vehicle } from '@scoot/shared';
+import type { Vehicle } from '@ozothunder/shared';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Icon } from '@/components/ui';

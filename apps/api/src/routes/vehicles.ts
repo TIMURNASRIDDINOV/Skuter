@@ -5,7 +5,7 @@ import {
   qrCodeSchema,
   type AdminVehicle,
   type Vehicle,
-} from '@scoot/shared';
+} from '@ozothunder/shared';
 import { notFound } from '../lib/errors.js';
 import { repositories } from '../repositories/index.js';
 import { requireAdmin, requireRider, riderIdOf, type AppEnv } from '../middleware/auth.js';

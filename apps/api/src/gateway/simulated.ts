@@ -7,7 +7,7 @@ import {
   type LatLon,
   type Telemetry,
   type VehicleStatus,
-} from '@scoot/shared';
+} from '@ozothunder/shared';
 import { env } from '../env.js';
 import { publishEvent, serverEvents } from '../events/bus.js';
 import { logError, logInfo, logWarn } from '../lib/logger.js';

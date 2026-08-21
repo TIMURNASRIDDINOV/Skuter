@@ -1,5 +1,5 @@
 import { and, desc, eq, gt, sql, type SQL } from 'drizzle-orm';
-import type { Subscription, SubscriptionDetail, SubscriptionStatus } from '@scoot/shared';
+import type { Subscription, SubscriptionDetail, SubscriptionStatus } from '@ozothunder/shared';
 import type { Database } from '../db/client.js';
 import { plans, subscriptions, users, vehicles } from '../db/schema.js';
 import { toIso } from './mappers.js';

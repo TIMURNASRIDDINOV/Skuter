@@ -1,4 +1,4 @@
-import type { ZoneKind } from '@scoot/shared';
+import type { ZoneKind } from '@ozothunder/shared';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

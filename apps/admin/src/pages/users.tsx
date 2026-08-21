@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Card, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import type { User } from '@scoot/shared';
+import type { User } from '@ozothunder/shared';
 import { apiFetch, type ListResponse } from '../lib/api.js';
 import { formatDateTime } from '../lib/format.js';
 import { formatSom } from '../lib/money.js';

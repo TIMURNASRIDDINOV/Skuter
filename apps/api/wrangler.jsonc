@@ -1,15 +1,15 @@
 {
   // The real API on Cloudflare Workers. Deploying this under the name
-  // "scoot-api" replaces the old tunnel proxy in place — same URL, so the
+  // "ozothunder-api" replaces the old tunnel proxy in place — same URL, so the
   // installed APK, mini app and admin panel never need a rebuild.
   //
   // Cutover (see plan): create the Hyperdrive first —
-  //   wrangler hyperdrive create scoot-db --connection-string="<supabase session pooler url>"
+  //   wrangler hyperdrive create ozothunder-db --connection-string="<supabase session pooler url>"
   // then fill in its id below, set secrets (JWT_SECRET, TELEGRAM_BOT_TOKEN,
   //   TELEGRAM_WEBHOOK_SECRET), smoke-test via --env canary, DELETE the
   // canary worker (two simulators must not drive one fleet), and
   //   wrangler deploy.
-  "name": "scoot-api",
+  "name": "ozothunder-api",
   "main": "src/worker.ts",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -58,7 +58,7 @@
   },
   "env": {
     "canary": {
-      "name": "scoot-api-canary",
+      "name": "ozothunder-api-canary",
       "durable_objects": {
         "bindings": [{ "name": "FLEET", "class_name": "FleetSimulator" }]
       },

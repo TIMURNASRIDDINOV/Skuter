@@ -26,7 +26,7 @@ import { repositories } from '../repositories/index.js';
  * alone, so a Telegram rider always lands with a phone we can reach. That is
  * what makes the ride gate in services/rides.ts a formality for them.
  *
- * This is also why Scoot needs no SMS provider to verify a number — Telegram
+ * This is also why Ozo Thunder needs no SMS provider to verify a number — Telegram
  * already verified it, and vouches for it here.
  */
 export const telegramWebhookRoutes = new Hono();
@@ -34,12 +34,12 @@ export const telegramWebhookRoutes = new Hono();
 const ASK_FOR_NUMBER =
   'Осталось подтвердить номер телефона — он нужен, чтобы вы могли начать поездку.';
 const SHARE_BUTTON = '📱 Поделиться номером';
-const DONE = 'Готово! Вернитесь в приложение Scoot — вход выполнен.';
+const DONE = 'Готово! Вернитесь в приложение Ozo Thunder — вход выполнен.';
 const WRONG_COUNTRY =
-  'Scoot пока работает только с узбекскими номерами (+998). Войдите по номеру телефона в приложении.';
+  'Ozo Thunder пока работает только с узбекскими номерами (+998). Войдите по номеру телефона в приложении.';
 const NOT_YOUR_NUMBER =
   'Нужен ваш собственный номер — нажмите кнопку «Поделиться номером», а не пересылайте чужой контакт.';
-const NUMBER_TAKEN = 'Этот номер уже привязан к другому аккаунту Scoot.';
+const NUMBER_TAKEN = 'Этот номер уже привязан к другому аккаунту Ozo Thunder.';
 
 telegramWebhookRoutes.post('/webhook', async (c) => {
   if (

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { haversineDistanceM, type LatLon } from '@scoot/shared';
+import { haversineDistanceM, type LatLon } from '@ozothunder/shared';
 import { mulberry32 } from '../seed/random.js';
 import { generateStreetRoute, pickDestination, pickSpeedMps } from './paths.js';
 

@@ -8,7 +8,7 @@ consumer.** If two apps need the same shape, it belongs here.
 
 ```
 src/
-  constants.ts   Tashkent clusters, tick interval, timezone, battery thresholds
+  constants.ts   Bukhara clusters, tick interval, timezone, battery thresholds
   geo.ts         GeoJSON schemas + haversine helpers
   money.ts       tiyin integers -> "12 500 so'm"
   pricing.ts     calculateRideCost — THE ride cost function
@@ -42,11 +42,11 @@ Unit tested in `pricing.test.ts` — extend those tests before changing behaviou
 
 Built with tsup to dual ESM + CJS with `.d.ts`, so Node (API), Vite (admin) and
 Metro (mobile) all resolve it. **Consumers read `dist/`, not `src/`** — run
-`pnpm -F @scoot/shared build` after changing anything here, or `pnpm -F
-@scoot/shared dev` to watch.
+`pnpm -F @ozothunder/shared build` after changing anything here, or `pnpm -F
+@ozothunder/shared dev` to watch.
 
 ```bash
-pnpm -F @scoot/shared build
-pnpm -F @scoot/shared test
-pnpm -F @scoot/shared typecheck
+pnpm -F @ozothunder/shared build
+pnpm -F @ozothunder/shared test
+pnpm -F @ozothunder/shared typecheck
 ```

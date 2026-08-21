@@ -1,6 +1,6 @@
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
-import { createSubscriptionRequestSchema, type SubscriptionDetail } from '@scoot/shared';
+import { createSubscriptionRequestSchema, type SubscriptionDetail } from '@ozothunder/shared';
 import { repositories } from '../repositories/index.js';
 import { requireRider, riderIdOf, type AppEnv } from '../middleware/auth.js';
 import { listMySubscriptions, purchaseSubscription } from '../services/subscriptions.js';

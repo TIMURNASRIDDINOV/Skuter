@@ -135,7 +135,7 @@ zone editor writes, and `(tabs)/index.tsx` refetches them on pull-to-refresh —
 which is what makes demo step 7 work. No hardcoded rectangle anywhere.
 
 The only change is Gap 2: delete `lib/geo.ts::pointInPolygon` and use
-`isPointInPolygon` from `@scoot/shared`. `polygonCentroid` stays — it is a
+`isPointInPolygon` from `@ozothunder/shared`. `polygonCentroid` stays — it is a
 mobile-only helper for the `__DEV__` step-into-zone control and has no admin
 counterpart.
 
@@ -262,7 +262,7 @@ red. Point-in-polygon was a second, weaker implementation living in
 | `lib/fleet.ts` applies the §2.1 rule | Map shows **55**. Database says 58 public, 3 outside the service zone. 58 − 3 = 55 |
 | Nothing renders outside the service boundary | Confirmed on screen — the Keles, east and south stranded scooters are absent |
 | `low_battery` gets an explicit `%` badge | Amber pin **plus** the number, so it survives a colour-blind viewer and a sunlit phone rather than leaning on hue alone |
-| `lib/geo.ts::pointInPolygon` deleted | `ride.tsx` now uses `isPointInPolygon` from `@scoot/shared`. One implementation, and the one that handles interior rings |
+| `lib/geo.ts::pointInPolygon` deleted | `ride.tsx` now uses `isPointInPolygon` from `@ozothunder/shared`. One implementation, and the one that handles interior rings |
 | `lib/motion.ts` added | `useMotion()` wraps Reanimated's `useReducedMotion` and collapses durations to 0, so an animation becomes an instant swap without any component knowing |
 | Markers glide 250 ms ease-out | Per-marker state, so one moving scooter re-renders only itself. Clusters deliberately excluded — their centroid moves as membership changes, so animating them would animate a number, not a vehicle |
 

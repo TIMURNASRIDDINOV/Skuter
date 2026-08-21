@@ -1,4 +1,4 @@
-import type { ApiError, ApiErrorCode } from '@scoot/shared';
+import type { ApiError, ApiErrorCode } from '@ozothunder/shared';
 import * as SecureStore from 'expo-secure-store';
 
 /**
@@ -9,8 +9,8 @@ import * as SecureStore from 'expo-secure-store';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8787';
 
-const TOKEN_KEY = 'scoot.token';
-const USER_KEY = 'scoot.user';
+const TOKEN_KEY = 'ozothunder.token';
+const USER_KEY = 'ozothunder.user';
 
 let token: string | null = null;
 let onUnauthorized: (() => void) | null = null;

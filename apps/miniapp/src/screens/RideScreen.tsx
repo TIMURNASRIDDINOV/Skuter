@@ -1,5 +1,5 @@
-import type { ActiveRide, LatLon, ParkingCheck, Plan, Zone } from '@scoot/shared';
-import { calculateRideCost, formatSom } from '@scoot/shared';
+import type { ActiveRide, LatLon, ParkingCheck, Plan, Zone } from '@ozothunder/shared';
+import { calculateRideCost, formatSom } from '@ozothunder/shared';
 import maplibregl from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import {

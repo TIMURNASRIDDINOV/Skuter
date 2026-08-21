@@ -19,7 +19,7 @@ src/
     api.ts           fetch wrapper, token storage
     events.ts        the shared SSE connection
     useLiveFleet.ts  fleet state kept current from SSE
-    format.ts        dates in Asia/Tashkent, durations, distances
+    format.ts        dates in Asia/Samarkand, durations, distances
     money.ts         tiyin -> so'm
 ```
 
@@ -56,7 +56,7 @@ Custom, not `@refinedev/simple-rest`: our list endpoints return
 `{ items, total }` rather than a bare array plus `x-total-count`.
 
 Most pages **fetch directly through `apiFetch<T>`** with the shared types from
-`@scoot/shared` rather than going through Refine's hooks. That keeps full type
+`@ozothunder/shared` rather than going through Refine's hooks. That keeps full type
 safety end to end — the Refine data provider is generic in `TData extends
 BaseRecord`, so it can only assert shapes, not prove them.
 
@@ -64,8 +64,8 @@ BaseRecord`, so it can only assert shapes, not prove them.
 
 - UI strings are Russian. The rider app carries the RU/UZ toggle; the back
   office is RU only.
-- Money is formatted with `formatSom` from `@scoot/shared` — never hand-rolled.
-- Timestamps arrive UTC and are displayed in `Asia/Tashkent` via `lib/format.ts`.
+- Money is formatted with `formatSom` from `@ozothunder/shared` — never hand-rolled.
+- Timestamps arrive UTC and are displayed in `Asia/Samarkand` via `lib/format.ts`.
 - Status colours live **only** in `components/status.tsx`, so a colour never
   means two different things across the table, the map and the legend.
 - Loading states are skeletons, never a spinner on white.
@@ -80,9 +80,9 @@ is appended before saving.
 ## Commands
 
 ```bash
-pnpm -F @scoot/admin dev        # http://localhost:5173
-pnpm -F @scoot/admin typecheck
+pnpm -F @ozothunder/admin dev        # http://localhost:5173
+pnpm -F @ozothunder/admin typecheck
 ```
 
-Needs the API running (`pnpm -F @scoot/api dev`) and `VITE_API_URL` in
+Needs the API running (`pnpm -F @ozothunder/api dev`) and `VITE_API_URL` in
 `apps/admin/.env`.

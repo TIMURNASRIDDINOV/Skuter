@@ -11,8 +11,8 @@ import type {
   UserProfile,
   Vehicle,
   Zone,
-} from '@scoot/shared';
-import { SIMULATOR_TICK_MS } from '@scoot/shared';
+} from '@ozothunder/shared';
+import { SIMULATOR_TICK_MS } from '@ozothunder/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/api/client';
 import type { ListResponse } from '@/api/client';

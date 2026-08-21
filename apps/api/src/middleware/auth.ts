@@ -1,5 +1,5 @@
 import { createMiddleware } from 'hono/factory';
-import type { AdminRole } from '@scoot/shared';
+import type { AdminRole } from '@ozothunder/shared';
 import { forbidden, unauthorized } from '../lib/errors.js';
 import { readToken } from '../lib/jwt.js';
 import { repositories } from '../repositories/index.js';

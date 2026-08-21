@@ -1,5 +1,5 @@
-import { LOW_BATTERY_THRESHOLD_PCT, isPointInPolygon } from '@scoot/shared';
-import type { AdminVehicle, Ride, Zone } from '@scoot/shared';
+import { LOW_BATTERY_THRESHOLD_PCT, isPointInPolygon } from '@ozothunder/shared';
+import type { AdminVehicle, Ride, Zone } from '@ozothunder/shared';
 import type { Severity } from '../components/status.js';
 import { SEVERITY_RANK } from '../components/status.js';
 import { plural } from './format.js';
@@ -29,7 +29,7 @@ export interface Anomaly {
   severity: Severity;
   /** Id of the vehicle at fault, so a table row can find its own problems. */
   vehicleId: string;
-  /** The thing at fault, e.g. `SCOOT-0042`. */
+  /** The thing at fault, e.g. `000000042`. */
   subject: string;
   /** What is wrong with it, already localised. */
   detail: string;

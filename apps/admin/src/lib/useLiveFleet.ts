@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AdminVehicle, ServerEvent } from '@scoot/shared';
+import type { AdminVehicle, ServerEvent } from '@ozothunder/shared';
 import { apiFetch, type ListResponse } from './api.js';
 import { useServerEvents } from './events.js';
 

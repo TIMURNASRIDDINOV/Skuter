@@ -1,8 +1,8 @@
 import BottomSheet from '@gorhom/bottom-sheet';
 import { Camera, Map, UserLocation } from '@maplibre/maplibre-react-native';
 import type { CameraRef, ViewStateChangeEvent } from '@maplibre/maplibre-react-native';
-import type { LatLon, Plan, Vehicle, Zone } from '@scoot/shared';
-import { formatSom, haversineDistanceM, TASHKENT_MAP_CENTER } from '@scoot/shared';
+import type { LatLon, Plan, Vehicle, Zone } from '@ozothunder/shared';
+import { formatSom, haversineDistanceM, BUKHARA_MAP_CENTER } from '@ozothunder/shared';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
@@ -49,7 +49,7 @@ import {
 type Viewport = Pick<ViewStateChangeEvent, 'center' | 'zoom' | 'bounds'>;
 
 const INITIAL_VIEWPORT: Viewport = {
-  center: [TASHKENT_MAP_CENTER.lon, TASHKENT_MAP_CENTER.lat],
+  center: [BUKHARA_MAP_CENTER.lon, BUKHARA_MAP_CENTER.lat],
   zoom: CITY_ZOOM,
   bounds: INITIAL_BOUNDS,
 };
@@ -318,9 +318,9 @@ export default function MapScreen() {
             <View style={styles.brandMark}>
               <Icon name="scooter" size={16} color={colors.onPrimary} />
             </View>
-            <Text style={styles.brandName}>SCOOT</Text>
+            <Text style={styles.brandName}>OZO</Text>
             <View style={styles.brandCity}>
-              <Text style={styles.brandCityText}>TAS</Text>
+              <Text style={styles.brandCityText}>BUX</Text>
             </View>
           </View>
 

@@ -1,5 +1,5 @@
-import type { Plan, SubscriptionDetail } from '@scoot/shared';
-import { formatSom } from '@scoot/shared';
+import type { Plan, SubscriptionDetail } from '@ozothunder/shared';
+import { formatSom } from '@ozothunder/shared';
 
 /**
  * Аренда tab: active passes first, then the daily/weekly plans. A pass is
@@ -51,7 +51,7 @@ export function RentScreen({
                   month: 'long',
                   hour: '2-digit',
                   minute: '2-digit',
-                  timeZone: 'Asia/Tashkent',
+                  timeZone: 'Asia/Samarkand',
                 })}
               </div>
             </div>

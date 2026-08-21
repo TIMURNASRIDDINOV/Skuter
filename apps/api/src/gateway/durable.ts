@@ -1,4 +1,4 @@
-import type { CommandResult, LatLon, ServerEvent, Telemetry, VehicleStatus } from '@scoot/shared';
+import type { CommandResult, LatLon, ServerEvent, Telemetry, VehicleStatus } from '@ozothunder/shared';
 import type {
   ManagedVehicleGateway,
   SimulationControl,

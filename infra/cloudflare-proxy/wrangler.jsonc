@@ -1,5 +1,5 @@
 {
-  "name": "scoot-api",
+  "name": "ozothunder-api",
   "main": "worker.js",
   "compatibility_date": "2026-07-01",
   // ORIGIN_URL (the current tunnel hostname) is injected per-deploy by

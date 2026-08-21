@@ -1,6 +1,6 @@
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
-import { listZonesQuerySchema, type Area, type Plan, type Zone } from '@scoot/shared';
+import { listZonesQuerySchema, type Area, type Plan, type Zone } from '@ozothunder/shared';
 import { repositories } from '../repositories/index.js';
 import { requireRider, type AppEnv } from '../middleware/auth.js';
 

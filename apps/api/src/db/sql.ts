@@ -1,6 +1,6 @@
 import { sql, type SQL } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
-import type { GeoLineString, GeoPoint, GeoPolygon } from '@scoot/shared';
+import type { GeoLineString, GeoPoint, GeoPolygon } from '@ozothunder/shared';
 
 /**
  * Geometry select helpers. Postgres serialises a geometry column as WKB hex by

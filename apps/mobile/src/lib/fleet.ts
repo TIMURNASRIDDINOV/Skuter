@@ -1,5 +1,5 @@
-import type { Vehicle, Zone } from '@scoot/shared';
-import { isPointInPolygon, VEHICLE_STATUS_SEVERITY } from '@scoot/shared';
+import type { Vehicle, Zone } from '@ozothunder/shared';
+import { isPointInPolygon, VEHICLE_STATUS_SEVERITY } from '@ozothunder/shared';
 
 /**
  * Which scooters a rider is allowed to see.

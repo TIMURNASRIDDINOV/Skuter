@@ -8,22 +8,22 @@ services:
     # amd64 only, so it will not run on Apple Silicon. This is the multi-arch
     # (amd64 + arm64) build from a docker-postgis maintainer, same contents.
     image: imresamu/postgis:16-3.5
-    container_name: scoot-db
+    container_name: ozothunder-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: scoot
-      POSTGRES_PASSWORD: scoot
-      POSTGRES_DB: scoot
+      POSTGRES_USER: ozothunder
+      POSTGRES_PASSWORD: ozothunder
+      POSTGRES_DB: ozothunder
     ports:
       - '5432:5432'
     volumes:
-      - scoot-pgdata:/var/lib/postgresql/data
+      - ozothunder-pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U scoot -d scoot']
+      test: ['CMD-SHELL', 'pg_isready -U ozothunder -d ozothunder']
       interval: 3s
       timeout: 5s
       retries: 20
       start_period: 10s
 
 volumes:
-  scoot-pgdata:
+  ozothunder-pgdata:

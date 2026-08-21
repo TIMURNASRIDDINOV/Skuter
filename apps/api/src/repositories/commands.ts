@@ -1,5 +1,5 @@
 import { desc, eq } from 'drizzle-orm';
-import type { Command, CommandStatus, CommandType } from '@scoot/shared';
+import type { Command, CommandStatus, CommandType } from '@ozothunder/shared';
 import type { Database } from '../db/client.js';
 import { commands } from '../db/schema.js';
 import { toIsoOrNull } from './mappers.js';

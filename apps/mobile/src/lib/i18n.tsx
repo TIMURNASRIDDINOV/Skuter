@@ -2,9 +2,9 @@ import * as SecureStore from 'expo-secure-store';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 
-export type Language = 'ru' | 'uz';
+export type Language = 'ru' | 'uz' | 'zh-Hant';
 
-const LANG_KEY = 'scoot.lang';
+const LANG_KEY = 'ozothunder.lang';
 
 /**
  * Every user-facing string in the app, RU and UZ. The admin panel is RU-only;
@@ -12,7 +12,7 @@ const LANG_KEY = 'scoot.lang';
  */
 const ru = {
   // Auth
-  loginTitle: 'Вход в Scoot',
+  loginTitle: 'Вход в Ozo Thunder',
   loginSubtitle: 'Введите номер телефона — отправим код подтверждения',
   phonePlaceholder: '90 123 45 67',
   sendCode: 'Получить код',
@@ -50,7 +50,7 @@ const ru = {
   // Scan
   scanTitle: 'Наведите камеру на QR-код',
   scanHint: 'Код напечатан на руле самоката',
-  scanInvalid: 'Это не код Scoot — ищите наклейку вида SCOOT-0042',
+  scanInvalid: 'Это не код Ozo Thunder — ищите наклейку с 9-значным номером',
   scanConfirmed: 'Код считан',
   simulateScan: 'Симулировать скан (dev)',
   cameraDenied: 'Нет доступа к камере',
@@ -167,7 +167,7 @@ const ru = {
   // Manual code entry
   enterCodeManually: 'Ввести код вручную',
   manualCodeTitle: 'Введите код самоката',
-  manualCodeHint: 'Четыре цифры под QR-кодом, например SCOOT-0042',
+  manualCodeHint: 'Девять цифр под QR-кодом, например 000000042',
   manualCodeSubmit: 'Найти самокат',
   scanTrouble: 'Не сканируется? Введите код вручную',
   // Nearby carousel + map chrome
@@ -224,7 +224,7 @@ const ru = {
 export type Strings = typeof ru;
 
 const uz: Strings = {
-  loginTitle: 'Scoot’ga kirish',
+  loginTitle: 'Ozo Thunder’ga kirish',
   loginSubtitle: 'Telefon raqamingizni kiriting — tasdiqlash kodini yuboramiz',
   phonePlaceholder: '90 123 45 67',
   sendCode: 'Kod olish',
@@ -259,7 +259,7 @@ const uz: Strings = {
   statusMaintenance: 'Ta’mirda',
   scanTitle: 'Kamerani QR-kodga qarating',
   scanHint: 'Kod samokat rulida joylashgan',
-  scanInvalid: 'Bu Scoot kodi emas — SCOOT-0042 ko‘rinishidagi yorliqni qidiring',
+  scanInvalid: 'Bu Ozo Thunder kodi emas — 9 xonali raqamli yorliqni qidiring',
   scanConfirmed: 'Kod o‘qildi',
   simulateScan: 'Skanni simulyatsiya qilish (dev)',
   cameraDenied: 'Kameraga ruxsat yo‘q',
@@ -371,7 +371,7 @@ const uz: Strings = {
   // Manual code entry
   enterCodeManually: 'Kodni qo‘lda kiritish',
   manualCodeTitle: 'Samokat kodini kiriting',
-  manualCodeHint: 'QR-kod ostidagi to‘rt raqam, masalan SCOOT-0042',
+  manualCodeHint: 'QR-kod ostidagi to‘qqiz raqam, masalan 000000042',
   manualCodeSubmit: 'Samokatni topish',
   scanTrouble: 'Skanerlanmayaptimi? Kodni qo‘lda kiriting',
   // Nearby carousel + map chrome
@@ -424,7 +424,208 @@ const uz: Strings = {
   offlineHint: 'Internet aloqasini tekshiring',
 };
 
-const STRINGS: Record<Language, Strings> = { ru, uz };
+const zhHant: Strings = {
+  loginTitle: '登入 Ozo Thunder',
+  loginSubtitle: '輸入手機號碼，我們將發送驗證碼',
+  phonePlaceholder: '90 123 45 67',
+  sendCode: '獲取驗證碼',
+  verifyTitle: '簡訊驗證碼',
+  verifySubtitle: '已發送 6 位數驗證碼至',
+  wrongCode: '驗證碼錯誤，請重試',
+  resendCode: '重新發送驗證碼',
+  resendIn: '重新發送於',
+  devCodeHint: '已自動填入開發驗證碼',
+  scootersNearby: '輛滑板車在附近',
+  scooterNearbyOne: '輛滑板車在附近',
+  scan: '掃描',
+  battery: '電量',
+  range: '續航里程',
+  pricing: '資費',
+  unlockFee: '解鎖費',
+  perMinute: '/分鐘',
+  unlock: '解鎖',
+  subscribe: '訂閱',
+  refreshed: '地圖已更新',
+  activeRideBanner: '行程進行中',
+  emptyVehicles: '附近沒有可用的滑板車',
+  emptyVehiclesHint: '下拉以更新地圖',
+  distanceAway: '距地圖中心',
+  toggleZones: '在地圖上顯示區域',
+  onFoot: '步行',
+  statusAvailable: '可用',
+  statusLowBattery: '電量低',
+  statusInUse: '使用中',
+  statusReserved: '已預約',
+  statusOffline: '離線',
+  statusMaintenance: '維修中',
+  scanTitle: '將相機對準 QR code',
+  scanHint: '代碼印在滑板車車把上',
+  scanInvalid: '這不是 Ozo Thunder 的代碼——請尋找標有 9 位數字的貼紙',
+  scanConfirmed: '已讀取代碼',
+  simulateScan: '模擬掃描（開發用）',
+  cameraDenied: '無相機權限',
+  cameraDeniedHint: '請允許使用相機以掃描滑板車的 QR code',
+  grantCamera: '允許使用相機',
+  torch: '手電筒',
+  unlockTitle: '解鎖',
+  choosePlan: '選擇資費',
+  unlocking: '正在連接滑板車…',
+  unlockFailedTitle: '解鎖失敗',
+  retry: '重試',
+  cancel: '取消',
+  rideAlreadyActive: '您已有進行中的行程',
+  goToRide: '前往行程',
+  vehicleUnavailable: '此滑板車目前無法使用',
+  perMinutePlanName: '按分鐘計費',
+  subscriptionCovered: '由訂閱方案支付',
+  rideTitle: '行程',
+  duration: '時間',
+  distance: '距離',
+  cost: '費用',
+  endRide: '結束行程',
+  ending: '結束中…',
+  beep: '鳴笛',
+  beepSent: '滑板車已鳴笛',
+  beepFailed: '滑板車未回應',
+  inParkingZone: '在停車區內',
+  notInParkingZone: '不在停車區內',
+  cantEndHereTitle: '此處無法結束行程',
+  outsideParkingZone: '只能在停車區內結束行程',
+  insideForbiddenZone: '此處禁止停車',
+  outsideServiceArea: '您已超出服務區域',
+  nearestParking: '最近的停車點',
+  walkAway: '步行距離',
+  showOnMap: '在地圖上顯示',
+  devStepIntoZone: '進入區域（開發用）',
+  gotIt: '知道了',
+  receiptTitle: '行程已結束',
+  total: '總計',
+  plan: '資費',
+  chargedMinutes: '分鐘',
+  timeFee: '行程費',
+  parkedAt: '停放地點',
+  coveredBySubscription: '由訂閱方案支付',
+  done: '完成',
+  receiptStarted: '開始',
+  receiptEnded: '結束',
+  plansTitle: '訂閱方案',
+  plansSubtitle: '滑板車將專屬於您，並從公共地圖上隱藏',
+  choosePlanFor: '滑板車訂閱方案',
+  until: '至',
+  buyFor: '付款',
+  purchaseSuccessTitle: '訂閱方案已辦理',
+  purchaseSuccessHint: '滑板車已指定給您，並從公共地圖上隱藏',
+  paymentFailed: '付款失敗，請重試',
+  alreadySubscribed: '此滑板車已被訂閱',
+  toMap: '返回地圖',
+  day: '天',
+  days2_4: '天',
+  days5: '天',
+  noPlans: '目前沒有訂閱方案',
+  pickVehicleFirst: '請先在地圖上選擇滑板車以辦理訂閱',
+  profileTitle: '個人資料',
+  balance: '餘額',
+  nameLabel: '姓名',
+  language: '語言',
+  mySubscriptions: '我的訂閱方案',
+  noSubscriptions: '尚無訂閱方案',
+  rideHistory: '行程記錄',
+  noRides: '尚無行程記錄',
+  logout: '登出',
+  save: '儲存',
+  active: '生效中',
+  // Menu sheet, opened by ☰ over the map
+  menuTitle: '選單',
+  menuProfile: '個人資料',
+  menuNearby: '附近的滑板車',
+  legalInfo: '法律資訊',
+  appVersion: '版本',
+  namePrompt: '您的姓名是？',
+  personalSection: '個人',
+  accountSection: '帳戶',
+  phoneLabel: '電話',
+  // Rental tab
+  rentalTitle: '租賃',
+  subscriptionUntil: '至',
+  rentalDailyHint: '單一滑板車一日無限次使用',
+  rentalWeeklyHint: '單一滑板車無限次使用',
+  rentalDays: '天',
+  rentalScanCta: '掃描滑板車並購買',
+  // Telegram login
+  orSeparator: '或',
+  continueWithTelegram: '使用 Telegram 繼續',
+  telegramWaiting: '請在 Telegram 中分享您的號碼，然後返回應用程式…',
+  telegramFailed: '無法透過 Telegram 登入',
+  telegramCancel: '取消',
+  continueWithGoogle: '使用 Google 繼續',
+  googleFailed: '無法透過 Google 登入',
+  // Linking a phone to a Google or Telegram account
+  linkPhoneTitle: '驗證號碼',
+  linkPhoneSubtitle: '首次行程前需要驗證手機號碼',
+  linkPhoneCta: '獲取驗證碼',
+  linkPhoneTaken: '此號碼已綁定其他帳戶',
+  linkPhoneDone: '號碼已驗證',
+  linkPhoneViaTelegram: '透過 Telegram 驗證',
+  telegramShareHint: '在機器人中點擊「分享號碼」——無需輸入驗證碼',
+  smsSendFailed: '驗證碼發送失敗，請重試',
+  otpLimitReached: '請求驗證碼次數過多，請稍後再試',
+  // Manual code entry
+  enterCodeManually: '手動輸入代碼',
+  manualCodeTitle: '輸入滑板車代碼',
+  manualCodeHint: 'QR code 下方的 9 位數字，例如 000000042',
+  manualCodeSubmit: '尋找滑板車',
+  scanTrouble: '無法掃描？手動輸入代碼',
+  // Nearby carousel + map chrome
+  walkMinutes: '分鐘步行',
+  menuRules: '區域與規則',
+  menuHistory: '行程記錄',
+  menuRent: '訂閱方案',
+  allScooters: '所有滑板車',
+  // Tariff picker
+  tariffPerMinute: '按分鐘計費',
+  tariffAnywhere: '隨處還車',
+  tariffForDay: '1 天',
+  tariffForWeek: '1 週',
+  tariffDetails: '資費詳情',
+  pricesInSom: '價格以蘇姆計',
+  tariffStart: '起步價',
+  tariffRide: '行程',
+  tariffFreeHold: '免費預留',
+  tariffBoundToVehicle: '僅適用於此滑板車',
+  close: '關閉',
+  free: '免費',
+  minutesShort: '分鐘',
+  thenPerMinute: '之後',
+  // Reservation
+  reserve: '預約',
+  reserveFor: '預約時長',
+  reservedTitle: '滑板車已預約',
+  reservedHint: '其他人無法解鎖此滑板車',
+  reservationLeft: '剩餘',
+  cancelReservation: '取消預約',
+  reservationTaken: '滑板車已被預約——請稍後再試',
+  reservationEnded: '預約已過期',
+  // Zone sheet + rules
+  zoneParkingTitle: '停車區',
+  zoneParkingBody: '可在此結束行程',
+  zoneForbiddenTitle: '禁止通行',
+  zoneForbiddenBody: '此處不可騎行或停放',
+  zoneServiceTitle: '服務區域',
+  zoneServiceBody: '超出此範圍將無法開始或結束行程',
+  zoneSlowTitle: '速度限制',
+  zoneSlowBody: '滑板車在此區域會自動減速',
+  zoneSpeedLimit: '公里/小時',
+  moreAboutZones: '了解更多區域資訊',
+  rulesTitle: '區域與規則',
+  rulesSubtitle: '如何解讀地圖',
+  rulesSpeedNote: '若區域重疊，以最嚴格的限制為準',
+  onMapCount: '於地圖上',
+  loadingError: '資料載入失敗',
+  tryAgain: '重試',
+  offlineHint: '請檢查網路連線',
+};
+
+const STRINGS: Record<Language, Strings> = { ru, uz, 'zh-Hant': zhHant };
 
 interface LanguageContextValue {
   lang: Language;
@@ -439,7 +640,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void SecureStore.getItemAsync(LANG_KEY).then((stored) => {
-      if (stored === 'ru' || stored === 'uz') setLangState(stored);
+      if (stored === 'ru' || stored === 'uz' || stored === 'zh-Hant') setLangState(stored);
     });
   }, []);
 

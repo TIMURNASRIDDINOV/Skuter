@@ -1,4 +1,4 @@
-import type { RiderSession } from '@scoot/shared';
+import type { RiderSession } from '@ozothunder/shared';
 import { GoogleSignin, isSuccessResponse } from '@react-native-google-signin/google-signin';
 import Constants from 'expo-constants';
 import { useCallback, useState } from 'react';

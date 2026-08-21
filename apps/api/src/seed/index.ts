@@ -1,12 +1,12 @@
 import {
   FLEET_SIZE,
   LOW_BATTERY_THRESHOLD_PCT,
-  TASHKENT_CLUSTERS,
+  BUKHARA_CLUSTERS,
   isPointInPolygon,
   somToTiyin,
   type LatLon,
   type VehicleStatus,
-} from '@scoot/shared';
+} from '@ozothunder/shared';
 import { closeDatabase } from '../db/client.js';
 import { hashSecret } from '../lib/password.js';
 import { logError, write } from '../lib/logger.js';
@@ -70,7 +70,7 @@ function imeiFor(index: number): string {
 }
 
 function qrCodeFor(index: number): string {
-  return `SCOOT-${(index + 1).toString().padStart(4, '0')}`;
+  return (index + 1).toString().padStart(9, '0');
 }
 
 /**
@@ -81,9 +81,9 @@ function qrCodeFor(index: number): string {
  * where a rider who ignored the warning would actually leave one.
  */
 const STRANDED_POSITIONS: readonly LatLon[] = [
-  { lat: 41.3305, lon: 69.3942 }, // east of the boundary, out past Qibray
-  { lat: 41.1748, lon: 69.2461 }, // south, beyond Sergeli
-  { lat: 41.4018, lon: 69.1902 }, // north-west, out toward Keles
+  { lat: 39.79, lon: 64.562 }, // east of the boundary, out past Samani Park
+  { lat: 39.658, lon: 64.42 }, // south, beyond the old town
+  { lat: 39.892, lon: 64.395 }, // north-west, out toward the edge of town
 ];
 
 /** Give up resampling rather than spin forever if a cluster sits outside. */
@@ -102,11 +102,11 @@ function placeVehicles(rng: Rng): LatLon[] {
   const positions: LatLon[] = [];
   const scattered = FLEET_SIZE - STRANDED_POSITIONS.length;
 
-  const totalWeight = TASHKENT_CLUSTERS.reduce((sum, cluster) => sum + cluster.weight, 0);
+  const totalWeight = BUKHARA_CLUSTERS.reduce((sum, cluster) => sum + cluster.weight, 0);
   let assigned = 0;
 
-  TASHKENT_CLUSTERS.forEach((cluster, index) => {
-    const isLast = index === TASHKENT_CLUSTERS.length - 1;
+  BUKHARA_CLUSTERS.forEach((cluster, index) => {
+    const isLast = index === BUKHARA_CLUSTERS.length - 1;
     const share = isLast
       ? scattered - assigned
       : Math.round((cluster.weight / totalWeight) * scattered);
@@ -187,15 +187,15 @@ function buildFleet(rng: Rng, areaId: string): NewVehicle[] {
 async function main(): Promise<void> {
   const rng = mulberry32(SEED);
 
-  write('Seeding Scoot demo data…');
+  write('Seeding Ozo Thunder demo data…');
   await repositories.maintenance.truncateAll();
 
   // --- area + zones ------------------------------------------------------
-  const area = await repositories.areas.insert({ name: 'Tashkent', geom: SERVICE_AREA });
+  const area = await repositories.areas.insert({ name: 'Bukhara', geom: SERVICE_AREA });
 
   const zones = await repositories.zones.insertMany([
     {
-      name: 'Tashkent service area',
+      name: 'Bukhara service area',
       kind: 'service',
       geom: SERVICE_AREA,
       areaId: area.id,

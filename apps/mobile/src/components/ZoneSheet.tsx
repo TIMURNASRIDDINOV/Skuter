@@ -1,4 +1,4 @@
-import type { Zone, ZoneKind } from '@scoot/shared';
+import type { Zone, ZoneKind } from '@ozothunder/shared';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button, Icon, type IconName } from '@/components/ui';
 import { useI18n } from '@/lib/i18n';

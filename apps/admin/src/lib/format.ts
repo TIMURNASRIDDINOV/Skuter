@@ -3,14 +3,14 @@ import timezone from 'dayjs/plugin/timezone.js';
 import utc from 'dayjs/plugin/utc.js';
 import relativeTime from 'dayjs/plugin/relativeTime.js';
 import 'dayjs/locale/ru.js';
-import { DISPLAY_TIMEZONE, formatSom } from '@scoot/shared';
+import { DISPLAY_TIMEZONE, formatSom } from '@ozothunder/shared';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.extend(relativeTime);
 dayjs.locale('ru');
 
-/** Timestamps arrive as UTC and are displayed in Asia/Tashkent throughout. */
+/** Timestamps arrive as UTC and are displayed in Asia/Samarkand throughout. */
 export function formatDateTime(iso: string | null): string {
   if (iso === null) return '—';
   return dayjs(iso).tz(DISPLAY_TIMEZONE).format('DD.MM.YYYY HH:mm');

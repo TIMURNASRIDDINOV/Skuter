@@ -1,6 +1,6 @@
 import { GeoJSONSource, Layer, Marker } from '@maplibre/maplibre-react-native';
-import type { LatLon } from '@scoot/shared';
-import { haversineDistanceM } from '@scoot/shared';
+import type { LatLon } from '@ozothunder/shared';
+import { haversineDistanceM } from '@ozothunder/shared';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Icon } from '@/components/ui';

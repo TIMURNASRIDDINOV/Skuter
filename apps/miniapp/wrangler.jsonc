@@ -2,9 +2,9 @@
   // Static hosting for the Telegram Mini App on Cloudflare Workers.
   // Build first (env is baked in at build time), then deploy:
   //   VITE_API_URL=https://scoot-api.timurnasriddinov56.workers.dev \
-  //   VITE_DEMO_CONTROLS=1 pnpm -F @scoot/miniapp build
+  //   VITE_DEMO_CONTROLS=1 pnpm -F @ozothunder/miniapp build
   //   cd apps/miniapp && npx wrangler deploy
-  "name": "scoot-miniapp",
+  "name": "ozothunder-miniapp",
   "compatibility_date": "2026-07-01",
   "assets": {
     "directory": "./dist",

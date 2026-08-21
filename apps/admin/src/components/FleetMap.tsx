@@ -10,12 +10,12 @@ import {
 } from 'react-leaflet';
 import { Space, Typography } from 'antd';
 import {
-  TASHKENT_MAP_CENTER,
+  BUKHARA_MAP_CENTER,
   type AdminVehicle,
   type GeoLineString,
   type VehicleStatus,
   type Zone,
-} from '@scoot/shared';
+} from '@ozothunder/shared';
 import { VEHICLE_STATUS_META, ZONE_KIND_META } from './status.js';
 import { MapAutoSize } from './MapAutoSize.js';
 import 'leaflet/dist/leaflet.css';
@@ -47,7 +47,7 @@ export function FleetMap({
   zoom = 11,
   path = null,
 }: FleetMapProps): React.ReactElement {
-  const anchor = center ?? TASHKENT_MAP_CENTER;
+  const anchor = center ?? BUKHARA_MAP_CENTER;
   const centre: [number, number] = [anchor.lat, anchor.lon];
 
   const route = useMemo(

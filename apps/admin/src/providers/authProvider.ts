@@ -1,5 +1,5 @@
 import type { AuthProvider } from '@refinedev/core';
-import type { Admin, AdminSession } from '@scoot/shared';
+import type { Admin, AdminSession } from '@ozothunder/shared';
 import { API_URL, ApiRequestError, apiFetch, clearToken, getToken, setToken } from '../lib/api.js';
 
 /**

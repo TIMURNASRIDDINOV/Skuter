@@ -23,7 +23,7 @@ export function LoginPage(): React.ReactElement {
     >
       <Card style={{ width: 380 }}>
         <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 4 }}>
-          Scoot
+          Ozo Thunder
         </Typography.Title>
         <Typography.Paragraph type="secondary" style={{ marginBottom: 20 }}>
           Панель управления парком

@@ -1,13 +1,13 @@
-import type { GeoPolygon, LatLon } from '@scoot/shared';
+import type { GeoPolygon, LatLon } from '@ozothunder/shared';
 
 /**
  * Point-in-polygon deliberately does **not** live here. `isPointInPolygon` in
- * `@scoot/shared` is the one implementation, shared with the back office, and
+ * `@ozothunder/shared` is the one implementation, shared with the back office, and
  * it subtracts interior rings where the copy that used to sit in this file did
  * not. Two implementations of one domain predicate is what that package exists
  * to prevent — and the weaker one was deciding what the rider saw.
  *
- * Import it from `@scoot/shared` directly.
+ * Import it from `@ozothunder/shared` directly.
  */
 
 /**

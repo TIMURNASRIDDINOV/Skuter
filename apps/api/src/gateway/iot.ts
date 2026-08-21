@@ -1,4 +1,4 @@
-import type { CommandResult, Telemetry } from '@scoot/shared';
+import type { CommandResult, Telemetry } from '@ozothunder/shared';
 import { NotImplementedError } from '../lib/errors.js';
 import type { ManagedVehicleGateway, Unsubscribe } from './types.js';
 
@@ -9,10 +9,10 @@ import type { ManagedVehicleGateway, Unsubscribe } from './types.js';
  * controllers (Omni/Jimi-style IoT boxes on a cellular SIM) speak MQTT to a
  * broker; this class becomes an MQTT client that:
  *
- *   - publishes commands to `scoot/{imei}/command` and resolves the returned
- *     promise when the controller acknowledges on `scoot/{imei}/ack`, keyed by
+ *   - publishes commands to `ozothunder/{imei}/command` and resolves the returned
+ *     promise when the controller acknowledges on `ozothunder/{imei}/ack`, keyed by
  *     the command id already persisted in the `commands` table;
- *   - subscribes to `scoot/+/telemetry` and forwards each frame to
+ *   - subscribes to `ozothunder/+/telemetry` and forwards each frame to
  *     `subscribeTelemetry` listeners in the same `Telemetry` shape the
  *     simulator emits.
  *

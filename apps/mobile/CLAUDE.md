@@ -15,9 +15,9 @@ apply to Expo Go (see README "Maps"). The app is an **`expo-dev-client`
 development build**:
 
 ```bash
-pnpm -F @scoot/mobile exec expo prebuild --platform ios   # generates ios/ (gitignored)
-pnpm -F @scoot/mobile ios                                 # build + run on simulator/device
-pnpm -F @scoot/mobile dev                                 # dev server only, once a client is installed
+pnpm -F @ozothunder/mobile exec expo prebuild --platform ios   # generates ios/ (gitignored)
+pnpm -F @ozothunder/mobile ios                                 # build + run on simulator/device
+pnpm -F @ozothunder/mobile dev                                 # dev server only, once a client is installed
 ```
 
 `EXPO_PUBLIC_API_URL` must be reachable **from the phone** — the machine's LAN
@@ -58,7 +58,7 @@ src/
 state is polling: vehicles every 5 s, the active ride every tick (3 s). Do not
 try to open an EventSource here.
 
-**The cost ticker uses `calculateRideCost` from `@scoot/shared`** — the same
+**The cost ticker uses `calculateRideCost` from `@ozothunder/shared`** — the same
 pure function the API charges with, so the number the rider watches is the
 number on the receipt. Never approximate it locally.
 
@@ -145,11 +145,11 @@ hand-rolled.
 No hardcoded user-facing text in screens.
 
 **Money**: `formatSom` from shared, nothing hand-rolled. **Time**: stored UTC,
-displayed `Asia/Tashkent` via `lib/format.ts`.
+displayed `Asia/Samarkand` via `lib/format.ts`.
 
 ## Commands
 
 ```bash
-pnpm -F @scoot/mobile typecheck   # tsc strict; route types need `expo start` once
-pnpm -F @scoot/mobile dev         # Metro dev server (QR for the dev client)
+pnpm -F @ozothunder/mobile typecheck   # tsc strict; route types need `expo start` once
+pnpm -F @ozothunder/mobile dev         # Metro dev server (QR for the dev client)
 ```

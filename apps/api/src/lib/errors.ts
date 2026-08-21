@@ -1,5 +1,5 @@
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
-import { API_ERROR_CODES, type ApiErrorCode } from '@scoot/shared';
+import { API_ERROR_CODES, type ApiErrorCode } from '@ozothunder/shared';
 
 /**
  * Every failure the API returns deliberately is an ApiHttpError. The global

@@ -1,4 +1,4 @@
-import type { RiderSession, UserProfile } from '@scoot/shared';
+import type { RiderSession, UserProfile } from '@ozothunder/shared';
 import { useMutation } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';

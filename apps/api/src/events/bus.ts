@@ -1,4 +1,4 @@
-import type { ServerEvent } from '@scoot/shared';
+import type { ServerEvent } from '@ozothunder/shared';
 import { logError } from '../lib/logger.js';
 import { runtimeStorage } from '../runtime.js';
 

@@ -1,4 +1,4 @@
-import type { TelegramLoginPollResponse, TelegramLoginStartResponse } from '@scoot/shared';
+import type { TelegramLoginPollResponse, TelegramLoginStartResponse } from '@ozothunder/shared';
 import * as Linking from 'expo-linking';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';

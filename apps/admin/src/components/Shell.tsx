@@ -63,7 +63,7 @@ export function Shell({ children }: { children: React.ReactNode }): React.ReactE
             borderBottom: `1px solid ${token.colorBorderSecondary}`,
           }}
         >
-          {collapsed ? 'S' : 'Scoot'}
+          {collapsed ? 'O' : 'Ozo Thunder'}
         </div>
         <Menu
           mode="inline"
@@ -91,7 +91,7 @@ export function Shell({ children }: { children: React.ReactNode }): React.ReactE
           }}
         >
           <Typography.Text strong>
-            {ITEMS.find((item) => item.key === location.pathname)?.label ?? 'Scoot'}
+            {ITEMS.find((item) => item.key === location.pathname)?.label ?? 'Ozo Thunder'}
           </Typography.Text>
 
           <Space size={16}>

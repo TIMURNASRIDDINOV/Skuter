@@ -1,6 +1,6 @@
 import { sql, type SQL } from 'drizzle-orm';
 import { customType } from 'drizzle-orm/pg-core';
-import type { GeoLineString, GeoPoint, GeoPolygon } from '@scoot/shared';
+import type { GeoLineString, GeoPoint, GeoPolygon } from '@ozothunder/shared';
 
 /**
  * PostGIS column types.

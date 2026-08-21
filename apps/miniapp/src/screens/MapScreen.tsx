@@ -1,5 +1,5 @@
-import type { Plan, Vehicle, Zone } from '@scoot/shared';
-import { formatSom } from '@scoot/shared';
+import type { Plan, Vehicle, Zone } from '@ozothunder/shared';
+import { formatSom } from '@ozothunder/shared';
 import type { FeatureCollection, Point } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';

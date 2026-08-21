@@ -7,7 +7,7 @@ import {
   startRideRequestSchema,
   type ParkingCheck,
   type Ride,
-} from '@scoot/shared';
+} from '@ozothunder/shared';
 import { publishEvent } from '../events/bus.js';
 import { getVehicleGateway } from '../gateway/index.js';
 import { notFound } from '../lib/errors.js';

@@ -9,8 +9,8 @@ import type {
   UserProfile,
   Vehicle,
   Zone,
-} from '@scoot/shared';
-import { SIMULATOR_TICK_MS } from '@scoot/shared';
+} from '@ozothunder/shared';
+import { SIMULATOR_TICK_MS } from '@ozothunder/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import type { ListResponse } from './api';
@@ -166,7 +166,7 @@ export function App() {
 
   /** A scanned or typed code lands here from either entry point. */
   const resolveCode = (raw: string): boolean => {
-    const match = raw.toUpperCase().match(/SCOOT-\d{4}/);
+    const match = raw.match(/\d{9}/);
     const vehicle = match === null ? undefined : vehicles.find((v) => v.qrCode === match[0]);
     if (vehicle === undefined) {
       haptic('error');

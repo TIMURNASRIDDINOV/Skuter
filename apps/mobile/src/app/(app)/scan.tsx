@@ -1,5 +1,5 @@
 import BottomSheet, { BottomSheetTextInput, BottomSheetView } from '@gorhom/bottom-sheet';
-import { qrCodeSchema } from '@scoot/shared';
+import { qrCodeSchema } from '@ozothunder/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { ZoomIn } from 'react-native-reanimated';
-import type { Vehicle } from '@scoot/shared';
+import type { Vehicle } from '@ozothunder/shared';
 import { queryKeys } from '@/api/queries';
 import type { ListResponse } from '@/api/client';
 import { Button, Icon, IconButton } from '@/components/ui';
@@ -104,7 +104,7 @@ export default function ScanScreen() {
   };
 
   const submitManual = () => {
-    const parsed = qrCodeSchema.safeParse(`SCOOT-${digits}`);
+    const parsed = qrCodeSchema.safeParse(digits);
     if (parsed.success) proceed(parsed.data);
   };
 
@@ -154,22 +154,21 @@ export default function ScanScreen() {
         <Text style={styles.sheetTitle}>{t.manualCodeTitle}</Text>
         <Text style={styles.sheetHint}>{t.manualCodeHint}</Text>
         <View style={styles.codeRow}>
-          <Text style={styles.codePrefix}>SCOOT-</Text>
           <BottomSheetTextInput
             style={styles.codeInput}
             value={digits}
-            onChangeText={(text) => setDigits(text.replace(/\D/g, '').slice(0, 4))}
+            onChangeText={(text) => setDigits(text.replace(/\D/g, '').slice(0, 9))}
             keyboardType="number-pad"
-            placeholder="0042"
+            placeholder="000000042"
             placeholderTextColor={colors.textSecondary}
-            maxLength={4}
+            maxLength={9}
             testID="manual-code-input"
           />
         </View>
         <Button
           label={t.manualCodeSubmit}
           onPress={submitManual}
-          disabled={!/^\d{4}$/.test(digits)}
+          disabled={!/^\d{9}$/.test(digits)}
         />
       </BottomSheetView>
     </BottomSheet>
@@ -429,7 +428,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.s,
   },
-  codePrefix: { ...typography.title, color: colors.textSecondary, letterSpacing: 1 },
   codeInput: {
     ...typography.title,
     color: colors.text,

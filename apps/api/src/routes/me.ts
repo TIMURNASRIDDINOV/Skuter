@@ -7,7 +7,7 @@ import {
   verifyOtpRequestSchema,
   type TelegramLoginStartResponse,
   type UserProfile,
-} from '@scoot/shared';
+} from '@ozothunder/shared';
 import { env } from '../env.js';
 import { NotImplementedError, conflict, notFound } from '../lib/errors.js';
 import { generateNonce } from '../lib/telegram.js';

@@ -4,7 +4,7 @@ import {
   type LatLon,
   type Vehicle,
   type VehicleStatus,
-} from '@scoot/shared';
+} from '@ozothunder/shared';
 import { publishEvent } from '../events/bus.js';
 import { getSimulationControl } from '../gateway/index.js';
 import { conflict, notFound } from '../lib/errors.js';

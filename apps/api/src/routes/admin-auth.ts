@@ -1,6 +1,6 @@
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
-import { adminLoginRequestSchema, type AdminSession } from '@scoot/shared';
+import { adminLoginRequestSchema, type AdminSession } from '@ozothunder/shared';
 import { unauthorized } from '../lib/errors.js';
 import { issueToken } from '../lib/jwt.js';
 import { verifySecret } from '../lib/password.js';

@@ -1,6 +1,6 @@
 import { Descriptions, Drawer, Progress, Space, Typography, theme } from 'antd';
-import type { AdminVehicle, Zone } from '@scoot/shared';
-import { LOW_BATTERY_THRESHOLD_PCT } from '@scoot/shared';
+import type { AdminVehicle, Zone } from '@ozothunder/shared';
+import { LOW_BATTERY_THRESHOLD_PCT } from '@ozothunder/shared';
 import type { Anomaly } from '../lib/anomalies.js';
 import { formatDateTime, formatRelative } from '../lib/format.js';
 import { SEVERITY_META, VehicleStatusTag } from './status.js';

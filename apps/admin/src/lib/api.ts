@@ -1,13 +1,13 @@
-import type { ApiError } from '@scoot/shared';
+import type { ApiError } from '@ozothunder/shared';
 
 /**
- * Thin fetch wrapper around the Scoot API. Every call carries the admin bearer
+ * Thin fetch wrapper around the Ozo Thunder API. Every call carries the admin bearer
  * token and surfaces the API's structured error body.
  */
 
 export const API_URL: string = import.meta.env['VITE_API_URL'] ?? 'http://localhost:8787';
 
-const TOKEN_KEY = 'scoot.admin.token';
+const TOKEN_KEY = 'ozothunder.admin.token';
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);

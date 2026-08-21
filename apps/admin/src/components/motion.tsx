@@ -110,7 +110,7 @@ export function useFlashOnChange(token: string | number): string {
     };
   }, [token]);
 
-  return flashing ? 'scoot-flash' : '';
+  return flashing ? 'fleet-flash' : '';
 }
 
 /** Long enough to notice out of the corner of an eye, short enough to ignore. */
@@ -171,22 +171,22 @@ export function useRecentlyChanged<T>(
 export function MotionStyles(): React.ReactElement {
   return (
     <style>{`
-      @keyframes scoot-flash-fade {
+      @keyframes fleet-flash-fade {
         from { background-color: rgba(22, 119, 255, 0.16); }
         to   { background-color: transparent; }
       }
-      .scoot-flash > td {
-        animation: scoot-flash-fade ${String(FLASH_MS)}ms ease-out;
+      .fleet-flash > td {
+        animation: fleet-flash-fade ${String(FLASH_MS)}ms ease-out;
       }
-      .scoot-enter {
-        animation: scoot-enter-fade 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      .fleet-enter {
+        animation: fleet-enter-fade 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
       }
-      @keyframes scoot-enter-fade {
+      @keyframes fleet-enter-fade {
         from { opacity: 0; transform: translateY(4px); }
         to   { opacity: 1; transform: none; }
       }
       @media (prefers-reduced-motion: reduce) {
-        .scoot-flash > td, .scoot-enter { animation: none; }
+        .fleet-flash > td, .fleet-enter { animation: none; }
       }
     `}</style>
   );

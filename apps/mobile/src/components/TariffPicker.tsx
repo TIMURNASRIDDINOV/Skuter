@@ -1,5 +1,5 @@
-import type { Plan } from '@scoot/shared';
-import { formatSom, formatSomAmount, RESERVATION_HOLD_MS } from '@scoot/shared';
+import type { Plan } from '@ozothunder/shared';
+import { formatSom, formatSomAmount, RESERVATION_HOLD_MS } from '@ozothunder/shared';
 import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button, Icon } from '@/components/ui';

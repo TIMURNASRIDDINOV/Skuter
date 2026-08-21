@@ -11,7 +11,7 @@ import {
 } from 'antd';
 import { StopOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import type { RideReceipt, RideStatus } from '@scoot/shared';
+import type { RideReceipt, RideStatus } from '@ozothunder/shared';
 import { apiFetch, type ListResponse } from '../lib/api.js';
 import { useServerEvents } from '../lib/events.js';
 import { formatDuration, formatDistance, formatTime, plural } from '../lib/format.js';
@@ -343,7 +343,7 @@ export function RidesPage(): React.ReactElement {
             size="small"
             dataSource={rides}
             columns={columns}
-            rowClassName={(ride) => (flashing.has(ride.id) ? 'scoot-flash' : '')}
+            rowClassName={(ride) => (flashing.has(ride.id) ? 'fleet-flash' : '')}
             onRow={(ride) => ({
               onClick: () => {
                 setSelectedId(ride.id);

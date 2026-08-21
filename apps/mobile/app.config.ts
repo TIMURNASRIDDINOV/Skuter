@@ -23,20 +23,20 @@ const googleIosUrlScheme =
     : `com.googleusercontent.apps.${iosClientId.replace('.apps.googleusercontent.com', '')}`;
 
 const config: ExpoConfig = {
-  name: 'Scoot',
-  slug: 'scoot',
+  name: 'Ozo Thunder',
+  slug: 'ozothunder',
   // Required for `eas build --non-interactive`, which cannot otherwise work
   // out which account owns the project.
   owner: 'temurnasriddinov',
   version: '0.1.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
-  scheme: 'scoot',
+  scheme: 'ozothunder',
   // The demo is designed against one palette; a half-designed dark theme
   // reads worse than none.
   userInterfaceStyle: 'light',
   ios: {
-    bundleIdentifier: 'uz.scoot.rider',
+    bundleIdentifier: 'uz.ozothunder.rider',
     supportsTablet: false,
     config: {
       // No custom crypto — skips the App Store export-compliance prompt.
@@ -50,7 +50,7 @@ const config: ExpoConfig = {
     },
   },
   android: {
-    package: 'uz.scoot.rider',
+    package: 'uz.ozothunder.rider',
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
       foregroundImage: './assets/images/android-icon-foreground.png',
@@ -89,14 +89,14 @@ const config: ExpoConfig = {
     [
       'expo-camera',
       {
-        cameraPermission: 'Scoot использует камеру, чтобы сканировать QR-код на самокате.',
+        cameraPermission: 'Ozo Thunder использует камеру, чтобы сканировать QR-код на самокате.',
       },
     ],
     [
       'expo-location',
       {
         locationWhenInUsePermission:
-          'Scoot использует геопозицию, чтобы показывать самокаты рядом с вами.',
+          'Ozo Thunder использует геопозицию, чтобы показывать самокаты рядом с вами.',
       },
     ],
     'expo-secure-store',

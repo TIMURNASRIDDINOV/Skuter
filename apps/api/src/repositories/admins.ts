@@ -1,5 +1,5 @@
 import { and, desc, eq } from 'drizzle-orm';
-import type { Admin, AdminRole, AuditLogRow, ListAuditLogQuery } from '@scoot/shared';
+import type { Admin, AdminRole, AuditLogRow, ListAuditLogQuery } from '@ozothunder/shared';
 import type { Database } from '../db/client.js';
 import { admins, auditLog } from '../db/schema.js';
 import { toAdmin, toAuditLogRow, type AdminRow, type AuditLogRowRaw } from './mappers.js';

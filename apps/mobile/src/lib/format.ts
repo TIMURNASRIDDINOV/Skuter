@@ -1,9 +1,9 @@
-import { DISPLAY_TIMEZONE } from '@scoot/shared';
+import { DISPLAY_TIMEZONE } from '@ozothunder/shared';
 import type { Language } from '@/lib/i18n';
 
-const LOCALE: Record<Language, string> = { ru: 'ru-RU', uz: 'uz-UZ' };
+const LOCALE: Record<Language, string> = { ru: 'ru-RU', uz: 'uz-UZ', 'zh-Hant': 'zh-Hant' };
 
-/** `14:32` in Asia/Tashkent. */
+/** `14:32` in Asia/Samarkand. */
 export function formatTime(iso: string, lang: Language): string {
   return new Intl.DateTimeFormat(LOCALE[lang], {
     timeZone: DISPLAY_TIMEZONE,
@@ -12,7 +12,7 @@ export function formatTime(iso: string, lang: Language): string {
   }).format(new Date(iso));
 }
 
-/** `28 июля, 14:32` in Asia/Tashkent. */
+/** `28 июля, 14:32` in Asia/Samarkand. */
 export function formatDateTime(iso: string, lang: Language): string {
   return new Intl.DateTimeFormat(LOCALE[lang], {
     timeZone: DISPLAY_TIMEZONE,
@@ -23,7 +23,7 @@ export function formatDateTime(iso: string, lang: Language): string {
   }).format(new Date(iso));
 }
 
-/** `28 июля 2026` in Asia/Tashkent — for subscription expiry dates. */
+/** `28 июля 2026` in Asia/Samarkand — for subscription expiry dates. */
 export function formatDate(iso: string, lang: Language): string {
   return new Intl.DateTimeFormat(LOCALE[lang], {
     timeZone: DISPLAY_TIMEZONE,
@@ -46,8 +46,8 @@ export function formatDuration(totalSeconds: number): string {
 
 /** `320 м` below a kilometre, `1,2 км` above. */
 export function formatDistance(metres: number, lang: Language): string {
-  const unitM = lang === 'uz' ? 'm' : 'м';
-  const unitKm = lang === 'uz' ? 'km' : 'км';
+  const unitM = lang === 'uz' ? 'm' : lang === 'zh-Hant' ? '公尺' : 'м';
+  const unitKm = lang === 'uz' ? 'km' : lang === 'zh-Hant' ? '公里' : 'км';
   if (metres < 1000) return `${Math.round(metres)} ${unitM}`;
   const km = (metres / 1000).toFixed(1).replace('.', ',');
   return `${km} ${unitKm}`;
@@ -61,8 +61,8 @@ export function formatDistance(metres: number, lang: Language): string {
  */
 export function formatMinutes(totalMinutes: number, lang: Language): string {
   const minutes = Math.max(0, Math.round(totalMinutes));
-  const h = lang === 'uz' ? 'soat' : 'ч';
-  const m = lang === 'uz' ? 'daq' : 'мин';
+  const h = lang === 'uz' ? 'soat' : lang === 'zh-Hant' ? '小時' : 'ч';
+  const m = lang === 'uz' ? 'daq' : lang === 'zh-Hant' ? '分鐘' : 'мин';
   if (minutes < 60) return `${minutes} ${m}`;
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;

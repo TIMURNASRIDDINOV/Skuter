@@ -58,7 +58,7 @@ export const dashboardStatsSchema = z.object({
 export type DashboardStats = z.infer<typeof dashboardStatsSchema>;
 
 export const revenuePointSchema = z.object({
-  /** Calendar day in Asia/Tashkent, as `YYYY-MM-DD`. */
+  /** Calendar day in Asia/Samarkand, as `YYYY-MM-DD`. */
   date: z.string(),
   revenueTiyin: z.int().nonnegative(),
   rides: z.int().nonnegative(),

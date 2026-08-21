@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 import pg from 'pg';
-import type { ServerEvent } from '@scoot/shared';
+import type { ServerEvent } from '@ozothunder/shared';
 import { app } from './app.js';
 import { createDatabase } from './db/client.js';
 import type { EventSink } from './events/bus.js';

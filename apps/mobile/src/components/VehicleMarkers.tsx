@@ -1,6 +1,6 @@
 import { Marker } from '@maplibre/maplibre-react-native';
 import type { LngLatBounds } from '@maplibre/maplibre-react-native';
-import type { LatLon, Vehicle } from '@scoot/shared';
+import type { LatLon, Vehicle } from '@ozothunder/shared';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Supercluster from 'supercluster';

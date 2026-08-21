@@ -20,6 +20,9 @@ importers:
       '@ant-design/icons':
         specifier: ^6.3.2
         version: 6.3.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@ozothunder/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@refinedev/antd':
         specifier: ^6.0.3
         version: 6.0.3(@refinedev/core@5.0.12(@tanstack/react-query@5.101.4(react@19.2.8))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(antd@5.29.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(dayjs@1.11.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(supports-color@8.1.1)
@@ -29,9 +32,6 @@ importers:
       '@refinedev/react-router':
         specifier: ^2.0.4
         version: 2.0.4(@refinedev/core@5.0.12(@tanstack/react-query@5.101.4(react@19.2.8))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react-router@7.18.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
-      '@scoot/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       antd:
         specifier: ^5.29.3
         version: 5.29.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -90,7 +90,7 @@ importers:
       '@hono/zod-validator':
         specifier: ^0.9.0
         version: 0.9.0(hono@4.12.32)(zod@4.4.3)
-      '@scoot/shared':
+      '@ozothunder/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       bcryptjs:
@@ -136,7 +136,7 @@ importers:
 
   apps/miniapp:
     dependencies:
-      '@scoot/shared':
+      '@ozothunder/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@tanstack/react-query':
@@ -179,12 +179,12 @@ importers:
       '@maplibre/maplibre-react-native':
         specifier: ^11.3.6
         version: 11.3.6(@types/geojson@7946.0.16)(@types/react@19.2.17)(expo@56.0.17)(react-native@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.17)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
+      '@ozothunder/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@react-native-google-signin/google-signin':
         specifier: ^16.1.4
         version: 16.1.4(expo@56.0.17)(react-native@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.17)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
-      '@scoot/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@tanstack/react-query':
         specifier: ^5.101.4
         version: 5.101.4(react@19.2.3)

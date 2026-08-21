@@ -1,5 +1,5 @@
-import type { RideReceipt } from '@scoot/shared';
-import { formatSom } from '@scoot/shared';
+import type { RideReceipt } from '@ozothunder/shared';
+import { formatSom } from '@ozothunder/shared';
 import { formatDistance, formatDuration } from '../lib';
 
 export function ReceiptScreen({

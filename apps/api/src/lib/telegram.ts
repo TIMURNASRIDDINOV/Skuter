@@ -195,7 +195,7 @@ export function parseSharedContact(update: unknown): SharedContactResult | null 
  * accepts, or null if this is not an Uzbek mobile number.
  *
  * A foreign number is a deliberate null rather than a stored value: the whole
- * product is Tashkent-only and `phoneSchema` is `+998`-only, so accepting one
+ * product is Bukhara-only and `phoneSchema` is `+998`-only, so accepting one
  * here would just push the failure somewhere less explainable.
  */
 export function normalisePhone(raw: string): string | null {

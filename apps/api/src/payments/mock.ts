@@ -1,4 +1,4 @@
-import type { ChargeResult, PaymentProviderName, Tiyin } from '@scoot/shared';
+import type { ChargeResult, PaymentProviderName, Tiyin } from '@ozothunder/shared';
 import type { ChargeInput, PaymentProvider } from './provider.js';
 
 /**

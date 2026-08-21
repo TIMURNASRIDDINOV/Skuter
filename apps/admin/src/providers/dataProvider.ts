@@ -10,7 +10,7 @@ import type {
 import { API_URL, apiFetch, type ListResponse } from '../lib/api.js';
 
 /**
- * Refine data provider over the Scoot API.
+ * Refine data provider over the Ozo Thunder API.
  *
  * Custom rather than `@refinedev/simple-rest` for two reasons: our list
  * endpoints return `{ items, total }` rather than a bare array plus an
@@ -20,7 +20,7 @@ import { API_URL, apiFetch, type ListResponse } from '../lib/api.js';
  * provider only learns the shape at runtime — so each response is asserted to
  * `TData` at the boundary. That assertion is the contract every Refine data
  * provider makes; the real type safety comes from the pages, which fetch
- * through `apiFetch<T>` with the shared types from `@scoot/shared`.
+ * through `apiFetch<T>` with the shared types from `@ozothunder/shared`.
  */
 
 function resourcePath(resource: string): string {

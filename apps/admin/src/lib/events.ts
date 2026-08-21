@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ServerEvent, ServerEventType } from '@scoot/shared';
+import type { ServerEvent, ServerEventType } from '@ozothunder/shared';
 import { API_URL, getToken } from './api.js';
 
 /**

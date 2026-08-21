@@ -12,7 +12,7 @@ import {
   updateZoneRequestSchema,
   type DashboardStats,
   type RevenuePoint,
-} from '@scoot/shared';
+} from '@ozothunder/shared';
 import { env } from '../env.js';
 import { publishEvent, serverEvents } from '../events/bus.js';
 import { notFound } from '../lib/errors.js';

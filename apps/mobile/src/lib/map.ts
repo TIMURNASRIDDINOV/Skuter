@@ -1,4 +1,4 @@
-import { TASHKENT_MAP_CENTER, TASHKENT_MAP_DELTA } from '@scoot/shared';
+import { BUKHARA_MAP_CENTER, BUKHARA_MAP_DELTA } from '@ozothunder/shared';
 import type { LngLatBounds } from '@maplibre/maplibre-react-native';
 import { Dimensions } from 'react-native';
 
@@ -21,7 +21,7 @@ function lonDeltaToZoom(longitudeDelta: number): number {
 }
 
 /** Whole-city view — mirrors the old 0.22° initial region. */
-export const CITY_ZOOM = lonDeltaToZoom(TASHKENT_MAP_DELTA.longitudeDelta);
+export const CITY_ZOOM = lonDeltaToZoom(BUKHARA_MAP_DELTA.longitudeDelta);
 
 /** Close-up on one vehicle (old 0.01° region). */
 export const FOCUS_ZOOM = lonDeltaToZoom(0.01);
@@ -31,8 +31,8 @@ export const RIDE_ZOOM = lonDeltaToZoom(0.008);
 
 /** Initial viewport bounds, for clustering before the first camera event. */
 export const INITIAL_BOUNDS: LngLatBounds = [
-  TASHKENT_MAP_CENTER.lon - TASHKENT_MAP_DELTA.longitudeDelta / 2,
-  TASHKENT_MAP_CENTER.lat - TASHKENT_MAP_DELTA.latitudeDelta / 2,
-  TASHKENT_MAP_CENTER.lon + TASHKENT_MAP_DELTA.longitudeDelta / 2,
-  TASHKENT_MAP_CENTER.lat + TASHKENT_MAP_DELTA.latitudeDelta / 2,
+  BUKHARA_MAP_CENTER.lon - BUKHARA_MAP_DELTA.longitudeDelta / 2,
+  BUKHARA_MAP_CENTER.lat - BUKHARA_MAP_DELTA.latitudeDelta / 2,
+  BUKHARA_MAP_CENTER.lon + BUKHARA_MAP_DELTA.longitudeDelta / 2,
+  BUKHARA_MAP_CENTER.lat + BUKHARA_MAP_DELTA.latitudeDelta / 2,
 ];

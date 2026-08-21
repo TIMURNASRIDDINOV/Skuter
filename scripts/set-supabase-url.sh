@@ -58,14 +58,14 @@ mv "$ENV_FILE.tmp" "$ENV_FILE"
 echo "Готово: SUPABASE_DB_URL записан (пароль ${#PASSWORD} символов, не показан)."
 echo "Проверяю подключение…"
 
-if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' | grep -q '^scoot-db$'; then
-  if docker exec -e PGURL="$URL" scoot-db psql "$PGURL" -tAc 'select 1' >/dev/null 2>&1 \
-     || docker exec -i scoot-db env PGURL="$URL" psql "$URL" -tAc 'select 1' >/dev/null 2>&1; then
+if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' | grep -q '^ozothunder-db$'; then
+  if docker exec -e PGURL="$URL" ozothunder-db psql "$PGURL" -tAc 'select 1' >/dev/null 2>&1 \
+     || docker exec -i ozothunder-db env PGURL="$URL" psql "$URL" -tAc 'select 1' >/dev/null 2>&1; then
     echo "Подключение работает."
   else
     echo "Подключиться не удалось — вероятно, неверный пароль. Сбрось его и запусти снова." >&2
     exit 1
   fi
 else
-  echo "Локальный контейнер scoot-db не запущен — проверку подключения пропускаю."
+  echo "Локальный контейнер ozothunder-db не запущен — проверку подключения пропускаю."
 fi

@@ -1,5 +1,5 @@
-import type { Vehicle } from '@scoot/shared';
-import { formatSom } from '@scoot/shared';
+import type { Vehicle } from '@ozothunder/shared';
+import { formatSom } from '@ozothunder/shared';
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';

@@ -1,4 +1,4 @@
-# Scoot — Tashkent scooter-sharing demo
+# Ozo Thunder — Bukhara scooter-sharing demo
 
 A client pitch, not a product. There is no scooter hardware and there are no
 real payments: the fleet is simulated behind a swappable gateway, and payments
@@ -44,7 +44,7 @@ variable.
 ## Money and time
 
 Integer **tiyin** internally (1 so'm = 100 tiyin), displayed as `12 500 so'm`.
-All timestamps stored and transported UTC, displayed in `Asia/Tashkent`.
+All timestamps stored and transported UTC, displayed in `Asia/Samarkand`.
 
 ## Build order
 

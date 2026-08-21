@@ -1,6 +1,6 @@
 import { GeoJSONSource, Layer } from '@maplibre/maplibre-react-native';
 import type { FillLayerSpecification } from '@maplibre/maplibre-react-native';
-import type { Zone } from '@scoot/shared';
+import type { Zone } from '@ozothunder/shared';
 import { useMemo } from 'react';
 import { ZONE_KIND_COLOUR } from '@/lib/theme';
 

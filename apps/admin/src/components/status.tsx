@@ -1,9 +1,9 @@
 import { Tag } from 'antd';
-import type { Severity, VehicleStatus } from '@scoot/shared';
-import { SEVERITY_RANK, VEHICLE_STATUS_SEVERITY } from '@scoot/shared';
+import type { Severity, VehicleStatus } from '@ozothunder/shared';
+import { SEVERITY_RANK, VEHICLE_STATUS_SEVERITY } from '@ozothunder/shared';
 
 /**
- * The severity axis itself now lives in `@scoot/shared`, because the rider app
+ * The severity axis itself now lives in `@ozothunder/shared`, because the rider app
  * has to agree with the back office about what is wrong with a scooter. It is
  * re-exported here so every existing import in this app keeps working, and so
  * this file remains the one place to look for "what does a status look like".

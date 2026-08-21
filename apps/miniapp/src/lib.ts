@@ -1,10 +1,10 @@
-import type { GeoPolygon, LatLon, VehicleStatus, ZoneKind } from '@scoot/shared';
-import { TASHKENT_MAP_CENTER } from '@scoot/shared';
+import type { GeoPolygon, LatLon, VehicleStatus, ZoneKind } from '@ozothunder/shared';
+import { BUKHARA_MAP_CENTER } from '@ozothunder/shared';
 
 /** Same OpenFreeMap style the native app uses (apps/mobile/src/lib/map.ts). */
 export const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 
-export const MAP_CENTER: [number, number] = [TASHKENT_MAP_CENTER.lon, TASHKENT_MAP_CENTER.lat];
+export const MAP_CENTER: [number, number] = [BUKHARA_MAP_CENTER.lon, BUKHARA_MAP_CENTER.lat];
 
 /**
  * Colours mirror apps/mobile/src/lib/theme.ts and the admin's status.tsx —

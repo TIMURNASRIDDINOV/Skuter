@@ -1,5 +1,5 @@
-import type { Plan, SubscriptionDetail } from '@scoot/shared';
-import { formatSom } from '@scoot/shared';
+import type { Plan, SubscriptionDetail } from '@ozothunder/shared';
+import { formatSom } from '@ozothunder/shared';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { usePlans, useSubscriptions } from '@/api/queries';

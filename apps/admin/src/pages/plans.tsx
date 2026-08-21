@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { App as AntApp, Button, Card, Form, InputNumber, Modal, Table, Tag, Typography } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { somToTiyin, tiyinToSom, type Plan } from '@scoot/shared';
+import { somToTiyin, tiyinToSom, type Plan } from '@ozothunder/shared';
 import { apiFetch, type ListResponse } from '../lib/api.js';
 import { formatSom } from '../lib/money.js';
 import { EmptyState, ErrorState, TableSkeleton } from '../components/states.js';

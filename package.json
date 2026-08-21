@@ -1,5 +1,5 @@
 {
-  "name": "scoot",
+  "name": "ozothunder",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@11.17.0",
@@ -7,15 +7,15 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "concurrently -n api,admin,mobile -c cyan,magenta,green \"pnpm -F @scoot/api dev\" \"pnpm -F @scoot/admin dev\" \"pnpm -F @scoot/mobile dev\"",
-    "build": "pnpm -F @scoot/shared build",
+    "dev": "concurrently -n api,admin,mobile -c cyan,magenta,green \"pnpm -F @ozothunder/api dev\" \"pnpm -F @ozothunder/admin dev\" \"pnpm -F @ozothunder/mobile dev\"",
+    "build": "pnpm -F @ozothunder/shared build",
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
-    "db:generate": "pnpm -F @scoot/api db:generate",
-    "db:migrate": "pnpm -F @scoot/api db:migrate",
-    "db:seed": "pnpm -F @scoot/api db:seed",
+    "db:generate": "pnpm -F @ozothunder/api db:generate",
+    "db:migrate": "pnpm -F @ozothunder/api db:migrate",
+    "db:seed": "pnpm -F @ozothunder/api db:seed",
     "db:reset": "docker compose down -v && pnpm db:up && pnpm db:migrate && pnpm db:seed",
-    "db:studio": "pnpm -F @scoot/api db:studio",
+    "db:studio": "pnpm -F @ozothunder/api db:studio",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint"

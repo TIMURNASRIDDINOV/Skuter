@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, Input, Progress, Segmented, Space, Table, Typography, theme } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import type { AdminVehicle, Ride, VehicleStatus, Zone } from '@scoot/shared';
-import { LOW_BATTERY_THRESHOLD_PCT } from '@scoot/shared';
+import type { AdminVehicle, Ride, VehicleStatus, Zone } from '@ozothunder/shared';
+import { LOW_BATTERY_THRESHOLD_PCT } from '@ozothunder/shared';
 import { useLiveFleet } from '../lib/useLiveFleet.js';
 import { apiFetch, type ListResponse } from '../lib/api.js';
 import { useServerEvents } from '../lib/events.js';
@@ -277,7 +277,7 @@ export function VehiclesPage(): React.ReactElement {
             size="small"
             dataSource={filtered}
             columns={columns}
-            rowClassName={(vehicle) => (flashing.has(vehicle.id) ? 'scoot-flash' : '')}
+            rowClassName={(vehicle) => (flashing.has(vehicle.id) ? 'fleet-flash' : '')}
             onRow={(vehicle) => ({
               onClick: () => {
                 setSelected(vehicle);

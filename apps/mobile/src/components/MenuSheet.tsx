@@ -1,5 +1,5 @@
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { formatSom } from '@scoot/shared';
+import { formatSom } from '@ozothunder/shared';
 import Constants from 'expo-constants';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useProfile, useSubscriptions } from '@/api/queries';

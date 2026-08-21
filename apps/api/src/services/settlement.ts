@@ -4,7 +4,7 @@ import {
   type LatLon,
   type Ride,
   type RideCostBreakdownPayload,
-} from '@scoot/shared';
+} from '@ozothunder/shared';
 import { publishEvent } from '../events/bus.js';
 import { getPaymentProvider } from '../payments/index.js';
 import type { Repositories } from '../repositories/index.js';

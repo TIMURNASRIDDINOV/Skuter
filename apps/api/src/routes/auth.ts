@@ -9,7 +9,7 @@ import {
   type TelegramLoginPollResponse,
   type TelegramLoginStartResponse,
   type User,
-} from '@scoot/shared';
+} from '@ozothunder/shared';
 import { env, googleClientIds } from '../env.js';
 import { NotImplementedError, badRequest, notFound, unauthorized } from '../lib/errors.js';
 import { verifyGoogleIdToken } from '../lib/google.js';

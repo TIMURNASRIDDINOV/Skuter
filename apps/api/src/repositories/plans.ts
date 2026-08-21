@@ -1,5 +1,5 @@
 import { asc, eq } from 'drizzle-orm';
-import type { Plan, PlanKind } from '@scoot/shared';
+import type { Plan, PlanKind } from '@ozothunder/shared';
 import type { Database } from '../db/client.js';
 import { plans } from '../db/schema.js';
 import { toPlan, type PlanRow } from './mappers.js';

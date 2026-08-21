@@ -1,4 +1,4 @@
-import type { ApiError, ApiErrorCode } from '@scoot/shared';
+import type { ApiError, ApiErrorCode } from '@ozothunder/shared';
 
 /**
  * Mirror of apps/mobile/src/api/client.ts with localStorage in place of
@@ -7,7 +7,7 @@ import type { ApiError, ApiErrorCode } from '@scoot/shared';
 
 export const API_URL: string = import.meta.env['VITE_API_URL'] ?? 'http://localhost:8787';
 
-const TOKEN_KEY = 'scoot.token';
+const TOKEN_KEY = 'ozothunder.token';
 
 let token: string | null = localStorage.getItem(TOKEN_KEY);
 let onUnauthorized: (() => void) | null = null;

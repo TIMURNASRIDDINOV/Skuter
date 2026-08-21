@@ -1,4 +1,4 @@
-import type { RequestOtpResponse } from '@scoot/shared';
+import type { RequestOtpResponse } from '@ozothunder/shared';
 import { devFeaturesEnabled, devOtpCode, otpBypassPhones } from '../env.js';
 import { tooManyRequests, unauthorized } from '../lib/errors.js';
 import { logError } from '../lib/logger.js';
@@ -115,7 +115,7 @@ export async function verifyOtp(
  * submitting the new text for moderation first. See docs/deploy.md.
  */
 function smsText(code: string): string {
-  return `Код подтверждения для входа в мобильное приложение Scoot: ${code}`;
+  return `Код подтверждения для входа в мобильное приложение Ozo Thunder: ${code}`;
 }
 
 function generateCode(): string {

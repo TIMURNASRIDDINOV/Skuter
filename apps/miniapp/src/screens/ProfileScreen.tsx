@@ -1,5 +1,5 @@
-import type { UserProfile } from '@scoot/shared';
-import { formatSom } from '@scoot/shared';
+import type { UserProfile } from '@ozothunder/shared';
+import { formatSom } from '@ozothunder/shared';
 
 export function ProfileScreen({
   user,

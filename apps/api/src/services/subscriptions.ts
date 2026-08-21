@@ -2,7 +2,7 @@ import {
   API_ERROR_CODES,
   type Subscription,
   type SubscriptionDetail,
-} from '@scoot/shared';
+} from '@ozothunder/shared';
 import { publishEvent } from '../events/bus.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { getPaymentProvider } from '../payments/index.js';

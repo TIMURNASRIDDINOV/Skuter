@@ -8,11 +8,11 @@ import {
   type User,
   type Vehicle,
   type Zone,
-} from '@scoot/shared';
+} from '@ozothunder/shared';
 
 /**
  * Row -> API shape mappers. Repositories return the types defined in
- * @scoot/shared, so no route or client ever sees a raw database row.
+ * @ozothunder/shared, so no route or client ever sees a raw database row.
  */
 
 /** Timestamps leave the database as Date and cross the wire as UTC ISO-8601. */

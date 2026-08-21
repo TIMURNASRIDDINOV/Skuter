@@ -1,5 +1,5 @@
 {
-  "name": "@scoot/admin",
+  "name": "@ozothunder/admin",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
     "@refinedev/antd": "^6.0.3",
     "@refinedev/core": "^5.0.12",
     "@refinedev/react-router": "^2.0.4",
-    "@scoot/shared": "workspace:*",
+    "@ozothunder/shared": "workspace:*",
     "antd": "^5.29.3",
     "dayjs": "^1.11.21",
     "leaflet": "^1.9.4",

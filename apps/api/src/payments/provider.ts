@@ -1,4 +1,4 @@
-import type { ChargeResult, PaymentProviderName, Tiyin } from '@scoot/shared';
+import type { ChargeResult, PaymentProviderName, Tiyin } from '@ozothunder/shared';
 
 /**
  * The seam between this application and a payment gateway.
@@ -17,7 +17,7 @@ export interface ChargeInput {
   userId: string;
   /** Amount in tiyin. */
   amount: Tiyin;
-  /** Human-readable reason, e.g. "Ride SCOOT-0042" — shown on statements. */
+  /** Human-readable reason, e.g. "Ride 000000042" — shown on statements. */
   description: string;
   /** Set for a ride settlement. */
   rideId?: string;

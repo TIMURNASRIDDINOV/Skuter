@@ -1,6 +1,6 @@
 import { BottomSheetFlatList, BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import type { Plan, Vehicle, VehicleStatus } from '@scoot/shared';
-import { formatSom, haversineDistanceM, RESERVATION_HOLD_MS } from '@scoot/shared';
+import type { Plan, Vehicle, VehicleStatus } from '@ozothunder/shared';
+import { formatSom, haversineDistanceM, RESERVATION_HOLD_MS } from '@ozothunder/shared';
 import { useMemo } from 'react';
 import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { EmptyState } from '@/components/states';

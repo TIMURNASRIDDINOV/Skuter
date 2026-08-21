@@ -1,5 +1,5 @@
 import { and, asc, count, eq, sql } from 'drizzle-orm';
-import type { User } from '@scoot/shared';
+import type { User } from '@ozothunder/shared';
 import type { Database } from '../db/client.js';
 import { rides, users } from '../db/schema.js';
 import { toUser, type UserRow } from './mappers.js';

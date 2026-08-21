@@ -4,7 +4,7 @@
     {
       "name": "admin",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["-F", "@scoot/admin", "dev"],
+      "runtimeArgs": ["-F", "@ozothunder/admin", "dev"],
       "port": 5173
     }
   ]

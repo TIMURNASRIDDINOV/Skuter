@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { ZodError } from 'zod';
-import { API_ERROR_CODES, type ApiError } from '@scoot/shared';
+import { API_ERROR_CODES, type ApiError } from '@ozothunder/shared';
 import { isProduction } from '../env.js';
 import { ApiHttpError } from '../lib/errors.js';
 import { logError } from '../lib/logger.js';

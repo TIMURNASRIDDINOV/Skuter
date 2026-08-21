@@ -1,4 +1,4 @@
-import { formatSom, formatSomAmount, tiyinToSom } from '@scoot/shared';
+import { formatSom, formatSomAmount, tiyinToSom } from '@ozothunder/shared';
 
 /** Re-exported so pages import money helpers from one place. */
 export { formatSom, formatSomAmount };

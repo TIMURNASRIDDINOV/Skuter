@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Card, Table, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import type { SubscriptionDetail } from '@scoot/shared';
+import type { SubscriptionDetail } from '@ozothunder/shared';
 import { apiFetch, type ListResponse } from '../lib/api.js';
 import { useServerEvents } from '../lib/events.js';
 import { formatDateTime, formatRelative } from '../lib/format.js';

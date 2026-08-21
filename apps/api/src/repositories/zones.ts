@@ -1,5 +1,5 @@
 import { and, asc, eq, sql } from 'drizzle-orm';
-import type { Area, GeoPolygon, LatLon, ListZonesQuery, Zone, ZoneKind } from '@scoot/shared';
+import type { Area, GeoPolygon, LatLon, ListZonesQuery, Zone, ZoneKind } from '@ozothunder/shared';
 import type { Database } from '../db/client.js';
 import { selectPolygon } from '../db/sql.js';
 import { areas, zones } from '../db/schema.js';

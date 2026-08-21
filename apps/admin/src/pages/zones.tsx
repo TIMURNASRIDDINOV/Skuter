@@ -20,13 +20,13 @@ import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from 'react-le
 import L from 'leaflet';
 import 'leaflet-draw';
 import {
-  TASHKENT_MAP_CENTER,
+  BUKHARA_MAP_CENTER,
   isPointInPolygon,
   type AdminVehicle,
   type GeoPolygon,
   type Zone,
   type ZoneKind,
-} from '@scoot/shared';
+} from '@ozothunder/shared';
 import { apiFetch, type ListResponse } from '../lib/api.js';
 import { useLiveFleet } from '../lib/useLiveFleet.js';
 import { plural } from '../lib/format.js';
@@ -213,7 +213,7 @@ export function ZonesPage(): React.ReactElement {
           }
         >
           <MapContainer
-            center={[TASHKENT_MAP_CENTER.lat, TASHKENT_MAP_CENTER.lon]}
+            center={[BUKHARA_MAP_CENTER.lat, BUKHARA_MAP_CENTER.lon]}
             zoom={11}
             style={{ height: 560, width: '100%', borderRadius: 6 }}
             preferCanvas

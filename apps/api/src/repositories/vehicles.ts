@@ -9,7 +9,7 @@ import {
   type ListVehiclesQuery,
   type Vehicle,
   type VehicleStatus,
-} from '@scoot/shared';
+} from '@ozothunder/shared';
 import type { Database } from '../db/client.js';
 import { selectPoint } from '../db/sql.js';
 import { subscriptions, vehicles } from '../db/schema.js';

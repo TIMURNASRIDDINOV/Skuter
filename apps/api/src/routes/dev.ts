@@ -1,7 +1,7 @@
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { idSchema, vehicleStatusSchema } from '@scoot/shared';
+import { idSchema, vehicleStatusSchema } from '@ozothunder/shared';
 import { devFeaturesEnabled, devRoutesSecret, isProduction } from '../env.js';
 import { NotImplementedError, badRequest, forbidden, notFound } from '../lib/errors.js';
 import { getSimulationControl } from '../gateway/index.js';
@@ -70,7 +70,7 @@ async function resolveVehicleId(reference: string): Promise<string> {
 }
 
 const vehicleRefSchema = z.object({
-  /** Vehicle UUID or QR code, e.g. `SCOOT-0042`. */
+  /** Vehicle UUID or QR code, e.g. `000000042`. */
   vehicle: z.string().trim().min(1),
 });
 

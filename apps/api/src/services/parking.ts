@@ -1,4 +1,4 @@
-import type { LatLon, ParkingCheck } from '@scoot/shared';
+import type { LatLon, ParkingCheck } from '@ozothunder/shared';
 import type { Repositories } from '../repositories/index.js';
 
 /**

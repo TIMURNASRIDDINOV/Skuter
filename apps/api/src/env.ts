@@ -124,7 +124,7 @@ export const devOtpCode: string = ((): string => {
     throw new Error(
       'DEV_OTP_CODE is required when DEV_FEATURES=true on a deployed instance.\n' +
         'Set it as a secret, never as a var in wrangler.jsonc:\n' +
-        '  pnpm -F @scoot/api exec wrangler secret put DEV_OTP_CODE',
+        '  pnpm -F @ozothunder/api exec wrangler secret put DEV_OTP_CODE',
     );
   }
   return '000000';
@@ -167,8 +167,8 @@ if (process.env.OTP_TEST_PHONES !== undefined) {
       'OTP_BYPASS_PHONES is a bypass list: everyone can sign in via real SMS, and\n' +
       'these numbers may additionally use the fixed DEV_OTP_CODE.\n' +
       'Rename it once you have confirmed that is what you want:\n' +
-      '  pnpm -F @scoot/api exec wrangler secret put OTP_BYPASS_PHONES\n' +
-      '  pnpm -F @scoot/api exec wrangler secret delete OTP_TEST_PHONES',
+      '  pnpm -F @ozothunder/api exec wrangler secret put OTP_BYPASS_PHONES\n' +
+      '  pnpm -F @ozothunder/api exec wrangler secret delete OTP_TEST_PHONES',
   );
 }
 
@@ -190,7 +190,7 @@ export const eskizConfig: { email: string; password: string; from: string } | nu
       'SMS_GATEWAY=eskiz needs ESKIZ_EMAIL and ESKIZ_PASSWORD.\n' +
         'Both are on the "\u0421\u041c\u0421 \u0448\u043b\u044e\u0437" tab at https://my.eskiz.uz/sms/settings.\n' +
         'The password is a credential — set it as a secret, never as a var:\n' +
-        '  pnpm -F @scoot/api exec wrangler secret put ESKIZ_PASSWORD',
+        '  pnpm -F @ozothunder/api exec wrangler secret put ESKIZ_PASSWORD',
     );
   }
   return { email, password, from };

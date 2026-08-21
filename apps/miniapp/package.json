@@ -1,5 +1,5 @@
 {
-  "name": "@scoot/miniapp",
+  "name": "@ozothunder/miniapp",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@scoot/shared": "workspace:*",
+    "@ozothunder/shared": "workspace:*",
     "@tanstack/react-query": "^5.101.4",
     "maplibre-gl": "^5.8.0",
     "react": "^19.2.8",

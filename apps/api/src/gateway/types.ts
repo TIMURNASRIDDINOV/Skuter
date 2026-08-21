@@ -1,4 +1,4 @@
-import type { CommandResult, LatLon, Telemetry, VehicleStatus } from '@scoot/shared';
+import type { CommandResult, LatLon, Telemetry, VehicleStatus } from '@ozothunder/shared';
 
 /** Returned by `subscribeTelemetry`; calling it detaches the listener. */
 export type Unsubscribe = () => void;

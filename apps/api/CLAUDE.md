@@ -39,7 +39,7 @@ Routes and the simulator receive repositories. This is what makes the promise
 "point `DATABASE_URL` at Supabase and nothing else changes" actually true.
 
 **Every endpoint is zod-validated in and typed out.** Request schemas come from
-`@scoot/shared` via `@hono/zod-validator`; responses are annotated `satisfies`
+`@ozothunder/shared` via `@hono/zod-validator`; responses are annotated `satisfies`
 the shared type. Never define a type here that already exists in shared.
 
 **Errors go through `ApiHttpError`.** `middleware/error.ts` is the only place
@@ -78,11 +78,11 @@ at ~21.5M so'm, too tight for a wallet balance. node-postgres is configured in
 `db/client.ts` to parse INT8 to `number` — every such column is well inside
 `Number.MAX_SAFE_INTEGER`.
 
-Ride cost is **never** computed here. `calculateRideCost` in `@scoot/shared` is
+Ride cost is **never** computed here. `calculateRideCost` in `@ozothunder/shared` is
 the single implementation, shared with the rider app so a receipt can't disagree
 with what the phone displayed.
 
-Timestamps are `timestamptz`, always stored UTC. `Asia/Tashkent` is a display
+Timestamps are `timestamptz`, always stored UTC. `Asia/Samarkand` is a display
 concern only.
 
 ## Deviations from the specced data model
@@ -137,7 +137,7 @@ Accounts match on `sub` alone, never on email: adopting an account because its
 address matches would be an account-takeover path.
 
 **Telegram** (`POST /auth/telegram/start` → `/auth/telegram/poll`, driven by
-`routes/telegram-webhook.ts`). This is the path that makes Scoot able to verify
+`routes/telegram-webhook.ts`). This is the path that makes Ozo Thunder able to verify
 a phone number **with no SMS provider at all**, which matters because Eskiz
 requires a company contract — see the SMS gateway section.
 
@@ -190,11 +190,11 @@ verify. `role` claim (`rider` | `admin`) selects the middleware that accepts it.
 ## Commands
 
 ```bash
-pnpm -F @scoot/api dev          # watch mode
-pnpm -F @scoot/api db:generate  # regenerate migrations after a schema change
-pnpm -F @scoot/api db:migrate   # apply
-pnpm -F @scoot/api db:seed      # deterministic reseed (truncates first)
-pnpm -F @scoot/api typecheck
+pnpm -F @ozothunder/api dev          # watch mode
+pnpm -F @ozothunder/api db:generate  # regenerate migrations after a schema change
+pnpm -F @ozothunder/api db:migrate   # apply
+pnpm -F @ozothunder/api db:seed      # deterministic reseed (truncates first)
+pnpm -F @ozothunder/api typecheck
 ```
 
 `db:seed` is deterministic — same 70 vehicles in the same places every run, so a
@@ -344,9 +344,9 @@ client meeting.
 ```bash
 curl localhost:8787/dev/simulate/status
 curl -X POST localhost:8787/dev/simulate/reset
-curl -X POST localhost:8787/dev/simulate/ride    -H 'Content-Type: application/json' -d '{"vehicle":"SCOOT-0005"}'
-curl -X POST localhost:8787/dev/simulate/battery -H 'Content-Type: application/json' -d '{"vehicle":"SCOOT-0009","pct":8}'
-curl -X POST localhost:8787/dev/simulate/offline -H 'Content-Type: application/json' -d '{"vehicle":"SCOOT-0011"}'
+curl -X POST localhost:8787/dev/simulate/ride    -H 'Content-Type: application/json' -d '{"vehicle":"000000005"}'
+curl -X POST localhost:8787/dev/simulate/battery -H 'Content-Type: application/json' -d '{"vehicle":"000000009","pct":8}'
+curl -X POST localhost:8787/dev/simulate/offline -H 'Content-Type: application/json' -d '{"vehicle":"000000011"}'
 ```
 
 ## Not built yet

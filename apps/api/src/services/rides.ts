@@ -7,7 +7,7 @@ import {
   type Ride,
   type RideCostBreakdownPayload,
   type RideReceipt,
-} from '@scoot/shared';
+} from '@ozothunder/shared';
 import { publishEvent } from '../events/bus.js';
 import { getSimulationControl, getVehicleGateway } from '../gateway/index.js';
 import { conflict, notFound } from '../lib/errors.js';

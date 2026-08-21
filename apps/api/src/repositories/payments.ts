@@ -1,5 +1,5 @@
 import { desc, eq } from 'drizzle-orm';
-import type { Payment, PaymentProviderName, PaymentStatus } from '@scoot/shared';
+import type { Payment, PaymentProviderName, PaymentStatus } from '@ozothunder/shared';
 import type { Database } from '../db/client.js';
 import { payments } from '../db/schema.js';
 import { toIso } from './mappers.js';

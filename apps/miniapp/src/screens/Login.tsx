@@ -1,4 +1,4 @@
-import type { RiderSession } from '@scoot/shared';
+import type { RiderSession } from '@ozothunder/shared';
 import { useEffect, useRef, useState } from 'react';
 import { ApiRequestError, apiFetch, setToken } from '../api';
 import { getInitData } from '../telegram';
@@ -51,7 +51,7 @@ export function Login({ onLoggedIn }: { onLoggedIn: () => void }) {
     return (
       <div className="screen login">
         <div className="login-hero">🛴</div>
-        <h1>Scoot</h1>
+        <h1>Ozo Thunder</h1>
         <p className="muted">Входим через Telegram…</p>
       </div>
     );
@@ -95,7 +95,7 @@ export function Login({ onLoggedIn }: { onLoggedIn: () => void }) {
   return (
     <div className="screen login">
       <div className="login-hero">🛴</div>
-      <h1>Вход в Scoot</h1>
+      <h1>Вход в Ozo Thunder</h1>
       <p className="muted">
         {stage === 'phone'
           ? 'Введите номер телефона — отправим код подтверждения'

@@ -1,6 +1,6 @@
 import { Button, Descriptions, Drawer, Popconfirm, Space, Typography, theme } from 'antd';
 import { StopOutlined } from '@ant-design/icons';
-import type { Ride } from '@scoot/shared';
+import type { Ride } from '@ozothunder/shared';
 import { formatDateTime, formatDistance, formatDuration } from '../lib/format.js';
 import { formatSom } from '../lib/money.js';
 import { RideStatusTag } from './status.js';

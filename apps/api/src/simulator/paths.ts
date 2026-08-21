@@ -1,4 +1,4 @@
-import { haversineDistanceM, type LatLon } from '@scoot/shared';
+import { haversineDistanceM, type LatLon } from '@ozothunder/shared';
 import { offsetMetres, type Rng } from '../seed/random.js';
 
 /**

@@ -1,4 +1,4 @@
-import type { GeoPolygon, LatLon } from '@scoot/shared';
+import type { GeoPolygon, LatLon } from '@ozothunder/shared';
 
 /**
  * Deterministic randomness for the seed. Every `pnpm db:seed` must produce the

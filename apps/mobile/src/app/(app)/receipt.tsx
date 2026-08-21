@@ -1,4 +1,4 @@
-import { formatSom } from '@scoot/shared';
+import { formatSom } from '@ozothunder/shared';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
