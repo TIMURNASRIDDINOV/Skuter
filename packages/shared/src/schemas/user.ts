@@ -47,6 +47,16 @@ export const userProfileSchema = userSchema.pick({
 });
 export type UserProfile = z.infer<typeof userProfileSchema>;
 
+/**
+ * Back-office rider lookup. `search` matches a phone or a name — the two
+ * things an operator has when somebody is standing at the desk asking for
+ * weekly rent.
+ */
+export const listUsersQuerySchema = z.object({
+  search: z.string().trim().min(1).max(80).optional(),
+});
+export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;
+
 export const updateUserProfileRequestSchema = z.object({
   name: z.string().trim().min(1).max(80).nullable(),
 });

@@ -8,8 +8,8 @@ const perMinute: RidePricingPlan = {
   price: somToTiyin(1000), // 1 000 so'm / minute
 };
 
-const weekly: RidePricingPlan = {
-  kind: 'weekly',
+const rental: RidePricingPlan = {
+  kind: 'rental',
   unlockFee: 0,
   price: somToTiyin(250_000),
 };
@@ -62,8 +62,8 @@ describe('calculateRideCost — per-minute', () => {
 });
 
 describe('calculateRideCost — subscriptions', () => {
-  it('treats a weekly plan as fully covered', () => {
-    const r = calculateRideCost({ plan: weekly, durationS: 3600, distanceM: 12_000 });
+  it('treats a rental plan as fully covered', () => {
+    const r = calculateRideCost({ plan: rental, durationS: 3600, distanceM: 12_000 });
     expect(r.total).toBe(0);
     expect(r.unlockFee).toBe(0);
     expect(r.timeFee).toBe(0);
@@ -85,13 +85,13 @@ describe('calculateRideCost — subscriptions', () => {
 
   it('allows an explicit override to bill under a subscription plan', () => {
     const r = calculateRideCost({
-      plan: weekly,
+      plan: rental,
       durationS: 600,
       distanceM: 0,
       coveredBySubscription: false,
     });
     expect(r.coveredBySubscription).toBe(false);
-    expect(r.total).toBe(weekly.price * 10);
+    expect(r.total).toBe(rental.price * 10);
   });
 });
 

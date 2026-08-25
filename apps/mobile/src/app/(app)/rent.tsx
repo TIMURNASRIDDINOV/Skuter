@@ -7,7 +7,7 @@ import { useI18n } from '@/lib/i18n';
 import { colors } from '@/lib/theme';
 
 /**
- * Аренда: active passes and the daily/weekly plans.
+ * Аренда: what you have rented, and the rents you can buy.
  *
  * A route of its own now. It used to be the second panel of an «Общий /
  * Аренда» switcher over the map; with the map reduced to the map, it is

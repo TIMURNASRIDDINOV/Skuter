@@ -3,8 +3,9 @@ import { formatSom, formatSomAmount, RESERVATION_HOLD_MS } from '@ozothunder/sha
 import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button, Icon } from '@/components/ui';
+import { formatPlanDuration } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
-import type { Strings } from '@/lib/i18n';
+import type { Language, Strings } from '@/lib/i18n';
 import {
   caps,
   colors,
@@ -16,16 +17,16 @@ import {
   typography,
 } from '@/lib/theme';
 
-/** The label under a plan's name — what it actually buys you. */
-export function planSubtitle(plan: Plan, t: Strings): string {
-  switch (plan.kind) {
-    case 'per_minute':
-      return t.tariffAnywhere;
-    case 'daily':
-      return t.tariffForDay;
-    case 'weekly':
-      return t.tariffForWeek;
-  }
+/**
+ * The label under a plan's name — what it actually buys you.
+ *
+ * Rentals describe themselves by their length, so there is nothing to switch
+ * on: the plan carries the minutes, and 3 h, 5 h and 24 h all read the same
+ * way without a case each.
+ */
+export function planSubtitle(plan: Plan, t: Strings, lang: Language): string {
+  if (plan.kind === 'per_minute') return t.tariffAnywhere;
+  return `${t.tariffFor} ${formatPlanDuration(plan.durationMinutes, lang)}`;
 }
 
 export function planTitle(plan: Plan, t: Strings): string {
@@ -52,7 +53,7 @@ export function TariffPicker({
   selectedId: string | null;
   onSelect: (plan: Plan) => void;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   return (
     <View style={styles.picker}>
@@ -78,7 +79,7 @@ export function TariffPicker({
               {planTitle(plan, t)}
             </Text>
             <Text style={styles.tileSubtitle} numberOfLines={1}>
-              {planSubtitle(plan, t)}
+              {planSubtitle(plan, t, lang)}
             </Text>
             {/* The amount without its currency word. Three tiles across a
                 phone leave ~90pt each, and «250 000 so'm/мин» truncated to

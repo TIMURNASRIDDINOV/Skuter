@@ -1,4 +1,4 @@
-import { DISPLAY_TIMEZONE } from '@ozothunder/shared';
+import { DISPLAY_TIMEZONE, MINUTES_PER_DAY } from '@ozothunder/shared';
 import type { Language } from '@/lib/i18n';
 
 const LOCALE: Record<Language, string> = { ru: 'ru-RU', uz: 'uz-UZ', 'zh-Hant': 'zh-Hant' };
@@ -67,6 +67,36 @@ export function formatMinutes(totalMinutes: number, lang: Language): string {
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
   return rest === 0 ? `${hours} ${h}` : `${hours} ${h} ${rest} ${m}`;
+}
+
+/**
+ * How long a rental plan runs — `3 ч`, `24 ч`, `7 дн`.
+ *
+ * Whole days say days: `168 ч` is technically the same week and reads as a
+ * number nobody asked for. Anything shorter falls through to `formatMinutes`,
+ * which already knows all three languages.
+ */
+export function formatPlanDuration(minutes: number | null, lang: Language): string {
+  if (minutes === null) return '';
+  if (minutes >= MINUTES_PER_DAY && minutes % MINUTES_PER_DAY === 0) {
+    const days = minutes / MINUTES_PER_DAY;
+    const unit = lang === 'uz' ? 'kun' : lang === 'zh-Hant' ? '天' : 'дн';
+    return `${days} ${unit}`;
+  }
+  return formatMinutes(minutes, lang);
+}
+
+/**
+ * `02:59:12` — the rental console's countdown to the end of the window.
+ *
+ * Zero-padded hours, unlike `formatDuration`, because this one ticks in place:
+ * a field that shifts from `9:59:59` to `10:00:00` jogs every digit sideways,
+ * and the eye reads that as the whole number changing.
+ */
+export function formatCountdownLong(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
 }
 
 /** `9:59` — a countdown, always mm:ss. Used by the reservation banner. */

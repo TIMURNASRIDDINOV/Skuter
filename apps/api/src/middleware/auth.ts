@@ -1,12 +1,23 @@
 import { createMiddleware } from 'hono/factory';
-import type { AdminRole } from '@ozothunder/shared';
+import {
+  adminCan,
+  type AdminAccess,
+  type AdminPermissions,
+  type AdminRole,
+  type AdminSection,
+} from '@ozothunder/shared';
 import { forbidden, unauthorized } from '../lib/errors.js';
 import { readToken } from '../lib/jwt.js';
 import { repositories } from '../repositories/index.js';
 
 export type AuthContext =
   | { role: 'rider'; userId: string }
-  | { role: 'admin'; adminId: string; adminRole: AdminRole };
+  | {
+      role: 'admin';
+      adminId: string;
+      adminRole: AdminRole;
+      permissions: AdminPermissions;
+    };
 
 export interface AppEnv {
   Variables: {
@@ -44,7 +55,12 @@ export const requireAdmin = createMiddleware<AppEnv>(async (c, next) => {
   const admin = await repositories.admins.findById(claims.sub);
   if (admin === null) throw unauthorized('Admin account no longer exists');
 
-  c.set('auth', { role: 'admin', adminId: admin.id, adminRole: admin.role });
+  c.set('auth', {
+    role: 'admin',
+    adminId: admin.id,
+    adminRole: admin.role,
+    permissions: admin.permissions,
+  });
   await next();
 });
 
@@ -58,19 +74,40 @@ export function riderIdOf(auth: AuthContext): string {
   return auth.userId;
 }
 
-export function adminOf(auth: AuthContext): { adminId: string; adminRole: AdminRole } {
+export function adminOf(auth: AuthContext): {
+  adminId: string;
+  adminRole: AdminRole;
+  permissions: AdminPermissions;
+} {
   if (auth.role !== 'admin') throw unauthorized('Admin token required');
-  return { adminId: auth.adminId, adminRole: auth.adminRole };
+  return { adminId: auth.adminId, adminRole: auth.adminRole, permissions: auth.permissions };
 }
 
-/** Narrows an admin context by role; `owner` passes every check. */
-export function requireAdminRole(...allowed: readonly AdminRole[]) {
+/**
+ * Gates an endpoint on one section of the panel at one level.
+ *
+ * The decision itself is `adminCan` in `@ozothunder/shared` — the same function
+ * the panel's access control provider calls — so a button the panel hides is
+ * also a request this API refuses. Two rules that could drift apart is how a
+ * hidden section becomes a reachable endpoint.
+ *
+ * Owners pass unconditionally; staff pass on what an owner ticked for them.
+ */
+export function requirePermission(section: AdminSection, level: Exclude<AdminAccess, 'none'>) {
   return createMiddleware<AppEnv>(async (c, next) => {
     const auth = c.get('auth');
     if (auth.role !== 'admin') throw forbidden('This endpoint requires an admin token');
-    if (auth.adminRole !== 'owner' && !allowed.includes(auth.adminRole)) {
-      throw forbidden(`Requires one of: ${allowed.join(', ')}`);
+    if (!adminCan({ role: auth.adminRole, permissions: auth.permissions }, section, level)) {
+      throw forbidden(`Requires ${level} access to ${section}`);
     }
     await next();
   });
 }
+
+/** The admins screen is the owner's alone — no permission grants access to it. */
+export const requireOwner = createMiddleware<AppEnv>(async (c, next) => {
+  const auth = c.get('auth');
+  if (auth.role !== 'admin') throw forbidden('This endpoint requires an admin token');
+  if (auth.adminRole !== 'owner') throw forbidden('Only the owner may manage administrators');
+  await next();
+});

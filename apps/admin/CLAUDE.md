@@ -70,6 +70,64 @@ BaseRecord`, so it can only assert shapes, not prove them.
   means two different things across the table, the map and the legend.
 - Loading states are skeletons, never a spinner on white.
 
+## Permissions
+
+`providers/session.tsx` fetches `/admin/auth/me` **once** for the session and
+exposes `can(section, level)`. Everything gates off that: `Shell`'s menu,
+`RequireSection` on every route, and each page's action buttons. One fetch, not
+one per component — separate requests resolve at different times and the menu
+visibly flickers.
+
+The decision is **`adminCan` from `@ozothunder/shared`**, the same function the API's
+`requirePermission` middleware calls. Never re-implement the comparison here: a
+button this panel hides has to be a request the API also refuses.
+
+Three rules that are easy to undo:
+
+- **A section without access is absent, not disabled.** It leaves the sidebar
+  and its route redirects to the admin's first visible section. A greyed-out row
+  still advertises a screen they cannot open.
+- **Guard the index route too.** `/` is the dashboard, and it is the route every
+  admin lands on after login — an unguarded one puts a permission error on the
+  first screen a limited operator ever sees.
+- **`admins` is owner-only and no tick grants it.** `RequireSection … owner`
+  rather than a permission, matching `requireOwner` on the API.
+
+## The fleet
+
+Vehicles are created here and nowhere else — the seed makes none.
+`components/VehicleFormModal.tsx` takes the QR code and IMEI off the hardware,
+a model, a battery level, and a position clicked on a small Leaflet map with
+lat/lon inputs beside it for a coordinate copied from elsewhere.
+
+**«Симулировать» is off by default and that default is the feature.** On, the
+fleet simulator drives the scooter; off, it keeps exactly the battery and
+position it was given, because a real scooter's telemetry comes from the
+scooter. The column in the table says which each one is.
+
+Deleting is refused for a scooter with ride history — receipts still resolve
+through it — so retiring a real one means «Обслуживание», not delete.
+
+## The rental desk
+
+Rent longer than 24 h is turned on **here and nowhere else** — the app sells
+3 h, 5 h and 24 h and nothing more, because `GET /catalog/plans` drops
+`officeOnly` plans. `components/GrantRentalModal.tsx` is that door, opened from two places
+because there are two ways the conversation starts: from Абонементы when the
+operator is already in the rentals table, and from a rider's row on
+Пользователи when somebody is standing at the desk. Same component, the second
+pre-fills the rider.
+
+The modal shows the **end date before submitting**, because that is the figure
+read out to the customer. It is computed from the duration, never picked — the
+API derives the same one from the same number. The operator types **days**,
+which is how the conversation at the desk goes; the wire carries
+`durationMinutes`, because the app sells hours.
+
+`Прекратить` on an active row is the only way a rental ends early. Both actions
+write audit rows (`subscription.grant` / `subscription.cancel`), and the table
+refreshes off `subscription.created` / `subscription.ended`.
+
 ## Zone editor
 
 `leaflet-draw` predates react-leaflet's component model and mutates the map

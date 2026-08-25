@@ -51,6 +51,12 @@ export const API_ERROR_CODES = {
    *  "pick another scooter". */
   VEHICLE_RESERVED: 'vehicle_reserved',
   UNLOCK_FAILED: 'unlock_failed',
+  /** The lock command failed. Same shape as `unlock_failed`, and retryable. */
+  LOCK_FAILED: 'lock_failed',
+  /** This rental is an office agreement — the app cannot sell it. */
+  OFFICE_ONLY_PLAN: 'office_only_plan',
+  /** Acted on a rental the rider does not have, or no longer has. */
+  NO_ACTIVE_RENTAL: 'no_active_rental',
   OUTSIDE_PARKING_ZONE: 'outside_parking_zone',
   INSIDE_FORBIDDEN_ZONE: 'inside_forbidden_zone',
   OUTSIDE_SERVICE_AREA: 'outside_service_area',

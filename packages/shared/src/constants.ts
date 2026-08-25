@@ -5,16 +5,26 @@ export const DISPLAY_TIMEZONE = 'Asia/Samarkand' as const;
 export const CURRENCY_CODE = 'UZS' as const;
 export const TIYIN_PER_SOM = 100 as const;
 
-/** Fleet size seeded for the demo. */
-export const FLEET_SIZE = 70 as const;
+/**
+ * Scooter models the back office offers when adding a vehicle.
+ *
+ * A suggestion list, not a constraint — the form accepts free text, because
+ * the next crate to arrive will not ask this file first.
+ */
+export const VEHICLE_MODELS: readonly string[] = [
+  'Ninebot Max G30',
+  'Ninebot F40',
+  'Xiaomi Pro 2',
+  'Segway E45',
+] as const;
 
 /** Simulator tick interval (ms). */
 export const SIMULATOR_TICK_MS = 3000 as const;
 
 /**
- * Seeded vehicle clusters — real Bukhara geography. Vehicles scatter within
- * `radiusM` of each centre rather than on a grid, so the map reads as a real
- * fleet parked near old-town landmarks and residential blocks.
+ * Bukhara landmarks the demo revolves around — the old-town spots a fleet
+ * would actually be parked near. The simulator routes between them and the
+ * back office centres its map on them.
  */
 export interface VehicleCluster {
   readonly name: string;

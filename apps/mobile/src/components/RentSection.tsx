@@ -5,14 +5,18 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { usePlans, useSubscriptions } from '@/api/queries';
 import { Button, Card, Icon, Pill } from '@/components/ui';
 import { ErrorState, ListSkeleton } from '@/components/states';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime, formatPlanDuration } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
 import { caps, colors, outline, shadows, spacing, typography } from '@/lib/theme';
 
 /**
- * Аренда: active passes and the daily/weekly plans.
+ * Аренда: what you have rented, and the rents you can buy — 3 h, 5 h, 24 h.
  *
- * A pass binds to one scooter, so buying starts at the scanner — opened with
+ * Anything longer is absent by construction, not by a filter here: it is an
+ * office agreement and `GET /catalog/plans` drops office-only plans. One the
+ * office granted still appears above, under «Мои абонементы».
+ *
+ * A rental binds to one scooter, so buying starts at the scanner — opened with
  * `intent=subscribe`, which sends the read to the plan picker instead of the
  * unlock screen. Without that the button read "scan a scooter and buy" and
  * landed the rider on "unlock and start riding", which is a different thing.
@@ -85,9 +89,7 @@ export function RentSection() {
             </Text>
           </View>
           <Text style={styles.metaText}>
-            {plan.durationDays === 1
-              ? t.rentalDailyHint
-              : `${t.rentalWeeklyHint} ${String(plan.durationDays ?? 0)} ${t.rentalDays}`}
+            {t.rentalPlanHint} {formatPlanDuration(plan.durationMinutes, lang)}
           </Text>
           <Button
             label={t.rentalScanCta}

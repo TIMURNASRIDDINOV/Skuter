@@ -1,0 +1,1 @@
+ALTER TABLE "subscriptions" ADD COLUMN "unlocked_at" timestamp with time zone;

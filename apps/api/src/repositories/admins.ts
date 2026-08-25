@@ -1,5 +1,11 @@
-import { and, desc, eq } from 'drizzle-orm';
-import type { Admin, AdminRole, AuditLogRow, ListAuditLogQuery } from '@ozothunder/shared';
+import { and, asc, desc, eq } from 'drizzle-orm';
+import type {
+  Admin,
+  AdminPermissions,
+  AdminRole,
+  AuditLogRow,
+  ListAuditLogQuery,
+} from '@ozothunder/shared';
 import type { Database } from '../db/client.js';
 import { admins, auditLog } from '../db/schema.js';
 import { toAdmin, toAuditLogRow, type AdminRow, type AuditLogRowRaw } from './mappers.js';
@@ -8,12 +14,14 @@ const columns = {
   id: admins.id,
   email: admins.email,
   role: admins.role,
+  permissions: admins.permissions,
 } as const;
 
 export interface NewAdmin {
   email: string;
   passwordHash: string;
   role: AdminRole;
+  permissions: AdminPermissions;
 }
 
 export function createAdminsRepository(db: Database) {
@@ -36,9 +44,51 @@ export function createAdminsRepository(db: Database) {
       return { admin: toAdmin(row as AdminRow), passwordHash: row.passwordHash };
     },
 
+    async list(): Promise<Admin[]> {
+      const rows = await db.select(columns).from(admins).orderBy(asc(admins.email));
+      return rows.map((row) => toAdmin(row as AdminRow));
+    },
+
+    async findByEmail(email: string): Promise<Admin | null> {
+      const [row] = await db
+        .select(columns)
+        .from(admins)
+        .where(eq(admins.email, email.toLowerCase()))
+        .limit(1);
+      return row === undefined ? null : toAdmin(row as AdminRow);
+    },
+
+    async insert(item: NewAdmin): Promise<Admin> {
+      const [row] = await db
+        .insert(admins)
+        .values({ ...item, email: item.email.toLowerCase() })
+        .returning(columns);
+      if (row === undefined) throw new Error('Admin insert returned no row');
+      return toAdmin(row as AdminRow);
+    },
+
     async insertMany(items: readonly NewAdmin[]): Promise<void> {
       if (items.length === 0) return;
       await db.insert(admins).values(items.map((i) => ({ ...i, email: i.email.toLowerCase() })));
+    },
+
+    async update(
+      id: string,
+      patch: { permissions?: AdminPermissions; passwordHash?: string },
+    ): Promise<Admin | null> {
+      const [row] = await db.update(admins).set(patch).where(eq(admins.id, id)).returning(columns);
+      return row === undefined ? null : toAdmin(row as AdminRow);
+    },
+
+    async remove(id: string): Promise<boolean> {
+      const rows = await db.delete(admins).where(eq(admins.id, id)).returning({ id: admins.id });
+      return rows.length > 0;
+    },
+
+    /** Guards the last way back in: an owner may not delete or demote itself away. */
+    async countByRole(role: AdminRole): Promise<number> {
+      const rows = await db.select({ id: admins.id }).from(admins).where(eq(admins.role, role));
+      return rows.length;
     },
 
     async deleteAll(): Promise<void> {

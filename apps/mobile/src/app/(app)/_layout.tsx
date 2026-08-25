@@ -8,6 +8,10 @@ export default function AppLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="profile" />
       <Stack.Screen name="rent" />
+      {/* The app's other face. `animation: fade` because it replaces the app
+          rather than opening on top of it — a push from the left would read as
+          one more screen in the stack. */}
+      <Stack.Screen name="rental" options={{ animation: 'fade' }} />
       <Stack.Screen name="history" />
       <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       <Stack.Screen name="unlock" />

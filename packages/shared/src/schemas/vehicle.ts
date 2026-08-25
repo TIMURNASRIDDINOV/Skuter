@@ -82,6 +82,8 @@ export type Vehicle = z.infer<typeof vehicleSchema>;
 /** What the back office sees — everything, including hardware identity. */
 export const adminVehicleSchema = vehicleSchema.extend({
   imei: z.string(),
+  /** Whether the fleet simulator drives this one. See `createVehicleRequestSchema`. */
+  simulated: z.boolean(),
 });
 export type AdminVehicle = z.infer<typeof adminVehicleSchema>;
 
@@ -94,9 +96,47 @@ export const listVehiclesQuerySchema = z.object({
 });
 export type ListVehiclesQuery = z.infer<typeof listVehiclesQuerySchema>;
 
+/**
+ * Putting a real scooter into the fleet from the back office.
+ *
+ * There is no seeded fleet any more, so this is the only way a vehicle comes
+ * into existence. Every field is something an operator can read off the
+ * hardware in front of them, plus where they are standing.
+ */
+export const createVehicleRequestSchema = z.object({
+  qrCode: qrCodeSchema,
+  /** 15 digits, off the controller's label. */
+  imei: z
+    .string()
+    .trim()
+    .regex(/^\d{15}$/, 'IMEI must be 15 digits'),
+  model: z.string().trim().min(1).max(80),
+  status: vehicleStatusSchema.default('available'),
+  batteryPct: batteryPctSchema.default(100),
+  location: latLonSchema,
+  /**
+   * Hand this scooter to the fleet simulator.
+   *
+   * Off by default, and that default is the point: a real scooter's battery
+   * and position come from the scooter. Only a vehicle explicitly marked here
+   * is driven, drained and sent on demo rides by `SimulatedGateway`.
+   */
+  simulated: z.boolean().default(false),
+});
+export type CreateVehicleRequest = z.infer<typeof createVehicleRequestSchema>;
+
 export const updateVehicleRequestSchema = z.object({
+  qrCode: qrCodeSchema.optional(),
+  imei: z
+    .string()
+    .trim()
+    .regex(/^\d{15}$/, 'IMEI must be 15 digits')
+    .optional(),
   status: vehicleStatusSchema.optional(),
   model: z.string().trim().min(1).max(80).optional(),
+  batteryPct: batteryPctSchema.optional(),
+  location: latLonSchema.optional(),
+  simulated: z.boolean().optional(),
   areaId: idSchema.nullable().optional(),
 });
 export type UpdateVehicleRequest = z.infer<typeof updateVehicleRequestSchema>;

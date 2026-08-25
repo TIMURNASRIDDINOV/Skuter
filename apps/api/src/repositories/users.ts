@@ -1,5 +1,5 @@
-import { and, asc, count, eq, sql } from 'drizzle-orm';
-import type { User } from '@ozothunder/shared';
+import { and, asc, count, eq, ilike, or, sql } from 'drizzle-orm';
+import type { ListUsersQuery, User } from '@ozothunder/shared';
 import type { Database } from '../db/client.js';
 import { rides, users } from '../db/schema.js';
 import { toUser, type UserRow } from './mappers.js';
@@ -31,8 +31,27 @@ export interface GoogleIdentity {
 
 export function createUsersRepository(db: Database) {
   return {
-    async listAll(): Promise<User[]> {
-      const rows = await db.select(columns).from(users).orderBy(asc(users.createdAt));
+    /**
+     * Every rider, or the ones matching `search` — a phone or a name, which is
+     * what an operator has to go on when somebody asks for weekly rent at the
+     * desk. Matching is loose on purpose: `90 123` finds `+998901234567`.
+     */
+    async listAll(query: ListUsersQuery = {}): Promise<User[]> {
+      const term = query.search;
+      const where =
+        term === undefined
+          ? undefined
+          : or(
+              ilike(users.phone, `%${digitsOnly(term)}%`),
+              ilike(users.name, `%${term}%`),
+              ilike(users.email, `%${term}%`),
+            );
+
+      const rows = await db
+        .select(columns)
+        .from(users)
+        .where(where)
+        .orderBy(asc(users.createdAt));
       return rows.map((row) => toUser(row as UserRow));
     },
 
@@ -239,6 +258,16 @@ export function createUsersRepository(db: Database) {
       await db.insert(users).values([...items]);
     },
   };
+}
+
+/**
+ * Numbers are stored E.164 (`+998901234567`) but nobody types them that way.
+ * Stripping everything but digits lets `90 123 45 67` and `+998 90 123` both
+ * find the same rider.
+ */
+function digitsOnly(term: string): string {
+  const digits = term.replace(/\D/g, '');
+  return digits === '' ? term : digits;
 }
 
 export type UsersRepository = ReturnType<typeof createUsersRepository>;

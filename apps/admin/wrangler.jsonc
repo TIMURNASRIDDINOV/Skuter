@@ -1,12 +1,25 @@
 {
-  // Static hosting for the built admin panel on Cloudflare Workers.
+  // Static hosting for the built admin panel, with the API bound directly so
+  // the panel is entirely same-origin.
+  //
   // Build first (VITE_API_URL is baked in at build time), then deploy:
-  //   VITE_API_URL=https://scoot-api.timurnasriddinov56.workers.dev pnpm -F @ozothunder/admin build
+  //   VITE_API_URL=/api pnpm -F @ozothunder/admin build
   //   npx wrangler deploy -c apps/admin/wrangler.jsonc
   "name": "ozothunder-admin",
+  "main": "worker.ts",
   "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // A service binding rather than an HTTP call to the API's public hostname:
+  // a Worker fetching another workers.dev subdomain in the same account goes
+  // back out through the edge and answered 404. This dispatches worker to
+  // worker with no DNS, no public round trip, and no loop.
+  "services": [{ "binding": "API", "service": "ozothunder-api" }],
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS",
+    // Without this the asset handler answers first and `/api/*` falls into the
+    // SPA catch-all, so the proxy below never runs.
+    "run_worker_first": ["/api/*"]
   }
 }

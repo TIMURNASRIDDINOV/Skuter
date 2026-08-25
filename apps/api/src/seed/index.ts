@@ -1,192 +1,36 @@
-import {
-  FLEET_SIZE,
-  LOW_BATTERY_THRESHOLD_PCT,
-  BUKHARA_CLUSTERS,
-  isPointInPolygon,
-  somToTiyin,
-  type LatLon,
-  type VehicleStatus,
-} from '@ozothunder/shared';
+import { RENTAL_DURATIONS, somToTiyin } from '@ozothunder/shared';
 import { closeDatabase } from '../db/client.js';
 import { hashSecret } from '../lib/password.js';
 import { logError, write } from '../lib/logger.js';
 import { repositories } from '../repositories/index.js';
-import type { NewVehicle } from '../repositories/vehicles.js';
 import {
-  CLUSTER_STREETS,
   FORBIDDEN_ZONES,
   PARKING_ZONES,
   SERVICE_AREA,
   SLOW_ZONES,
-  VEHICLE_MODELS,
   zonePolygon,
 } from './geo-data.js';
-import { mulberry32, randomInt, scatterAlongLine, scatterInDisc, type Rng } from './random.js';
 import { SIMULATOR_RIDER_COUNT, simulatorRiderPhone } from './riders.js';
 
 /**
- * Seeds the demo dataset. Deterministic: the same 70 vehicles land in the same
- * places every run, so a rehearsed demo stays rehearsed.
+ * Seeds the demo dataset: the city, its zones, the tariffs, and the owner
+ * account. Deterministic, so a rehearsed demo stays rehearsed.
+ *
+ * **It creates no vehicles.** There used to be seventy of them scattered around
+ * Bukhara, which was the right answer while the fleet was imaginary and the
+ * wrong one now that real scooters are going into it. A vehicle is a physical
+ * object with a QR sticker and an IMEI, so it enters the system the way the
+ * physical object does: an operator adds it from Самокаты, reading the numbers
+ * off the scooter in front of them. Only vehicles ticked «Симулировать» are
+ * driven by the fleet simulator.
  *
  * Run with `pnpm db:seed`.
  */
 
-const SEED = 20_260_728;
-
 const ADMIN_EMAIL = 'admin@demo.uz';
 const ADMIN_PASSWORD = 'demo1234';
 
-/**
- * Status spread, 70 vehicles total. Deliberately not all-available: the map
- * should show a fleet with real problems in it.
- */
-const STATUS_SPREAD: ReadonlyArray<{ status: VehicleStatus; count: number }> = [
-  { status: 'available', count: 55 },
-  { status: 'low_battery', count: 6 },
-  { status: 'offline', count: 4 },
-  { status: 'maintenance', count: 3 },
-  { status: 'in_use', count: 2 },
-];
-
-function batteryFor(status: VehicleStatus, rng: Rng): number {
-  switch (status) {
-    case 'low_battery':
-      return randomInt(rng, 4, LOW_BATTERY_THRESHOLD_PCT - 1);
-    case 'in_use':
-      return randomInt(rng, 45, 92);
-    case 'maintenance':
-      return randomInt(rng, 10, 80);
-    case 'offline':
-      return randomInt(rng, 0, 60);
-    case 'available':
-    case 'reserved':
-      return randomInt(rng, 35, 100);
-  }
-}
-
-/** Deterministic 15-digit IMEI, TAC-prefixed so it looks like real hardware. */
-function imeiFor(index: number): string {
-  return `8635${(1_000_000_000 + index * 7919).toString().padStart(11, '0')}`.slice(0, 15);
-}
-
-function qrCodeFor(index: number): string {
-  return (index + 1).toString().padStart(9, '0');
-}
-
-/**
- * Three scooters parked outside the service area on purpose.
- *
- * A fleet where nothing is ever out of bounds gives the back office's
- * attention queue nothing true to show. These sit just past the boundary,
- * where a rider who ignored the warning would actually leave one.
- */
-const STRANDED_POSITIONS: readonly LatLon[] = [
-  { lat: 39.79, lon: 64.562 }, // east of the boundary, out past Samani Park
-  { lat: 39.658, lon: 64.42 }, // south, beyond the old town
-  { lat: 39.892, lon: 64.395 }, // north-west, out toward the edge of town
-];
-
-/** Give up resampling rather than spin forever if a cluster sits outside. */
-const MAX_RESAMPLE_ATTEMPTS = 50;
-
-/**
- * Distributes the fleet across clusters by weight. Roughly a third of each
- * cluster is laid along a street segment and the rest scattered in a disc.
- *
- * Scatter is rejected and resampled until it lands inside the service area —
- * an 800 m disc around a cluster near the boundary would otherwise put the odd
- * scooter outside it, which the back office correctly reports as stranded and
- * which is then indistinguishable from the deliberate three below.
- */
-function placeVehicles(rng: Rng): LatLon[] {
-  const positions: LatLon[] = [];
-  const scattered = FLEET_SIZE - STRANDED_POSITIONS.length;
-
-  const totalWeight = BUKHARA_CLUSTERS.reduce((sum, cluster) => sum + cluster.weight, 0);
-  let assigned = 0;
-
-  BUKHARA_CLUSTERS.forEach((cluster, index) => {
-    const isLast = index === BUKHARA_CLUSTERS.length - 1;
-    const share = isLast
-      ? scattered - assigned
-      : Math.round((cluster.weight / totalWeight) * scattered);
-    assigned += share;
-
-    const centre: LatLon = { lat: cluster.lat, lon: cluster.lon };
-    const street = CLUSTER_STREETS[cluster.name];
-
-    for (let i = 0; i < share; i += 1) {
-      const alongStreet = street !== undefined && rng() < 0.35;
-
-      let candidate: LatLon | null = null;
-      for (let attempt = 0; attempt < MAX_RESAMPLE_ATTEMPTS; attempt += 1) {
-        const next = alongStreet
-          ? scatterAlongLine(street.from, street.to, 25, rng)
-          : scatterInDisc(centre, cluster.radiusM, rng);
-        if (isPointInPolygon(next, SERVICE_AREA)) {
-          candidate = next;
-          break;
-        }
-      }
-
-      // Falling back to the cluster centre keeps the fleet size exact; a
-      // cluster centre outside the service area is a data error worth failing on.
-      if (candidate === null) {
-        if (!isPointInPolygon(centre, SERVICE_AREA)) {
-          throw new Error(`Cluster ${cluster.name} lies outside the service area`);
-        }
-        candidate = centre;
-      }
-
-      positions.push(candidate);
-    }
-  });
-
-  positions.push(...STRANDED_POSITIONS);
-
-  return positions;
-}
-
-function buildFleet(rng: Rng, areaId: string): NewVehicle[] {
-  const positions = placeVehicles(rng);
-
-  const statuses: VehicleStatus[] = [];
-  for (const { status, count } of STATUS_SPREAD) {
-    for (let i = 0; i < count; i += 1) statuses.push(status);
-  }
-  if (statuses.length !== FLEET_SIZE) {
-    throw new Error(`Status spread totals ${statuses.length}, expected ${FLEET_SIZE}`);
-  }
-
-  // Shuffle so the non-available vehicles are spread across the city rather
-  // than all landing in whichever cluster was filled last.
-  for (let i = statuses.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(rng() * (i + 1));
-    const a = statuses[i];
-    const b = statuses[j];
-    if (a === undefined || b === undefined) continue;
-    statuses[i] = b;
-    statuses[j] = a;
-  }
-
-  return positions.map((location, index) => {
-    const status = statuses[index] ?? 'available';
-    const model = VEHICLE_MODELS[index % VEHICLE_MODELS.length] ?? 'Ninebot Max G30';
-    return {
-      qrCode: qrCodeFor(index),
-      imei: imeiFor(index),
-      model,
-      status,
-      batteryPct: batteryFor(status, rng),
-      location,
-      areaId,
-    };
-  });
-}
-
 async function main(): Promise<void> {
-  const rng = mulberry32(SEED);
-
   write('Seeding Ozo Thunder demo data…');
   await repositories.maintenance.truncateAll();
 
@@ -225,36 +69,62 @@ async function main(): Promise<void> {
   ]);
 
   // --- plans -------------------------------------------------------------
+  // Three rents the app sells outright, and one it does not: `officeOnly` is
+  // the only thing that separates a week from three hours, and it is what
+  // `GET /catalog/plans` filters on.
   const plans = await repositories.plans.insertMany([
     {
       kind: 'per_minute',
       name: 'Поминутный',
       unlockFee: somToTiyin(3000),
       price: somToTiyin(1000),
-      durationDays: null,
+      durationMinutes: null,
+      officeOnly: false,
     },
     {
-      kind: 'daily',
-      name: 'Дневной абонемент',
+      kind: 'rental',
+      name: 'Аренда на 3 часа',
       unlockFee: 0,
-      price: somToTiyin(45_000),
-      durationDays: 1,
+      price: somToTiyin(25_000),
+      durationMinutes: RENTAL_DURATIONS.threeHours,
+      officeOnly: false,
     },
     {
-      kind: 'weekly',
-      name: 'Недельный абонемент',
+      kind: 'rental',
+      name: 'Аренда на 5 часов',
+      unlockFee: 0,
+      price: somToTiyin(35_000),
+      durationMinutes: RENTAL_DURATIONS.fiveHours,
+      officeOnly: false,
+    },
+    {
+      kind: 'rental',
+      name: 'Аренда на 24 часа',
+      unlockFee: 0,
+      price: somToTiyin(90_000),
+      durationMinutes: RENTAL_DURATIONS.day,
+      officeOnly: false,
+    },
+    {
+      kind: 'rental',
+      name: 'Аренда на неделю',
       unlockFee: 0,
       price: somToTiyin(250_000),
-      durationDays: 7,
+      durationMinutes: RENTAL_DURATIONS.week,
+      officeOnly: true,
     },
   ]);
 
-  // --- fleet -------------------------------------------------------------
-  await repositories.vehicles.insertMany(buildFleet(rng, area.id));
-
   // --- admin -------------------------------------------------------------
+  // The owner. It passes every permission check on its own and is the only
+  // account that can create the others, so it carries no permissions map.
   await repositories.admins.insertMany([
-    { email: ADMIN_EMAIL, passwordHash: await hashSecret(ADMIN_PASSWORD), role: 'owner' },
+    {
+      email: ADMIN_EMAIL,
+      passwordHash: await hashSecret(ADMIN_PASSWORD),
+      role: 'owner',
+      permissions: {},
+    },
   ]);
 
   // Riders reserved for the fleet simulator. A rider may only have one ride in
@@ -271,19 +141,8 @@ async function main(): Promise<void> {
 
   // --- verify ------------------------------------------------------------
   const vehicleCount = await repositories.vehicles.count();
-  const byStatus = await repositories.vehicles.countByStatus();
-  const outside = await repositories.maintenance.countVehiclesOutsideServiceArea();
-
-  if (vehicleCount !== FLEET_SIZE) {
-    throw new Error(`Expected ${FLEET_SIZE} vehicles, found ${vehicleCount}`);
-  }
-  // Exactly the deliberate three, no more: an extra one means the scatter
-  // resampling let a vehicle through, which the back office would report as a
-  // stranded scooter that nobody actually stranded.
-  if (outside !== STRANDED_POSITIONS.length) {
-    throw new Error(
-      `Expected ${String(STRANDED_POSITIONS.length)} vehicles outside the service area, found ${String(outside)}`,
-    );
+  if (vehicleCount !== 0) {
+    throw new Error(`Expected an empty fleet after truncation, found ${String(vehicleCount)}`);
   }
 
   const parkingCount = zones.filter((z) => z.kind === 'parking').length;
@@ -297,17 +156,11 @@ async function main(): Promise<void> {
       `${slowCount} slow, 1 service area`,
   );
   write(`  Plans         ${plans.map((p) => p.name).join(', ')}`);
+  write('  Vehicles      none — add real scooters from Самокаты in the back office');
+  write(`  Admin         ${ADMIN_EMAIL} / ${ADMIN_PASSWORD} (owner)`);
   write(
-    `  Vehicles      ${vehicleCount} (${String(vehicleCount - outside)} inside the service area, ` +
-      `${String(outside)} stranded outside on purpose)`,
+    `  Riders        ${SIMULATOR_RIDER_COUNT} reserved for the simulator (real users sign up themselves)`,
   );
-  write(
-    `                ${byStatus.available} available · ${byStatus.low_battery} low battery · ` +
-      `${byStatus.offline} offline · ${byStatus.maintenance} maintenance · ${byStatus.in_use} in use`,
-  );
-  write(`  QR codes      ${qrCodeFor(0)} … ${qrCodeFor(FLEET_SIZE - 1)}`);
-  write(`  Admin         ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
-  write(`  Riders        ${SIMULATOR_RIDER_COUNT} reserved for the simulator (real users sign up themselves)`);
   write('');
   write('Seed complete.');
 }

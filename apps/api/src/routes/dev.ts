@@ -56,17 +56,26 @@ function control(): SimulationControl {
 /**
  * Accepts either a vehicle UUID or a QR code, because reading a UUID aloud
  * mid-demo is not a thing anyone wants to do.
+ *
+ * A vehicle that exists but is not simulated is refused here with a message
+ * that says so. Since the seed stopped creating a fleet, that is the ordinary
+ * case rather than an impossible one — most scooters in the table are real,
+ * and the simulator has never heard of them. Letting it through produced an
+ * opaque 500 from inside the gateway, which mid-demo reads as a broken API.
  */
-async function resolveVehicleId(reference: string): Promise<string> {
-  if (idSchema.safeParse(reference).success) {
-    const byId = await repositories.vehicles.findById(reference);
-    if (byId === null) throw notFound(`No vehicle with id ${reference}`);
-    return byId.id;
-  }
+async function resolveSimulatedVehicleId(reference: string): Promise<string> {
+  const vehicle = idSchema.safeParse(reference).success
+    ? await repositories.vehicles.findById(reference)
+    : await repositories.vehicles.findByQrCode(reference.toUpperCase());
 
-  const byQr = await repositories.vehicles.findByQrCode(reference.toUpperCase());
-  if (byQr === null) throw notFound(`No vehicle with QR code ${reference}`);
-  return byQr.id;
+  if (vehicle === null) throw notFound(`No vehicle matching ${reference}`);
+  if (!vehicle.simulated) {
+    throw badRequest(
+      `Scooter ${vehicle.qrCode} is real, not simulated — the simulator cannot drive it. ` +
+        'Tick «Симулировать» on it in the back office first.',
+    );
+  }
+  return vehicle.id;
 }
 
 const vehicleRefSchema = z.object({
@@ -82,7 +91,7 @@ devRoutes.post('/simulate/reset', async (c) => {
 });
 
 devRoutes.post('/simulate/ride', zValidator('json', vehicleRefSchema), async (c) => {
-  const vehicleId = await resolveVehicleId(c.req.valid('json').vehicle);
+  const vehicleId = await resolveSimulatedVehicleId(c.req.valid('json').vehicle);
   const result = await control().forceRide(vehicleId);
   return c.json({ ok: true, vehicleId, ...result });
 });
@@ -98,7 +107,7 @@ devRoutes.post(
   ),
   async (c) => {
     const { vehicle, pct } = c.req.valid('json');
-    const vehicleId = await resolveVehicleId(vehicle);
+    const vehicleId = await resolveSimulatedVehicleId(vehicle);
     const result = await control().drainBattery(vehicleId, pct);
     return c.json({ ok: true, vehicleId, ...result });
   },
@@ -112,14 +121,14 @@ devRoutes.post(
     if (status === 'in_use') {
       throw badRequest('Use POST /dev/simulate/ride to put a vehicle in use');
     }
-    const vehicleId = await resolveVehicleId(vehicle);
+    const vehicleId = await resolveSimulatedVehicleId(vehicle);
     const result = await control().setStatus(vehicleId, status);
     return c.json({ ok: true, vehicleId, ...result });
   },
 );
 
 devRoutes.post('/simulate/offline', zValidator('json', vehicleRefSchema), async (c) => {
-  const vehicleId = await resolveVehicleId(c.req.valid('json').vehicle);
+  const vehicleId = await resolveSimulatedVehicleId(c.req.valid('json').vehicle);
   const result = await control().setStatus(vehicleId, 'offline');
   return c.json({ ok: true, vehicleId, ...result });
 });

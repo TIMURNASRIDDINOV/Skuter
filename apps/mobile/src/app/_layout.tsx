@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ApiRequestError } from '@/api/client';
 import { SessionProvider, useSession } from '@/api/session';
 import { LanguageProvider } from '@/lib/i18n';
+import { RentalModeProvider } from '@/lib/rental-mode';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -49,10 +50,12 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <LanguageProvider>
-          <SessionProvider>
-            <StatusBar style="dark" />
-            <RootNavigator />
-          </SessionProvider>
+          <RentalModeProvider>
+            <SessionProvider>
+              <StatusBar style="dark" />
+              <RootNavigator />
+            </SessionProvider>
+          </RentalModeProvider>
         </LanguageProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>

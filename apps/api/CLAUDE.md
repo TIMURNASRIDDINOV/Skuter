@@ -180,6 +180,21 @@ scooter goes out on the street under somebody's name. That is the only place
 the requirement lives; sign-up itself is deliberately not blocked. Telegram
 riders satisfy it during login and never see the gate.
 
+## Admin roles and permissions
+
+Two roles. **`owner`** is the seeded account: it passes every permission check
+unconditionally and is the only role that may touch `/admin/admins`. **`staff`**
+can do exactly what an owner ticked for them in `admins.permissions` — a sparse
+`jsonb` map of section → `view` | `manage`, where an absent section is denied,
+so a section added later is invisible to existing staff until somebody grants it.
+
+`requirePermission(section, level)` in `middleware/auth.ts` gates every admin
+route, and it decides with **`adminCan` from `@ozothunder/shared`** — the same
+function the panel's session provider calls. That is the point: a button the
+panel hides is a request this API refuses, rather than two rules that can drift
+apart. `requireOwner` guards the admins routes, because a *permission* that
+granted access there would let a staff account widen its own.
+
 Admins: email + password, bcrypt. `bcryptjs` over argon2 deliberately — pure
 JS, no native binary to fail installing on a demo machine. For production,
 argon2id via `@node-rs/argon2`.
@@ -197,8 +212,10 @@ pnpm -F @ozothunder/api db:seed      # deterministic reseed (truncates first)
 pnpm -F @ozothunder/api typecheck
 ```
 
-`db:seed` is deterministic — same 70 vehicles in the same places every run, so a
-rehearsed demo stays rehearsed. It truncates before seeding.
+`db:seed` is deterministic and creates the city, its zones, the tariffs and the
+owner account — **and no vehicles**. A scooter is a physical object with a QR
+sticker and an IMEI, so it enters through `POST /admin/vehicles` from the back
+office. It truncates before seeding.
 
 ## The SMS gateway
 
@@ -243,6 +260,15 @@ is the trap worth knowing about.
 **`gateway/index.ts` is the only module that knows which implementation is
 live** — everything else calls `getVehicleGateway()` and programs against the
 `VehicleGateway` interface. Selected by `VEHICLE_GATEWAY` (`simulated` | `iot`).
+
+**The simulator drives only `vehicles.simulated = true`.** `#loadFleet` reads
+`listSimulated()`, so a scooter added from the back office keeps the battery and
+position it was given unless somebody ticks «Симулировать» on it — a real
+scooter's telemetry comes from the scooter, and nothing in this process may
+invent it. The vehicle write routes call `getSimulationControl()?.resetFleet()`
+so a newly ticked scooter joins the loop without a restart, and `/dev/simulate/*`
+refuses a vehicle the simulator has never heard of with a message that says so
+rather than an opaque 500.
 
 `SimulatedGateway` holds fleet state in memory, advances it every
 `SIMULATOR_TICK_MS`, and flushes to Postgres in **two batched statements per
@@ -317,6 +343,54 @@ Two more things reservations touch:
   can flip it to `low_battery` and drop a rider's hold while they walk to it.
 - **Expiry is lazy**, swept at the top of `GET /vehicles` and before a ride
   starts. No scheduler, so it behaves the same on Node and on Workers.
+
+## Rent — two doors into one table
+
+A plan is `per_minute` or `rental`, and a rental's length is
+**`duration_minutes`** (180, 300, 1440, 10080). Length is not a kind: `daily`
+and `weekly` used to be enum values, which made how long a rental runs two
+facts that could disagree.
+
+`subscriptions` is reached two ways, and what separates them is
+**`plans.office_only`**, never the duration:
+
+- **Short rents** — 3 h, 5 h, 24 h — are bought in the app
+  (`POST /subscriptions` → `purchaseSubscription`).
+- **Office-only plans** are agreements signed at the desk. `POST /admin/subscriptions`
+  → `grantSubscription` is the only way one exists; the app is refused with
+  `office_only_plan`, and `GET /catalog/plans` drops them so the rider is never
+  offered one in the first place. That single filter is what lets the app offer
+  3 h, 5 h and 24 h without knowing which of them counts as "long".
+
+`grantSubscription` deliberately **does not charge the payment provider** — the
+money was taken at the desk. What it writes to `payments` is a ledger entry
+recording that, not a charge against a wallet.
+
+**A rental's on/off is a gateway command, not a ride.** `setRentalLock`
+sends `unlock`/`lock` and records the result in `subscriptions.unlocked_at`;
+there is no ride row, no cost, and no parking check — the agreement puts
+responsibility for where the scooter goes on the rider. Three consequences:
+
+- **The lock state lives on the subscription, not the vehicle.** The vehicle
+  stays `reserved` for the whole window, which is what keeps it off the public
+  map and out of everyone else's reach.
+- **`unlocked_at` is written after the command acks**, never before. A scooter
+  that did not answer must not read as running.
+- **Every active subscription is a rental.** `getActiveRental` returns one
+  whatever its length or door, and the app gives up the map for it. There used
+  to be a second shape — a "daily pass" that left the rider on the map with the
+  scanner — and it is gone: renting a scooter means the scooter is yours until
+  the window closes.
+
+**Status writes here cross the gateway seam**, same as reservations —
+`getSimulationControl()?.setStatus()`, repository only as the fallback for real
+hardware. A status written straight to Postgres is overwritten by the
+simulator's in-memory copy within one tick.
+
+**Expiry is lazy**, like reservation holds: `expireLapsedSubscriptions` runs at
+the top of `GET /subscriptions/active` and `GET /admin/subscriptions`. It locks
+the scooter if it was left on, returns it to the fleet and publishes
+`subscription.ended`. No scheduler, so it behaves the same on Node and Workers.
 
 ### Simulation tuning
 

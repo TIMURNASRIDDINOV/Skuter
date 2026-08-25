@@ -350,8 +350,17 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
     return vehicle;
   }
 
+  /**
+   * Loads the vehicles the simulator is allowed to drive — `simulated = true`
+   * and nothing else.
+   *
+   * This used to be every vehicle in the table, which was correct while the
+   * whole fleet was seeded and imaginary. A real scooter added from the back
+   * office must keep the battery and the position it was given: inventing
+   * telemetry for hardware that exists is worse than having none.
+   */
   async #loadFleet(): Promise<void> {
-    const vehicles = await this.#repositories.vehicles.listAll();
+    const vehicles = await this.#repositories.vehicles.listSimulated();
     for (const vehicle of vehicles) {
       this.#fleet.set(vehicle.id, {
         id: vehicle.id,
@@ -369,8 +378,8 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
   }
 
   /**
-   * The seed marks two vehicles `in_use` without ride rows, and a restart
-   * loses in-memory routes. Give any in-use vehicle a ride so the fleet is
+   * A restart loses in-memory routes, and an operator can mark a vehicle
+   * `in_use` by hand. Give any in-use simulated vehicle a ride so the fleet is
    * never in a state the rest of the system cannot explain.
    */
   async #reconcileActiveRides(): Promise<void> {
@@ -549,15 +558,22 @@ export class SimulatedGateway implements ManagedVehicleGateway, SimulationContro
     const latencyMs = Math.round(options.minMs + this.#rng() * (options.maxMs - options.minMs));
     await delay(latencyMs);
 
-    // An offline vehicle cannot answer, whatever the failure rate says.
-    const unreachable = vehicle === undefined || vehicle.status === 'offline';
+    // An offline vehicle cannot answer, whatever the failure rate says. A
+    // vehicle this gateway has never heard of is a different thing entirely
+    // and says so: since the seed stopped creating a fleet, the usual reason
+    // is a real scooter, whose controller answers to hardware we have not
+    // built yet — not a fault anybody can go and look at.
+    const unknown = vehicle === undefined;
+    const unreachable = unknown || vehicle.status === 'offline';
     const failed = unreachable || this.#rng() < options.failureRate;
 
     if (failed) {
-      const reason = unreachable
-        ? 'Scooter is offline and did not respond'
-        : (UNLOCK_FAILURE_REASONS[Math.floor(this.#rng() * UNLOCK_FAILURE_REASONS.length)] ??
-          UNLOCK_FAILURE_REASONS[0]);
+      const reason = unknown
+        ? 'This scooter is not simulated, so the simulator cannot command it'
+        : unreachable
+          ? 'Scooter is offline and did not respond'
+          : (UNLOCK_FAILURE_REASONS[Math.floor(this.#rng() * UNLOCK_FAILURE_REASONS.length)] ??
+            UNLOCK_FAILURE_REASONS[0]);
 
       await this.#repositories.commands.settle(commandId, {
         status: 'failed',

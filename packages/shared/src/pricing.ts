@@ -7,7 +7,15 @@ import type { Tiyin } from './money.js';
  * disagree with what the phone showed during the ride.
  */
 
-export const planKindSchema = z.enum(['per_minute', 'daily', 'weekly']);
+/**
+ * What a plan charges for. Two kinds and no more: you either pay for the
+ * minutes you ride, or you rent a scooter for a fixed window.
+ *
+ * How long that window is — three hours or a fortnight — is `durationMinutes`,
+ * not a kind. The enum used to carry `daily` and `weekly`, which made the
+ * length of a rental two facts that could disagree.
+ */
+export const planKindSchema = z.enum(['per_minute', 'rental']);
 export type PlanKind = z.infer<typeof planKindSchema>;
 
 export const ridePricingPlanSchema = z.object({
@@ -16,8 +24,8 @@ export const ridePricingPlanSchema = z.object({
   unlockFee: z.int().nonnegative(),
   /**
    * For `per_minute`: the per-minute rate in tiyin.
-   * For `daily`/`weekly`: the total price of the plan — it does not enter ride
-   * cost, because rides under such a plan are already paid for.
+   * For `rental`: the total price of the plan — it does not enter ride cost,
+   * because rides under such a plan are already paid for.
    */
   price: z.int().nonnegative(),
 });
@@ -31,7 +39,7 @@ export const rideCostInputSchema = z.object({
   distanceM: z.number(),
   /**
    * Set when an active subscription binds this user to this vehicle. Defaults
-   * to true for `daily`/`weekly` plans, which are subscriptions by definition.
+   * to true for `rental` plans, which are subscriptions by definition.
    */
   coveredBySubscription: z.boolean().optional(),
 });

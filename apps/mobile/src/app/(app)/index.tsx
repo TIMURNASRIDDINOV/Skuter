@@ -15,12 +15,14 @@ import {
   usePlans,
   useProfile,
   useReleaseVehicle,
+  useRental,
   useReservation,
   useReserveVehicle,
   useVehicles,
   useZones,
 } from '@/api/queries';
 import { MenuSheet } from '@/components/MenuSheet';
+import { ModeSwitch } from '@/components/ModeSwitch';
 import { ReservationBanner } from '@/components/ReservationBanner';
 import { TariffDetails } from '@/components/TariffPicker';
 import { Icon, IconButton } from '@/components/ui';
@@ -33,6 +35,7 @@ import { ZoneSheet } from '@/components/ZoneSheet';
 import { isRentable, serviceZonesOf } from '@/lib/fleet';
 import { formatDuration } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
+import { useRentalMode } from '@/lib/rental-mode';
 import { CITY_ZOOM, FOCUS_ZOOM, INITIAL_BOUNDS, MAP_STYLE_URL } from '@/lib/map';
 import { DURATION, EASE_OUT, useMotion } from '@/lib/motion';
 import {
@@ -93,6 +96,8 @@ export default function MapScreen() {
   const activeRideQuery = useActiveRide();
   const reservationQuery = useReservation();
   const profileQuery = useProfile();
+  const rentalQuery = useRental();
+  const { mode: rentalMode, setMode: setRentalMode, ready: modeReady } = useRentalMode();
   const reserve = useReserveVehicle();
   const release = useReleaseVehicle();
 
@@ -145,6 +150,26 @@ export default function MapScreen() {
   useEffect(() => {
     if (mode?.kind === 'vehicle' && selected === null) closeSheet();
   }, [mode, selected, closeSheet]);
+
+  const rental = rentalQuery.data?.rental ?? null;
+
+  /**
+   * Crossing into the rental — on launch, and when the switch is pressed.
+   *
+   * One effect drives both: pressing the switch only writes the preference,
+   * and this is what acts on it. That is also why a rider who left the app in
+   * rental mode reopens into it — a rental genuinely replaces the app for its
+   * window rather than being a screen to find again.
+   *
+   * `replace`, not `push`: the two faces are alternatives, not a stack, so
+   * there is no map sitting behind the rental to swipe back to. Both
+   * conditions matter — a stored preference is meaningless once the rental
+   * ends, and acting before SecureStore has answered would bounce every
+   * launch through the map.
+   */
+  useEffect(() => {
+    if (modeReady && rentalMode === 'rental' && rental !== null) router.replace('/rental');
+  }, [modeReady, rentalMode, rental, router]);
 
   // Ask once, then keep a fix so the walk route has an origin. A denied
   // permission simply leaves it null and the route never draws.
@@ -314,15 +339,24 @@ export default function MapScreen() {
             wants *before* walking to a scooter, not after failing to unlock
             one. */}
         <View style={styles.topBar}>
-          <View style={styles.brand}>
-            <View style={styles.brandMark}>
-              <Icon name="scooter" size={16} color={colors.onPrimary} />
+          {/* The mark, or the way into the rental — never both. A rider
+              with a weekly agreement has somewhere else to be, and this is the
+              corner their eye already goes to; a rider without one sees the
+              brand exactly as before. */}
+          {rental === null ? (
+            <View style={styles.brand}>
+              <View style={styles.brandMark}>
+                <Icon name="scooter" size={16} color={colors.onPrimary} />
+              </View>
             </View>
-            <Text style={styles.brandName}>OZO</Text>
-            <View style={styles.brandCity}>
-              <Text style={styles.brandCityText}>BUX</Text>
-            </View>
-          </View>
+          ) : (
+            <ModeSwitch
+              target="rental"
+              onPress={() => {
+                setRentalMode('rental');
+              }}
+            />
+          )}
 
           <View style={styles.topActions}>
             <Pressable
@@ -565,15 +599,14 @@ const styles = StyleSheet.create({
     gap: spacing.s,
   },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  // The mark alone, so the pill is a circle rather than a wordmark-shaped
+  // stub with nothing in it.
   brand: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
     backgroundColor: colors.surface,
     borderRadius: radius.full,
-    paddingLeft: 5,
-    paddingRight: spacing.m,
-    paddingVertical: 5,
+    padding: 5,
     ...outline,
     ...shadows.md,
   },
@@ -586,15 +619,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...outlineHair,
   },
-  brandName: { fontSize: 14, ...caps, letterSpacing: 1.2, color: colors.text },
-  brandCity: {
-    backgroundColor: colors.surfaceBrand,
-    borderRadius: radius.s,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    ...outlineHair,
-  },
-  brandCityText: { fontSize: 10, ...caps, color: colors.text },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.s },
   balance: {
     flexDirection: 'row',

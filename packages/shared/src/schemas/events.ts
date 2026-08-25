@@ -71,6 +71,20 @@ export const subscriptionCreatedEventSchema = z.object({
   expiresAt: timestampSchema,
 });
 
+/**
+ * A subscription window closed — cancelled by an operator or simply lapsed.
+ * The panel refreshes its table off this, and the vehicle it frees arrives
+ * separately as a `vehicle.updated`.
+ */
+export const subscriptionEndedEventSchema = z.object({
+  type: z.literal('subscription.ended'),
+  at: timestampSchema,
+  subscriptionId: idSchema,
+  userId: idSchema,
+  vehicleId: idSchema,
+  reason: z.enum(['expired', 'cancelled']),
+});
+
 export const zoneChangedEventSchema = z.object({
   type: z.literal('zone.changed'),
   at: timestampSchema,
@@ -92,6 +106,7 @@ export const serverEventSchema = z.discriminatedUnion('type', [
   rideEndedEventSchema,
   commandUpdatedEventSchema,
   subscriptionCreatedEventSchema,
+  subscriptionEndedEventSchema,
   zoneChangedEventSchema,
   heartbeatEventSchema,
 ]);

@@ -33,6 +33,7 @@ import { plural } from '../lib/format.js';
 import { SEVERITY_META, VEHICLE_STATUS_META, ZONE_KIND_META } from '../components/status.js';
 import { MapAutoSize } from '../components/MapAutoSize.js';
 import { ErrorState, TableSkeleton } from '../components/states.js';
+import { useAdminSession } from '../providers/session.js';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 
@@ -63,6 +64,7 @@ interface ZoneFormValues {
  */
 export function ZonesPage(): React.ReactElement {
   const { message } = AntApp.useApp();
+  const canManage = useAdminSession().can('zones', 'manage');
   const { vehicles } = useLiveFleet();
   const [zones, setZones] = useState<Zone[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -237,14 +239,18 @@ export function ZonesPage(): React.ReactElement {
 
             <MapAutoSize positions={focus} padding={40} maxZoom={15} />
 
-            <DrawControl
-              zones={zones}
-              highlighted={hovered}
-              onDrawn={setDraft}
-              onEdited={(id, geom) => {
-                void updateGeometry(id, geom);
-              }}
-            />
+            {/* Read-only admins get the map without the drawing toolbar —
+                the zone write endpoints refuse them anyway. */}
+            {canManage ? (
+              <DrawControl
+                zones={zones}
+                highlighted={hovered}
+                onDrawn={setDraft}
+                onEdited={(id, geom) => {
+                  void updateGeometry(id, geom);
+                }}
+              />
+            ) : null}
           </MapContainer>
 
           <Space size={14} wrap style={{ marginTop: 8 }}>
@@ -395,6 +401,7 @@ export function ZonesPage(): React.ReactElement {
                         size="small"
                         type="text"
                         icon={<EditOutlined />}
+                        style={{ display: canManage ? undefined : 'none' }}
                         onClick={(event) => {
                           event.stopPropagation();
                           setEditing(zone);
@@ -425,6 +432,7 @@ export function ZonesPage(): React.ReactElement {
                           type="text"
                           danger
                           icon={<DeleteOutlined />}
+                          style={{ display: canManage ? undefined : 'none' }}
                           onClick={(event) => {
                             event.stopPropagation();
                           }}

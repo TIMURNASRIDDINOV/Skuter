@@ -1,5 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Card, Input, Progress, Segmented, Space, Table, Typography, theme } from 'antd';
+import {
+  App as AntApp,
+  Button,
+  Card,
+  Input,
+  Popconfirm,
+  Progress,
+  Segmented,
+  Space,
+  Table,
+  Tag,
+  Typography,
+  theme,
+} from 'antd';
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { AdminVehicle, Ride, VehicleStatus, Zone } from '@ozothunder/shared';
 import { LOW_BATTERY_THRESHOLD_PCT } from '@ozothunder/shared';
@@ -19,7 +33,9 @@ import {
   type Severity,
 } from '../components/status.js';
 import { useRecentlyChanged } from '../components/motion.js';
+import { useAdminSession } from '../providers/session.js';
 import { VehicleDrawer } from '../components/VehicleDrawer.js';
+import { VehicleFormModal } from '../components/VehicleFormModal.js';
 import { EmptyState, ErrorState, TableSkeleton } from '../components/states.js';
 
 type ActiveRide = Ride & { vehicleQrCode: string };
@@ -46,6 +62,24 @@ export function VehiclesPage(): React.ReactElement {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [selected, setSelected] = useState<AdminVehicle | null>(null);
+  const [editing, setEditing] = useState<AdminVehicle | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const { message } = AntApp.useApp();
+  const session = useAdminSession();
+  const canManage = session.can('vehicles', 'manage');
+
+  const removeVehicle = useCallback(
+    async (vehicle: AdminVehicle) => {
+      try {
+        await apiFetch(`/admin/vehicles/${vehicle.id}`, { method: 'DELETE' });
+        message.success(`Самокат ${vehicle.qrCode} удалён`);
+        refetch();
+      } catch (cause: unknown) {
+        message.error(cause instanceof Error ? cause.message : 'Не удалось удалить самокат');
+      }
+    },
+    [message, refetch],
+  );
   const { token } = theme.useToken();
 
   const loadContext = useCallback(() => {
@@ -199,6 +233,45 @@ export function VehiclesPage(): React.ReactElement {
         </Typography.Text>
       ),
     },
+    {
+      title: 'Симуляция',
+      dataIndex: 'simulated',
+      width: 110,
+      render: (simulated: boolean) =>
+        simulated ? <Tag color="purple">Симулятор</Tag> : <Tag>Реальный</Tag>,
+    },
+    ...(canManage
+      ? [
+          {
+            title: '',
+            key: 'actions',
+            width: 80,
+            // The row itself opens the drawer, so these must not bubble into it.
+            render: (_: unknown, vehicle: AdminVehicle) => (
+              <Space size={0} onClick={(event) => { event.stopPropagation(); }}>
+                <Button
+                  size="small"
+                  type="text"
+                  icon={<EditOutlined />}
+                  onClick={() => {
+                    setEditing(vehicle);
+                    setFormOpen(true);
+                  }}
+                />
+                <Popconfirm
+                  title={`Удалить самокат ${vehicle.qrCode}?`}
+                  okText="Удалить"
+                  okButtonProps={{ danger: true }}
+                  cancelText="Отмена"
+                  onConfirm={() => void removeVehicle(vehicle)}
+                >
+                  <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+                </Popconfirm>
+              </Space>
+            ),
+          },
+        ]
+      : []),
   ];
 
   if (error !== null) return <ErrorState message={error} onRetry={refetch} />;
@@ -257,6 +330,20 @@ export function VehiclesPage(): React.ReactElement {
               setSearch(event.target.value);
             }}
           />
+
+          {canManage ? (
+            <Button
+              size="small"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setEditing(null);
+                setFormOpen(true);
+              }}
+            >
+              Добавить
+            </Button>
+          ) : null}
         </div>
 
         {isLoading ? (
@@ -265,7 +352,7 @@ export function VehiclesPage(): React.ReactElement {
           <EmptyState
             description={
               vehicles.length === 0
-                ? 'Парк пуст — запустите pnpm db:seed'
+                ? 'Парк пуст — добавьте первый самокат кнопкой «Добавить»'
                 : filter === 'attention'
                   ? 'Ничего не требует вмешательства'
                   : 'Ничего не найдено по этому фильтру'
@@ -289,6 +376,15 @@ export function VehiclesPage(): React.ReactElement {
           />
         )}
       </Card>
+
+      <VehicleFormModal
+        open={formOpen}
+        vehicle={editing}
+        onClose={() => {
+          setFormOpen(false);
+        }}
+        onSaved={refetch}
+      />
 
       <VehicleDrawer
         // Read through from live fleet state so the drawer keeps ticking while

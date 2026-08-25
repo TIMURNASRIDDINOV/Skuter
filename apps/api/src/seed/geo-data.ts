@@ -85,38 +85,4 @@ export function zonePolygon(zone: SeedZone): GeoPolygon {
   return polygonAround(zone.centre, zone.radiusM, 10);
 }
 
-/**
- * Street-like segments per cluster. Part of each cluster is laid along these
- * rather than scattered radially, so pins line up the way parked scooters
- * actually do.
- */
-export const CLUSTER_STREETS: Readonly<Record<string, { from: LatLon; to: LatLon }>> = {
-  'Poi Kalyan': {
-    from: { lat: 39.7729, lon: 64.4091 },
-    to: { lat: 39.7787, lon: 64.4181 },
-  },
-  'Ark Fortress': {
-    from: { lat: 39.7745, lon: 64.4067 },
-    to: { lat: 39.7819, lon: 64.4163 },
-  },
-  'Chor Minor': {
-    from: { lat: 39.7682, lon: 64.42 },
-    to: { lat: 39.7751, lon: 64.4303 },
-  },
-  'Lyab-i Hauz': {
-    from: { lat: 39.7707, lon: 64.4187 },
-    to: { lat: 39.7776, lon: 64.4284 },
-  },
-  'Samani Park': {
-    from: { lat: 39.7778, lon: 64.4251 },
-    to: { lat: 39.7839, lon: 64.4329 },
-  },
-};
 
-/** Scooter models in the seeded fleet. */
-export const VEHICLE_MODELS: readonly string[] = [
-  'Ninebot Max G30',
-  'Ninebot F40',
-  'Xiaomi Pro 2',
-  'Segway E45',
-] as const;

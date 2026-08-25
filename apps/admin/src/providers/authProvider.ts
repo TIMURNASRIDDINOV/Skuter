@@ -26,9 +26,22 @@ export const authProvider: AuthProvider = {
       setToken(session.token);
       return { success: true, redirectTo: '/' };
     } catch {
+      // Name the address that failed. The old message said only "check that it
+      // is running", which is useless advice on a hosted panel and actively
+      // misleading when the real cause is a stale bundle still pointing at
+      // localhost: an https page calling http:// is blocked as mixed content,
+      // and a blocked fetch throws exactly like an unreachable server.
+      const mixedContent =
+        globalThis.location.protocol === 'https:' && API_URL.startsWith('http://');
+
       return {
         success: false,
-        error: { name: 'Нет соединения', message: 'API недоступен — проверьте, что он запущен' },
+        error: {
+          name: 'Нет соединения',
+          message: mixedContent
+            ? `Страница открыта по https, а API указан как ${API_URL} — браузер блокирует такой запрос. Обновите страницу с очисткой кэша (Cmd/Ctrl+Shift+R).`
+            : `Не удалось связаться с API по адресу ${API_URL}.`,
+        },
       };
     }
   },

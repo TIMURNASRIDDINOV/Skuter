@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "concurrently -n api,admin,mobile -c cyan,magenta,green \"pnpm -F @ozothunder/api dev\" \"pnpm -F @ozothunder/admin dev\" \"pnpm -F @ozothunder/mobile dev\"",
+    "admin:prod": "VITE_API_URL=https://ozothunder-api.timurnasriddinov56.workers.dev pnpm -F @ozothunder/admin dev",
     "build": "pnpm -F @ozothunder/shared build",
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",

@@ -12,6 +12,7 @@ interface SubscriptionRow {
   startsAt: Date;
   expiresAt: Date;
   status: SubscriptionStatus;
+  unlockedAt: Date | null;
 }
 
 const columns = {
@@ -22,6 +23,7 @@ const columns = {
   startsAt: subscriptions.startsAt,
   expiresAt: subscriptions.expiresAt,
   status: subscriptions.status,
+  unlockedAt: subscriptions.unlockedAt,
 } as const;
 
 function toSubscription(row: SubscriptionRow): Subscription {
@@ -33,6 +35,7 @@ function toSubscription(row: SubscriptionRow): Subscription {
     startsAt: toIso(row.startsAt),
     expiresAt: toIso(row.expiresAt),
     status: row.status,
+    unlockedAt: row.unlockedAt === null ? null : toIso(row.unlockedAt),
   };
 }
 
@@ -45,11 +48,14 @@ export function createSubscriptionsRepository(db: Database) {
         planName: plans.name,
         planUnlockFee: plans.unlockFee,
         planPrice: plans.price,
-        planDurationDays: plans.durationDays,
+        planDurationMinutes: plans.durationMinutes,
+        planOfficeOnly: plans.officeOnly,
+        planActive: plans.active,
         vehicleQrCode: vehicles.qrCode,
         vehicleModel: vehicles.model,
         vehicleStatus: vehicles.status,
         userPhone: users.phone,
+        userName: users.name,
       })
       .from(subscriptions)
       .innerJoin(plans, eq(subscriptions.planId, plans.id))
@@ -66,7 +72,9 @@ export function createSubscriptionsRepository(db: Database) {
         name: row.planName,
         unlockFee: row.planUnlockFee,
         price: row.planPrice,
-        durationDays: row.planDurationDays,
+        durationMinutes: row.planDurationMinutes,
+        officeOnly: row.planOfficeOnly,
+        active: row.planActive,
       },
       vehicle: {
         id: row.vehicleId,
@@ -75,6 +83,7 @@ export function createSubscriptionsRepository(db: Database) {
         status: row.vehicleStatus,
       },
       userPhone: row.userPhone,
+      userName: row.userName,
     }));
   }
 
@@ -136,6 +145,49 @@ export function createSubscriptionsRepository(db: Database) {
       return row === undefined ? null : toSubscription(row as SubscriptionRow);
     },
 
+    /**
+     * The rider's one live subscription, newest first.
+     *
+     * `grantSubscription` and `purchaseSubscription` both refuse a second one,
+     * so in practice there is at most a single row here — the ordering is what
+     * makes that assumption safe rather than merely likely.
+     */
+    async findActiveForUser(userId: string): Promise<Subscription | null> {
+      const [row] = await db
+        .select(columns)
+        .from(subscriptions)
+        .where(
+          and(
+            eq(subscriptions.userId, userId),
+            eq(subscriptions.status, 'active'),
+            gt(subscriptions.expiresAt, new Date()),
+          ),
+        )
+        .orderBy(desc(subscriptions.startsAt))
+        .limit(1);
+      return row === undefined ? null : toSubscription(row as SubscriptionRow);
+    },
+
+    /** Records the rental being switched on (a date) or off (null). */
+    async setUnlocked(id: string, at: Date | null): Promise<Subscription | null> {
+      const [row] = await db
+        .update(subscriptions)
+        .set({ unlockedAt: at })
+        .where(eq(subscriptions.id, id))
+        .returning(columns);
+      return row === undefined ? null : toSubscription(row as SubscriptionRow);
+    },
+
+    /** Ends a subscription early. Returns null if it was not active. */
+    async cancel(id: string): Promise<Subscription | null> {
+      const [row] = await db
+        .update(subscriptions)
+        .set({ status: 'cancelled' })
+        .where(and(eq(subscriptions.id, id), eq(subscriptions.status, 'active')))
+        .returning(columns);
+      return row === undefined ? null : toSubscription(row as SubscriptionRow);
+    },
+
     async listForUser(userId: string): Promise<SubscriptionDetail[]> {
       return listDetailed(eq(subscriptions.userId, userId));
     },
@@ -151,14 +203,20 @@ export function createSubscriptionsRepository(db: Database) {
       return result.rows[0]?.total ?? 0;
     },
 
-    /** Sweeps subscriptions whose window has closed. Returns how many expired. */
-    async expireLapsed(): Promise<number> {
+    /**
+     * Sweeps subscriptions whose window has closed.
+     *
+     * Returns the rows rather than a count: each one leaves a vehicle sitting
+     * `reserved` that has to be handed back to the fleet, and the caller needs
+     * its id to do that.
+     */
+    async expireLapsed(): Promise<Subscription[]> {
       const rows = await db
         .update(subscriptions)
         .set({ status: 'expired' })
         .where(and(eq(subscriptions.status, 'active'), sql`expires_at <= now()`))
-        .returning({ id: subscriptions.id });
-      return rows.length;
+        .returning(columns);
+      return rows.map((row) => toSubscription(row as SubscriptionRow));
     },
 
   };

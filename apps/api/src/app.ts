@@ -11,6 +11,7 @@ import { adminAuthRoutes } from './routes/admin-auth.js';
 import { authRoutes } from './routes/auth.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { adminRoutes } from './routes/admin.js';
+import { adminAccountRoutes } from './routes/admins.js';
 import { devRoutes } from './routes/dev.js';
 import { rideRoutes } from './routes/rides.js';
 import { subscriptionRoutes } from './routes/subscriptions.js';
@@ -61,6 +62,9 @@ export function createApp(): Hono<AppEnv> {
   // Back office.
   app.route('/admin/auth', adminAuthRoutes);
   app.route('/admin/vehicles', adminVehicleRoutes);
+  // Before `/admin`, which mounts a catch-all `requireAdmin`. Order matters:
+  // these need `requireOwner` on top of it, not instead of it.
+  app.route('/admin/admins', adminAccountRoutes);
   app.route('/admin', adminRoutes);
 
   // Demo controls. The routes gate themselves on NODE_ENV.

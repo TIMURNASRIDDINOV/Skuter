@@ -21,6 +21,7 @@ import { RideStatusTag, SEVERITY_META, type Severity } from '../components/statu
 import { useRecentlyChanged } from '../components/motion.js';
 import { RideDrawer, type RideRow } from '../components/RideDrawer.js';
 import { EmptyState, ErrorState, TableSkeleton } from '../components/states.js';
+import { useAdminSession } from '../providers/session.js';
 
 const rideId = (ride: RideRow): string => ride.id;
 // Duration and cost tick constantly; only a ride starting or ending is news.
@@ -36,6 +37,7 @@ const rideSignature = (ride: RideRow): string => ride.status;
  */
 export function RidesPage(): React.ReactElement {
   const { message } = AntApp.useApp();
+  const canManage = useAdminSession().can('rides', 'manage');
   const [rides, setRides] = useState<RideRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -261,8 +263,10 @@ export function RidesPage(): React.ReactElement {
       title: '',
       key: 'actions',
       width: 120,
+      // Hidden without manage access — the API refuses the call anyway, and a
+      // button that always fails is worse than no button.
       render: (_, ride) =>
-        ride.status !== 'active' ? null : (
+        ride.status !== 'active' || !canManage ? null : (
           <Popconfirm
             title="Завершить поездку?"
             description="Поездка будет остановлена там, где находится самокат. Пользователь оплатит использованное время."
@@ -360,6 +364,7 @@ export function RidesPage(): React.ReactElement {
         ride={selected}
         liveDurationS={selected === null ? null : liveDuration(selected)}
         isEnding={endingId !== null && endingId === selectedId}
+        canForceEnd={canManage}
         onForceEnd={(ride) => {
           void forceEnd(ride);
         }}

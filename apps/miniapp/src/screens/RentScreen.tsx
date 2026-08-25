@@ -2,7 +2,7 @@ import type { Plan, SubscriptionDetail } from '@ozothunder/shared';
 import { formatSom } from '@ozothunder/shared';
 
 /**
- * Аренда tab: active passes first, then the daily/weekly plans. A pass is
+ * Аренда tab: active passes first, then the daily plans. A pass is
  * bound to one scooter, so buying starts with scanning it — the shared scan
  * flow returns here with the vehicle resolved.
  */
@@ -69,11 +69,7 @@ export function RentScreen({
               <b>{plan.name}</b>
               <b className="highlight">{formatSom(plan.price)}</b>
             </div>
-            <div className="muted">
-              {plan.durationDays === 1
-                ? 'Безлимит на сутки для одного самоката'
-                : `Безлимит на ${String(plan.durationDays)} дней для одного самоката`}
-            </div>
+            <div className="muted">Один самокат в вашем распоряжении на {planDuration(plan)}</div>
             <button className="btn primary small" disabled={buying} onClick={() => onBuy(plan)}>
               ▣ Отсканировать самокат и купить
             </button>
@@ -82,4 +78,20 @@ export function RentScreen({
       </section>
     </div>
   );
+}
+
+/**
+ * A plan's length, said the way the app says it — `3 часа`, `24 часа`,
+ * `7 дней`. Whole days read as days; `168 часов` is the same week and nobody
+ * counts a week in hours.
+ */
+function planDuration(plan: Plan): string {
+  const minutes = plan.durationMinutes;
+  if (minutes === null) return '—';
+  if (minutes % 1440 === 0) {
+    const days = minutes / 1440;
+    return `${String(days)} ${days === 1 ? 'день' : days < 5 ? 'дня' : 'дней'}`;
+  }
+  const hours = Math.round(minutes / 60);
+  return `${String(hours)} ${hours === 1 ? 'час' : hours < 5 ? 'часа' : 'часов'}`;
 }

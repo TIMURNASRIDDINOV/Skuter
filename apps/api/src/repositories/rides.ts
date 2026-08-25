@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, count, desc, eq, sql } from 'drizzle-orm';
 import type { GeoLineString, LatLon, Ride, RideStatus } from '@ozothunder/shared';
 import type { Database } from '../db/client.js';
 import { selectLineString } from '../db/sql.js';
@@ -113,6 +113,15 @@ export function createRidesRepository(db: Database) {
         .innerJoin(users, eq(rides.userId, users.id))
         .where(eq(rides.status, 'active'));
       return rows.map((row) => ({ ...toRide(row as RideRow), userPhone: row.userPhone }));
+    },
+
+    /** Any ride ever, for the vehicle-delete guard — history outranks tidiness. */
+    async countByVehicle(vehicleId: string): Promise<number> {
+      const [row] = await db
+        .select({ n: count() })
+        .from(rides)
+        .where(eq(rides.vehicleId, vehicleId));
+      return row?.n ?? 0;
     },
 
     async countActive(): Promise<number> {

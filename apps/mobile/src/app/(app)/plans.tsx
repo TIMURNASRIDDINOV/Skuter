@@ -11,20 +11,15 @@ import { ApiRequestError, apiFetch } from '@/api/client';
 import { useBuySubscription, usePlans } from '@/api/queries';
 import { EmptyState, ErrorState, ListSkeleton } from '@/components/states';
 import { Button, Icon, ScreenHeader } from '@/components/ui';
-import { formatDate } from '@/lib/format';
+import { formatDateTime, formatPlanDuration } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
-import type { Strings } from '@/lib/i18n';
+import { useRentalMode } from '@/lib/rental-mode';
 import { caps, colors, outline, radius, shadows, spacing, typography } from '@/lib/theme';
-
-function daysWord(days: number, t: Strings): string {
-  if (days % 10 === 1 && days % 100 !== 11) return t.day;
-  if ([2, 3, 4].includes(days % 10) && ![12, 13, 14].includes(days % 100)) return t.days2_4;
-  return t.days5;
-}
 
 export default function PlansScreen() {
   const { t, lang } = useI18n();
   const router = useRouter();
+  const { setMode: setRentalMode } = useRentalMode();
   const params = useLocalSearchParams<{
     vehicleId?: string;
     qr?: string;
@@ -54,8 +49,8 @@ export default function PlansScreen() {
   const vehicleModel = params.model ?? scannedQuery.data?.model ?? '';
 
   const subscribable = (plansQuery.data?.items ?? []).filter(
-    (plan): plan is Plan & { durationDays: number } =>
-      plan.kind !== 'per_minute' && plan.durationDays !== null,
+    (plan): plan is Plan & { durationMinutes: number } =>
+      plan.kind !== 'per_minute' && plan.durationMinutes !== null,
   );
   const selected = subscribable.find((plan) => plan.id === selectedPlanId) ?? null;
 
@@ -91,15 +86,20 @@ export default function PlansScreen() {
           </Animated.View>
           <Text style={styles.successTitle}>{t.purchaseSuccessTitle}</Text>
           <Text style={styles.successHint}>
-            {vehicleQr} — {t.until} {formatDate(expiry(selected.durationDays), lang)}
+            {vehicleQr} — {t.until} {formatDateTime(expiry(selected.durationMinutes), lang)}
           </Text>
           <Text style={styles.successNote}>{t.purchaseSuccessHint}</Text>
         </View>
         <View style={styles.footer}>
-          {/* Back to Аренда, where the pass they just bought is now listed. */}
+          {/* Into the rental console, not back to a list. The scooter is
+              theirs now and the next thing they want is the switch that turns
+              it on — the map has nothing left to offer for this window. */}
           <Button
-            label={t.toMap}
-            onPress={() => router.replace('/rent')}
+            label={t.toRental}
+            onPress={() => {
+              setRentalMode('rental');
+              router.replace('/rental');
+            }}
             testID="subscription-done"
           />
         </View>
@@ -143,7 +143,7 @@ export default function PlansScreen() {
                 <Pressable
                   style={[styles.planCard, active && styles.planCardActive]}
                   onPress={() => setSelectedPlanId(plan.id)}
-                  testID={`plan-${plan.kind}`}
+                  testID={`plan-${String(plan.durationMinutes)}`}
                 >
                   <View style={styles.planHeader}>
                     <Text style={styles.planName}>{plan.name}</Text>
@@ -153,7 +153,7 @@ export default function PlansScreen() {
                   </View>
                   <Text style={styles.planPrice}>{formatSom(plan.price)}</Text>
                   <Text style={styles.planDuration}>
-                    {plan.durationDays} {daysWord(plan.durationDays, t)}
+                    {formatPlanDuration(plan.durationMinutes, lang)}
                   </Text>
                 </Pressable>
               </Animated.View>
@@ -171,7 +171,7 @@ export default function PlansScreen() {
       {selected !== null && (
         <View style={styles.footer}>
           <Text style={styles.expiryNote}>
-            {vehicleQr} — {t.until} {formatDate(expiry(selected.durationDays), lang)}
+            {vehicleQr} — {t.until} {formatDateTime(expiry(selected.durationMinutes), lang)}
           </Text>
           <Button
             label={`${t.buyFor} ${formatSom(selected.price)}`}
@@ -198,8 +198,8 @@ export default function PlansScreen() {
   );
 }
 
-function expiry(durationDays: number): string {
-  return new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+function expiry(durationMinutes: number): string {
+  return new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
 }
 
 const styles = StyleSheet.create({

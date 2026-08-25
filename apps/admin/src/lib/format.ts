@@ -3,7 +3,7 @@ import timezone from 'dayjs/plugin/timezone.js';
 import utc from 'dayjs/plugin/utc.js';
 import relativeTime from 'dayjs/plugin/relativeTime.js';
 import 'dayjs/locale/ru.js';
-import { DISPLAY_TIMEZONE, formatSom } from '@ozothunder/shared';
+import { DISPLAY_TIMEZONE, MINUTES_PER_DAY, formatSom } from '@ozothunder/shared';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -60,6 +60,26 @@ export function formatDuration(seconds: number): string {
   const s = total % 60;
   const pad = (n: number): string => n.toString().padStart(2, '0');
   return h > 0 ? `${String(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+}
+
+/**
+ * A rental's length, from the minutes it is stored as — `3 часа`, `24 часа`,
+ * `7 дней`.
+ *
+ * Whole days read as days because that is how the office sells them: an
+ * operator granting a fortnight thinks in weeks, not in 20 160 minutes.
+ */
+export function formatRentalDuration(minutes: number | null): string {
+  if (minutes === null) return '—';
+  if (minutes % MINUTES_PER_DAY === 0) {
+    const days = minutes / MINUTES_PER_DAY;
+    return `${String(days)} ${plural(days, 'день', 'дня', 'дней')}`;
+  }
+  if (minutes % 60 === 0) {
+    const hours = minutes / 60;
+    return `${String(hours)} ${plural(hours, 'час', 'часа', 'часов')}`;
+  }
+  return `${String(minutes)} мин`;
 }
 
 /**

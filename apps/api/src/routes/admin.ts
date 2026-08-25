@@ -3,10 +3,13 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { streamSSE } from 'hono/streaming';
 import {
+  API_ERROR_CODES,
   createPlanRequestSchema,
   createZoneRequestSchema,
+  grantSubscriptionRequestSchema,
   listAuditLogQuerySchema,
   listRidesQuerySchema,
+  listUsersQuerySchema,
   listZonesQuerySchema,
   updatePlanRequestSchema,
   updateZoneRequestSchema,
@@ -15,11 +18,16 @@ import {
 } from '@ozothunder/shared';
 import { env } from '../env.js';
 import { publishEvent, serverEvents } from '../events/bus.js';
-import { notFound } from '../lib/errors.js';
+import { conflict, notFound } from '../lib/errors.js';
 import { repositories } from '../repositories/index.js';
 import { isSimulatorRider } from '../seed/riders.js';
 import { forceEndRide } from '../services/rides.js';
-import { adminOf, requireAdmin, requireAdminRole, type AppEnv } from '../middleware/auth.js';
+import {
+  cancelSubscription,
+  expireLapsedSubscriptions,
+  grantSubscription,
+} from '../services/subscriptions.js';
+import { adminOf, requireAdmin, requirePermission, type AppEnv } from '../middleware/auth.js';
 
 export const adminRoutes = new Hono<AppEnv>();
 
@@ -103,7 +111,7 @@ adminRoutes.use('*', requireAdmin);
 
 // --- dashboard -----------------------------------------------------------
 
-adminRoutes.get('/stats', async (c) => {
+adminRoutes.get('/stats', requirePermission('dashboard', 'view'), async (c) => {
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
@@ -137,7 +145,7 @@ adminRoutes.get('/stats', async (c) => {
   return c.json(stats);
 });
 
-adminRoutes.get('/revenue', async (c) => {
+adminRoutes.get('/revenue', requirePermission('dashboard', 'view'), async (c) => {
   const days = Number.parseInt(c.req.query('days') ?? '14', 10);
   const items: RevenuePoint[] = await repositories.rides.revenueByDay(
     Number.isFinite(days) ? Math.min(90, Math.max(1, days)) : 14,
@@ -147,7 +155,11 @@ adminRoutes.get('/revenue', async (c) => {
 
 // --- tables --------------------------------------------------------------
 
-adminRoutes.get('/rides', zValidator('query', listRidesQuerySchema), async (c) => {
+adminRoutes.get(
+  '/rides',
+  requirePermission('rides', 'view'),
+  zValidator('query', listRidesQuerySchema),
+  async (c) => {
   const items = await repositories.rides.listAll(c.req.valid('query'));
   return c.json({ items, total: items.length });
 });
@@ -156,7 +168,7 @@ adminRoutes.get('/rides', zValidator('query', listRidesQuerySchema), async (c) =
  * Operator force-end for stuck or abandoned rides. Settles wherever the
  * vehicle is (no parking check) and charges the rider for the time used.
  */
-adminRoutes.post('/rides/:id/end', requireAdminRole('operator'), async (c) => {
+adminRoutes.post('/rides/:id/end', requirePermission('rides', 'manage'), async (c) => {
   const { adminId } = adminOf(c.get('auth'));
 
   const outcome = await forceEndRide(repositories, c.req.param('id'));
@@ -175,44 +187,112 @@ adminRoutes.post('/rides/:id/end', requireAdminRole('operator'), async (c) => {
   return c.json(outcome.receipt);
 });
 
-adminRoutes.get('/users', async (c) => {
+adminRoutes.get(
+  '/users',
+  requirePermission('users', 'view'),
+  zValidator('query', listUsersQuerySchema),
+  async (c) => {
   // The simulator's reserved rider accounts are plumbing, not customers.
-  const items = (await repositories.users.listAll()).filter(
+  const items = (await repositories.users.listAll(c.req.valid('query'))).filter(
     (user) => user.phone === null || !isSimulatorRider(user.phone),
   );
   return c.json({ items, total: items.length });
 });
 
-adminRoutes.get('/subscriptions', async (c) => {
+// --- rentals -------------------------------------------------------------
+
+adminRoutes.get('/subscriptions', requirePermission('subscriptions', 'view'), async (c) => {
+  // Same lazy sweep the rider's poll runs, so a lapsed rental never sits in
+  // this table looking active.
+  await expireLapsedSubscriptions(repositories);
   const items = await repositories.subscriptions.listAll();
   return c.json({ items, total: items.length });
 });
 
-adminRoutes.get('/payments', async (c) => {
+/**
+ * Turn rent on for a rider who paid at the office.
+ *
+ * This is the only way an office-only rental comes into being — the app cannot
+ * sell one. Whoever runs this has the customer standing in front of them,
+ * which is why the audit row records the operator, the rider and the scooter
+ * together.
+ */
+adminRoutes.post(
+  '/subscriptions',
+  requirePermission('subscriptions', 'manage'),
+  zValidator('json', grantSubscriptionRequestSchema),
+  async (c) => {
+    const body = c.req.valid('json');
+    const { adminId } = adminOf(c.get('auth'));
+
+    const { subscription } = await grantSubscription(repositories, body);
+
+    await repositories.audit.append({
+      adminId,
+      action: 'subscription.grant',
+      entity: 'subscription',
+      entityId: subscription.id,
+      payload: {
+        userId: subscription.userId,
+        vehicleId: subscription.vehicleId,
+        planId: subscription.planId,
+        expiresAt: subscription.expiresAt,
+      },
+    });
+
+    return c.json({ subscription }, 201);
+  },
+);
+
+/** End a rental early — the rider brought the scooter back to the office. */
+adminRoutes.delete('/subscriptions/:id', requirePermission('subscriptions', 'manage'), async (c) => {
+  const { adminId } = adminOf(c.get('auth'));
+  const { subscription } = await cancelSubscription(repositories, c.req.param('id'));
+
+  await repositories.audit.append({
+    adminId,
+    action: 'subscription.cancel',
+    entity: 'subscription',
+    entityId: subscription.id,
+    payload: { userId: subscription.userId, vehicleId: subscription.vehicleId },
+  });
+
+  return c.json({ subscription });
+});
+
+adminRoutes.get('/payments', requirePermission('subscriptions', 'view'), async (c) => {
   const items = await repositories.payments.listAll();
   return c.json({ items, total: items.length });
 });
 
-adminRoutes.get('/commands', async (c) => {
+adminRoutes.get('/commands', requirePermission('vehicles', 'view'), async (c) => {
   const items = await repositories.commands.listRecent(100);
   return c.json({ items, total: items.length });
 });
 
-adminRoutes.get('/audit', zValidator('query', listAuditLogQuerySchema), async (c) => {
+adminRoutes.get(
+  '/audit',
+  requirePermission('audit', 'view'),
+  zValidator('query', listAuditLogQuerySchema),
+  async (c) => {
   const items = await repositories.audit.list(c.req.valid('query'));
   return c.json({ items, total: items.length });
 });
 
 // --- zones (demo step 7) -------------------------------------------------
 
-adminRoutes.get('/zones', zValidator('query', listZonesQuerySchema), async (c) => {
+adminRoutes.get(
+  '/zones',
+  requirePermission('zones', 'view'),
+  zValidator('query', listZonesQuerySchema),
+  async (c) => {
   const items = await repositories.zones.list(c.req.valid('query'));
   return c.json({ items, total: items.length });
 });
 
 adminRoutes.post(
   '/zones',
-  requireAdminRole('operator'),
+  requirePermission('zones', 'manage'),
   zValidator('json', createZoneRequestSchema),
   async (c) => {
     const body = c.req.valid('json');
@@ -241,7 +321,7 @@ adminRoutes.post(
 
 adminRoutes.patch(
   '/zones/:id',
-  requireAdminRole('operator'),
+  requirePermission('zones', 'manage'),
   zValidator('json', updateZoneRequestSchema),
   async (c) => {
     const body = c.req.valid('json');
@@ -275,7 +355,7 @@ adminRoutes.patch(
   },
 );
 
-adminRoutes.delete('/zones/:id', requireAdminRole('operator'), async (c) => {
+adminRoutes.delete('/zones/:id', requirePermission('zones', 'manage'), async (c) => {
   const id = c.req.param('id');
   const { adminId } = adminOf(c.get('auth'));
 
@@ -297,14 +377,14 @@ adminRoutes.delete('/zones/:id', requireAdminRole('operator'), async (c) => {
 
 // --- plans & pricing -----------------------------------------------------
 
-adminRoutes.get('/plans', async (c) => {
+adminRoutes.get('/plans', requirePermission('plans', 'view'), async (c) => {
   const items = await repositories.plans.listAll();
   return c.json({ items, total: items.length });
 });
 
 adminRoutes.post(
   '/plans',
-  requireAdminRole('operator'),
+  requirePermission('plans', 'manage'),
   zValidator('json', createPlanRequestSchema),
   async (c) => {
     const body = c.req.valid('json');
@@ -326,7 +406,7 @@ adminRoutes.post(
 
 adminRoutes.patch(
   '/plans/:id',
-  requireAdminRole('operator'),
+  requirePermission('plans', 'manage'),
   zValidator('json', updatePlanRequestSchema),
   async (c) => {
     const body = c.req.valid('json');
@@ -346,11 +426,48 @@ adminRoutes.patch(
   },
 );
 
+/**
+ * Remove a tariff.
+ *
+ * Refused once anything references it: `rides.plan_id` is `restrict` because a
+ * receipt has to keep resolving, and a subscription names the terms it was
+ * sold on. Switching the plan off (`active: false`) is the remedy — it leaves
+ * the app's tariff list and the grant modal while every past ride keeps its
+ * price. Without this check the delete reached Postgres as an opaque 500.
+ */
+adminRoutes.delete('/plans/:id', requirePermission('plans', 'manage'), async (c) => {
+  const id = c.req.param('id');
+  const { adminId } = adminOf(c.get('auth'));
+
+  const plan = await repositories.plans.findById(id);
+  if (plan === null) throw notFound('No such plan');
+
+  const used = await repositories.plans.countUsages(id);
+  if (used > 0) {
+    throw conflict(
+      API_ERROR_CODES.CONFLICT,
+      `«${plan.name}» is referenced by ${String(used)} ride(s) or rental(s). ` +
+        'Switch it off instead — it disappears from the app and history keeps its prices.',
+    );
+  }
+
+  await repositories.plans.remove(id);
+  await repositories.audit.append({
+    adminId,
+    action: 'plan.delete',
+    entity: 'plan',
+    entityId: id,
+    payload: { name: plan.name, durationMinutes: plan.durationMinutes },
+  });
+
+  return c.json({ id });
+});
+
 // --- vehicle control -----------------------------------------------------
 
 adminRoutes.patch(
   '/vehicles/:id/status',
-  requireAdminRole('operator'),
+  requirePermission('vehicles', 'manage'),
   zValidator(
     'json',
     z.object({ status: z.enum(['available', 'offline', 'maintenance', 'low_battery']) }),

@@ -3,6 +3,7 @@ import type {
   CommandResult,
   EndRideRequest,
   Plan,
+  Rental,
   Ride,
   RideReceipt,
   StartRideRequest,
@@ -25,6 +26,7 @@ export const queryKeys = {
   rides: ['rides'] as const,
   receipt: (rideId: string) => ['receipt', rideId] as const,
   subscriptions: ['subscriptions'] as const,
+  rental: ['rental'] as const,
   reservation: ['reservation'] as const,
   profile: ['profile'] as const,
 };
@@ -82,6 +84,50 @@ export function useSubscriptions() {
   return useQuery({
     queryKey: queryKeys.subscriptions,
     queryFn: () => apiFetch<ListResponse<SubscriptionDetail>>('/subscriptions'),
+  });
+}
+
+/**
+ * The rider's weekly rental, and the thing that decides whether the app has a
+ * second face at all.
+ *
+ * Polled on the same 5 s cadence as the fleet: a rental is granted and ended
+ * by an operator at a desk, with nothing to tell the phone about it, so the
+ * switch has to appear and disappear on its own.
+ */
+export function useRental() {
+  return useQuery({
+    queryKey: queryKeys.rental,
+    queryFn: () => apiFetch<{ rental: Rental | null }>('/subscriptions/active'),
+    refetchInterval: 5000,
+  });
+}
+
+/**
+ * Switch the rented scooter on or off.
+ *
+ * No optimistic write: the slider animates ahead of the server, but
+ * `unlockedAt` is only believed once the command has acked, so a scooter that
+ * did not answer never reads as running.
+ */
+export function useRentalLock() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ subscriptionId, unlocked }: { subscriptionId: string; unlocked: boolean }) =>
+      apiFetch<{ subscription: Subscription; command: CommandResult }>(
+        `/subscriptions/${subscriptionId}/${unlocked ? 'unlock' : 'lock'}`,
+        { method: 'POST' },
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.rental });
+    },
+  });
+}
+
+export function useRentalBeep() {
+  return useMutation({
+    mutationFn: (subscriptionId: string) =>
+      apiFetch<CommandResult>(`/subscriptions/${subscriptionId}/beep`, { method: 'POST' }),
   });
 }
 

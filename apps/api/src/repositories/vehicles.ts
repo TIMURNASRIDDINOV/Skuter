@@ -31,6 +31,7 @@ const columns = {
   lastSeenAt: vehicles.lastSeenAt,
   areaId: vehicles.areaId,
   reservedUntil: vehicles.reservedUntil,
+  simulated: vehicles.simulated,
 } as const;
 
 /**
@@ -76,6 +77,19 @@ export interface NewVehicle {
   batteryPct: number;
   location: LatLon;
   areaId: string | null;
+  simulated: boolean;
+}
+
+/** Everything about a vehicle an operator may change from the back office. */
+export interface VehiclePatch {
+  qrCode?: string;
+  imei?: string;
+  model?: string;
+  status?: VehicleStatus;
+  batteryPct?: number;
+  location?: LatLon;
+  areaId?: string | null;
+  simulated?: boolean;
 }
 
 export function createVehiclesRepository(db: Database) {
@@ -152,6 +166,11 @@ export function createVehiclesRepository(db: Database) {
       return row === undefined ? null : toAdminVehicle(row as VehicleRow);
     },
 
+    async findByImei(imei: string): Promise<AdminVehicle | null> {
+      const [row] = await db.select(columns).from(vehicles).where(eq(vehicles.imei, imei)).limit(1);
+      return row === undefined ? null : toAdminVehicle(row as VehicleRow);
+    },
+
     async countByStatus(): Promise<Record<VehicleStatus, number>> {
       const rows = await db
         .select({ status: vehicles.status, total: count() })
@@ -181,6 +200,41 @@ export function createVehiclesRepository(db: Database) {
       return row?.total ?? 0;
     },
 
+    /**
+     * Only the vehicles the fleet simulator is allowed to drive.
+     *
+     * The seed creates none, so this is empty until an operator ticks
+     * «Симулировать» on one. A scooter that is not here keeps the battery and
+     * position it was given — which is the whole point: real telemetry comes
+     * from the scooter, and nothing in this process may invent it.
+     */
+    async listSimulated(): Promise<AdminVehicle[]> {
+      const rows = await db
+        .select(columns)
+        .from(vehicles)
+        .where(eq(vehicles.simulated, true))
+        .orderBy(asc(vehicles.qrCode));
+      return rows.map((row) => toAdminVehicle(row as VehicleRow));
+    },
+
+    async insert(item: NewVehicle): Promise<AdminVehicle> {
+      const [row] = await db
+        .insert(vehicles)
+        .values({
+          qrCode: item.qrCode,
+          imei: item.imei,
+          model: item.model,
+          status: item.status,
+          batteryPct: item.batteryPct,
+          geom: latLonToPoint(item.location),
+          areaId: item.areaId,
+          simulated: item.simulated,
+        })
+        .returning(columns);
+      if (row === undefined) throw new Error('Vehicle insert returned no row');
+      return toAdminVehicle(row as VehicleRow);
+    },
+
     async insertMany(items: readonly NewVehicle[]): Promise<void> {
       if (items.length === 0) return;
       await db.insert(vehicles).values(
@@ -192,8 +246,35 @@ export function createVehiclesRepository(db: Database) {
           batteryPct: item.batteryPct,
           geom: latLonToPoint(item.location),
           areaId: item.areaId,
+          simulated: item.simulated,
         })),
       );
+    },
+
+    async update(id: string, patch: VehiclePatch): Promise<AdminVehicle | null> {
+      const { location, ...rest } = patch;
+      const values = {
+        ...rest,
+        ...(location === undefined ? {} : { geom: latLonToPoint(location) }),
+        // A hand-edited position is a correction, not telemetry — but it is
+        // still the freshest thing anybody knows about this scooter.
+        ...(location === undefined ? {} : { lastSeenAt: new Date() }),
+      };
+      if (Object.keys(values).length === 0) return this.findById(id);
+
+      const [row] = await db
+        .update(vehicles)
+        .set(values)
+        .where(eq(vehicles.id, id))
+        .returning(columns);
+      return row === undefined ? null : toAdminVehicle(row as VehicleRow);
+    },
+
+    async remove(id: string): Promise<boolean> {
+      const rows = await db.delete(vehicles).where(eq(vehicles.id, id)).returning({
+        id: vehicles.id,
+      });
+      return rows.length > 0;
     },
 
     async updateStatus(id: string, status: VehicleStatus): Promise<void> {

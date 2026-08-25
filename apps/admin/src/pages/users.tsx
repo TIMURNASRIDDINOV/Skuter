@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Card, Table, Tag, Typography } from 'antd';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Button, Card, Input, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { User } from '@ozothunder/shared';
 import { apiFetch, type ListResponse } from '../lib/api.js';
 import { formatDateTime } from '../lib/format.js';
 import { formatSom } from '../lib/money.js';
+import { GrantRentalModal } from '../components/GrantRentalModal.js';
 import { EmptyState, ErrorState, TableSkeleton } from '../components/states.js';
+import { useAdminSession } from '../providers/session.js';
 
 /**
  * How this rider got in. `email` is only ever set by Google sign-in and
@@ -18,10 +20,24 @@ function authMethod(user: User): { key: string; label: string; colour: string } 
   return { key: 'phone', label: 'Телефон', colour: 'default' };
 }
 
+/**
+ * The rider list, and where the weekly-rent conversation starts.
+ *
+ * Somebody walks in and asks for a scooter for a week: the operator finds them
+ * here by phone or name, hits «Включить аренду» on their row, and the rental
+ * exists. Filtering is client-side over the loaded list — the fleet's rider
+ * count is small, and a live round trip per keystroke would be slower than
+ * scanning what is already on screen.
+ */
 export function UsersPage(): React.ReactElement {
+  // Granting a rental is a subscriptions write, not a users one — the column
+  // lives here only because this is where the conversation starts.
+  const canGrant = useAdminSession().can('subscriptions', 'manage');
   const [items, setItems] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [grantingFor, setGrantingFor] = useState<User | null>(null);
 
   const load = useCallback(() => {
     apiFetch<ListResponse<User>>('/admin/users')
@@ -38,6 +54,20 @@ export function UsersPage(): React.ReactElement {
   }, []);
 
   useEffect(load, [load]);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (term === '') return items;
+    // Numbers are stored E.164 but nobody types them that way, so a digits-only
+    // needle matches a digits-only haystack: `90 123` finds `+998901234567`.
+    const digits = term.replace(/\D/g, '');
+    return items.filter(
+      (user) =>
+        (digits !== '' && (user.phone ?? '').includes(digits)) ||
+        (user.name ?? '').toLowerCase().includes(term) ||
+        (user.email ?? '').toLowerCase().includes(term),
+    );
+  }, [items, search]);
 
   const columns: ColumnsType<User> = [
     {
@@ -106,27 +136,76 @@ export function UsersPage(): React.ReactElement {
       width: 160,
       render: (iso: string) => formatDateTime(iso),
     },
+    ...(canGrant
+      ? [
+          {
+            title: '',
+            key: 'actions',
+            width: 150,
+            fixed: 'right' as const,
+            render: (_: unknown, user: User) => (
+              <Button
+                size="small"
+                disabled={user.status !== 'active'}
+                onClick={() => {
+                  setGrantingFor(user);
+                }}
+              >
+                Включить аренду
+              </Button>
+            ),
+          },
+        ]
+      : []),
   ];
 
-  if (error !== null) return <ErrorState message={error} onRetry={load} />;
-
+  // Same reasoning as the subscriptions page: an unreachable API must not make
+  // the rental action disappear, or a connection problem is indistinguishable
+  // from a missing feature.
   return (
     <Card
       size="small"
-      title={`Пользователи — ${String(items.length)}`}>
-      {isLoading ? (
+      title={error !== null ? 'Пользователи' : `Пользователи — ${String(filtered.length)}`}
+      extra={
+        <Input.Search
+          allowClear
+          size="small"
+          placeholder="Телефон, имя или email"
+          style={{ width: 260 }}
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value);
+          }}
+        />
+      }
+    >
+      {error !== null ? (
+        <ErrorState message={error} onRetry={load} />
+      ) : isLoading ? (
         <TableSkeleton rows={6} />
       ) : items.length === 0 ? (
         <EmptyState description="Пользователей пока нет" />
+      ) : filtered.length === 0 ? (
+        <EmptyState description={`По запросу «${search}» никого не найдено`} />
       ) : (
         <Table
           rowKey="id"
           size="small"
-          dataSource={items}
+          dataSource={filtered}
           columns={columns}
           pagination={{ pageSize: 20, size: 'small' }}
+          scroll={{ x: 1330 }}
         />
       )}
+
+      <GrantRentalModal
+        open={grantingFor !== null}
+        rider={grantingFor}
+        onClose={() => {
+          setGrantingFor(null);
+        }}
+        onGranted={load}
+      />
     </Card>
   );
 }

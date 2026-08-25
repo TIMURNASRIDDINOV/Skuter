@@ -1,7 +1,9 @@
 import {
   FULL_BATTERY_RANGE_M,
+  adminPermissionsSchema,
   pointToLatLon,
   type Admin,
+  type AdminVehicle,
   type AuditLogRow,
   type GeoPoint,
   type Plan,
@@ -40,6 +42,7 @@ export interface VehicleRow {
   lastSeenAt: Date;
   areaId: string | null;
   reservedUntil: Date | null;
+  simulated: boolean;
 }
 
 export function toVehicle(row: VehicleRow): Vehicle {
@@ -62,9 +65,9 @@ export function toVehicle(row: VehicleRow): Vehicle {
   };
 }
 
-/** Adds IMEI — back office only, never returned to riders. */
-export function toAdminVehicle(row: VehicleRow): Vehicle & { imei: string } {
-  return { ...toVehicle(row), imei: row.imei };
+/** Adds IMEI and the simulator flag — back office only, never sent to riders. */
+export function toAdminVehicle(row: VehicleRow): AdminVehicle {
+  return { ...toVehicle(row), imei: row.imei, simulated: row.simulated };
 }
 
 export interface UserRow {
@@ -97,7 +100,9 @@ export interface PlanRow {
   name: string;
   unlockFee: number;
   price: number;
-  durationDays: number | null;
+  durationMinutes: number | null;
+  officeOnly: boolean;
+  active: boolean;
 }
 
 export function toPlan(row: PlanRow): Plan {
@@ -107,7 +112,9 @@ export function toPlan(row: PlanRow): Plan {
     name: row.name,
     unlockFee: row.unlockFee,
     price: row.price,
-    durationDays: row.durationDays,
+    durationMinutes: row.durationMinutes,
+    officeOnly: row.officeOnly,
+    active: row.active,
   };
 }
 
@@ -135,10 +142,19 @@ export interface AdminRow {
   id: string;
   email: string;
   role: Admin['role'];
+  permissions: unknown;
 }
 
 export function toAdmin(row: AdminRow): Admin {
-  return { id: row.id, email: row.email, role: row.role };
+  return {
+    id: row.id,
+    email: row.email,
+    role: row.role,
+    // The column is jsonb, so the driver hands back `unknown`. Parsing rather
+    // than casting means a hand-edited row with a section this build does not
+    // know about is rejected here, not silently treated as access.
+    permissions: adminPermissionsSchema.parse(row.permissions ?? {}),
+  };
 }
 
 export interface AuditLogRowRaw {

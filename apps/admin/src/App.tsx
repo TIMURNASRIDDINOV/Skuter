@@ -6,7 +6,10 @@ import ruRU from 'antd/locale/ru_RU';
 import { BrowserRouter, Outlet, Route, Routes } from 'react-router';
 import { authProvider } from './providers/authProvider.js';
 import { dataProvider } from './providers/dataProvider.js';
+import { AdminSessionProvider } from './providers/session.js';
+import { RequireSection } from './components/RequireSection.js';
 import { Shell } from './components/Shell.js';
+import { AdminsPage } from './pages/admins.js';
 import { AuditPage } from './pages/audit.js';
 import { DashboardPage } from './pages/dashboard.js';
 import { LoginPage } from './pages/login.js';
@@ -68,6 +71,7 @@ export function App(): React.ReactElement {
               { name: 'plans', list: '/plans', meta: { label: 'Тарифы' } },
               { name: 'zones', list: '/zones', meta: { label: 'Зоны' } },
               { name: 'audit', list: '/audit', meta: { label: 'Журнал' } },
+              { name: 'admins', list: '/admins', meta: { label: 'Админы' } },
             ]}
             options={{
               syncWithLocation: true,
@@ -82,20 +86,88 @@ export function App(): React.ReactElement {
                   // to NavigateToResource would redirect into another protected
                   // route and loop, rendering nothing at all.
                   <Authenticated key="authenticated" fallback={<CatchAllNavigate to="/login" />}>
-                    <Shell>
-                      <Outlet />
-                    </Shell>
+                    {/* Permissions load once here, above the shell, so the
+                        sidebar and every route below decide from one answer. */}
+                    <AdminSessionProvider>
+                      <Shell>
+                        <Outlet />
+                      </Shell>
+                    </AdminSessionProvider>
                   </Authenticated>
                 }
               >
-                <Route index element={<DashboardPage />} />
-                <Route path="/vehicles" element={<VehiclesPage />} />
-                <Route path="/rides" element={<RidesPage />} />
-                <Route path="/subscriptions" element={<SubscriptionsPage />} />
-                <Route path="/users" element={<UsersPage />} />
-                <Route path="/plans" element={<PlansPage />} />
-                <Route path="/zones" element={<ZonesPage />} />
-                <Route path="/audit" element={<AuditPage />} />
+                <Route
+                  index
+                  element={
+                    <RequireSection section="dashboard">
+                      <DashboardPage />
+                    </RequireSection>
+                  }
+                />
+                <Route
+                  path="/vehicles"
+                  element={
+                    <RequireSection section="vehicles">
+                      <VehiclesPage />
+                    </RequireSection>
+                  }
+                />
+                <Route
+                  path="/rides"
+                  element={
+                    <RequireSection section="rides">
+                      <RidesPage />
+                    </RequireSection>
+                  }
+                />
+                <Route
+                  path="/subscriptions"
+                  element={
+                    <RequireSection section="subscriptions">
+                      <SubscriptionsPage />
+                    </RequireSection>
+                  }
+                />
+                <Route
+                  path="/users"
+                  element={
+                    <RequireSection section="users">
+                      <UsersPage />
+                    </RequireSection>
+                  }
+                />
+                <Route
+                  path="/plans"
+                  element={
+                    <RequireSection section="plans">
+                      <PlansPage />
+                    </RequireSection>
+                  }
+                />
+                <Route
+                  path="/zones"
+                  element={
+                    <RequireSection section="zones">
+                      <ZonesPage />
+                    </RequireSection>
+                  }
+                />
+                <Route
+                  path="/audit"
+                  element={
+                    <RequireSection section="audit">
+                      <AuditPage />
+                    </RequireSection>
+                  }
+                />
+                <Route
+                  path="/admins"
+                  element={
+                    <RequireSection section="admins" owner>
+                      <AdminsPage />
+                    </RequireSection>
+                  }
+                />
               </Route>
 
               <Route

@@ -23,12 +23,15 @@ export function RideDrawer({
   ride,
   liveDurationS,
   isEnding,
+  canForceEnd,
   onForceEnd,
   onClose,
 }: {
   ride: RideRow | null;
   liveDurationS: number | null;
   isEnding: boolean;
+  /** False for an admin with only `view` on Поездки — the footer goes away. */
+  canForceEnd: boolean;
   onForceEnd: (ride: RideRow) => void;
   onClose: () => void;
 }): React.ReactElement {
@@ -52,7 +55,7 @@ export function RideDrawer({
         )
       }
       footer={
-        ride === null || ride.status !== 'active' ? null : (
+        ride === null || ride.status !== 'active' || !canForceEnd ? null : (
           <Popconfirm
             title="Завершить поездку?"
             description="Поездка будет остановлена там, где находится самокат. Пользователь оплатит использованное время."

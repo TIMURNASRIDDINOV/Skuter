@@ -36,20 +36,22 @@ src/
     (app)/           signed-in stack — no tab bar, the map is the only root
       index.tsx      map home: pins, zones, the ☰/scan/locate row, the sheet
       profile.tsx    settings: phone, name, RU/UZ toggle, sign out
-      rent.tsx       Аренда — active passes and the daily/weekly plans
+      rent.tsx       Аренда — what you have rented and the 3h/5h/24h plans
+      rental.tsx     the rental console: one scooter, on/off, countdown
       history.tsx    every ride taken, tapping through to its receipt
       rules.tsx      zone legend — what each colour on the map means
       scan.tsx       camera QR scanner + dev "simulate scan" button
       unlock.tsx     optimistic unlock, 8% failure retry UI
       ride.tsx       live ride: cost ticker, end-ride geofence, receipt handoff
       receipt.tsx    cost breakdown after a ride (also reached from history)
-      plans.tsx      buy a daily/weekly subscription bound to one vehicle
+      plans.tsx      buy a 3h/5h/24h rental bound to one vehicle
   api/
     client.ts        apiFetch + ApiRequestError + SecureStore token (mirrors admin's lib/api.ts)
     session.tsx      SessionProvider; 401 anywhere signs out via one handler
     queries.ts       every TanStack Query hook and mutation, with invalidations
   components/        ui primitives, states (skeletons/empty/error), map layers, sheet content
   lib/               theme (status colours mirror admin), i18n (RU/UZ), format, geo helpers
+                     rental-mode.tsx — which of the app's two faces is showing
 ```
 
 ## Rules that matter here
@@ -102,9 +104,46 @@ wrong:
   elevation from `shadows` — those are hard offset shadows, so the pressed state
   is `PRESS_SINK` (translate down, drop the offset), never an opacity fade.
 
+**The app has two faces, and renting a scooter is what switches between them.**
+
+`map` is this app as described everywhere else in this file. `rental` is what
+any active subscription turns it into: `app/(app)/rental.tsx`, one rented
+scooter, a slide control, and a countdown to the end of the window. The app
+sells 3 h, 5 h and 24 h; anything longer is an office agreement and never
+reaches the tariff picker. Four rules hold it together:
+
+- **The switch lives where the brand mark does**, and only while a rental
+  exists. `components/ModeSwitch.tsx` replaces `styles.brand` on the map when
+  `useRental()` returns one; with no rental the mark is untouched, byte for
+  byte. Nothing else on the map screen changes.
+- **Buying a rental lands on the console, not back on a list.** The scooter is
+  theirs now and the next thing they want is the switch that turns it on.
+- **The countdown ticks locally off `expiresAt`**, recomputed each second rather
+  than decremented, so it cannot drift — the `ReservationBanner` pattern. Past a
+  day it switches to «6 дн 4 ч»: `147:12:08` is the same number and reads as
+  noise.
+- **The mode is persisted** (`lib/rental-mode.tsx`, same SecureStore pattern as
+  the language toggle) and acted on by a single effect in `index.tsx`. The
+  switch only *writes* the preference — one effect navigates, with `replace`,
+  because the two faces are alternatives rather than a stack.
+- **The rental screen has no map, no cost and no zone rules.** A rental puts
+  responsibility for where the scooter goes on the rider, and the window was
+  paid for up front. Adding a fare ticker or a parking check here would
+  contradict what was bought.
+- **The end of a rental empties the screen, which is what sends the rider
+  back.** `rental` never survives its own subscription: `GET /subscriptions/active`
+  answers null the moment the office cancels it or the window lapses, and the
+  effect in `rental.tsx` returns to the map with the brand mark in place.
+
+**Long rent cannot be bought in the app, and the app does not have to know
+which is which.** `GET /catalog/plans` drops `officeOnly` plans server-side, so
+the tariff picker, the vehicle sheet and `/plans` offer whatever is sellable
+without a single client-side special case. Do not add one — a plan's length is
+`durationMinutes` and says nothing about where it is sold.
+
 **The map screen is the app's only root.** No tab bar and no section switcher,
 and the sheet is closed at rest. The map carries one chrome row at the top —
-the SCOOT/TAS brand pill, the balance, and the zones toggle — the banners under
+the scooter brand mark, the balance, and the zones toggle — the banners under
 it, and one floating row at the bottom: ☰, the scan circle, locate. Everything
 else (`/profile`, `/rent`, `/history`, `/rules`) is pushed from the ☰ sheet, and
 `navigateFromMenu` closes the sheet *before* pushing, so a route never opens
@@ -135,6 +174,23 @@ second off the server's timestamp, so it cannot drift. A hold that lapses fires
 not `!== null`.** A payload from a backend that predates the reservation
 columns leaves the field `undefined`, and `undefined !== null` put a padlock on
 every scooter on the map.
+
+**Nothing inside a worklet may call a plain JS function.** Gesture callbacks
+(`Gesture.Pan().onEnd(...)`) and `useAnimatedStyle` bodies run on the UI
+thread; calling an ordinary closure from one throws *"Tried to synchronously
+call a non-worklet function on the UI runtime"*, which in a release build takes
+the app down rather than showing an error. `useMotion()`'s `duration()` is the
+easy one to get wrong — resolve it during render and let the worklet capture
+the number:
+
+```ts
+const settleMs = duration(DURATION.base);        // JS thread, at render
+.onEnd(() => { progress.value = withTiming(1, { duration: settleMs }); })
+```
+
+`runOnJS` is the only legal bridge back. This shipped as a crash in
+`SlideToLock` once — the same file had already needed the same fix for a
+helper function, so when you find one instance, sweep the whole file.
 
 **Icons come from the `Icon` vocabulary in `components/ui.tsx`** (native SF
 Symbols on iOS, Material Symbols on Android via expo-symbols). No emoji as UI

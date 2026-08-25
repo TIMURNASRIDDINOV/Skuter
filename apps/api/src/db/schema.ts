@@ -44,7 +44,7 @@ export const userStatusEnum = pgEnum('user_status', ['active', 'blocked']);
 
 export const zoneKindEnum = pgEnum('zone_kind', ['service', 'parking', 'forbidden', 'slow']);
 
-export const planKindEnum = pgEnum('plan_kind', ['per_minute', 'daily', 'weekly']);
+export const planKindEnum = pgEnum('plan_kind', ['per_minute', 'rental']);
 
 export const subscriptionStatusEnum = pgEnum('subscription_status', [
   'active',
@@ -67,7 +67,7 @@ export const paymentStatusEnum = pgEnum('payment_status', [
 
 export const paymentProviderEnum = pgEnum('payment_provider', ['mock', 'payme', 'click', 'uzum']);
 
-export const adminRoleEnum = pgEnum('admin_role', ['owner', 'operator', 'viewer']);
+export const adminRoleEnum = pgEnum('admin_role', ['owner', 'staff']);
 
 /** `login` signs a rider in; `link` attaches a number to an existing account. */
 export const telegramNoncePurposeEnum = pgEnum('telegram_nonce_purpose', ['login', 'link']);
@@ -126,6 +126,14 @@ export const vehicles = pgTable(
     batteryPct: smallint('battery_pct').notNull().default(100),
     geom: point4326('geom').notNull(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * Whether the fleet simulator drives this vehicle.
+     *
+     * False for anything an operator adds by hand, which is the whole fleet
+     * now that the seed creates none: a real scooter's battery and position
+     * come from the scooter, and nothing here may invent them.
+     */
+    simulated: boolean('simulated').notNull().default(false),
     areaId: uuid('area_id').references(() => areas.id, { onDelete: 'set null' }),
     /**
      * Reservation hold. Both columns move together — a vehicle is held when
@@ -168,10 +176,12 @@ export const plans = pgTable('plans', {
   name: text('name').notNull(),
   /** One-off unlock fee in tiyin. */
   unlockFee: bigint('unlock_fee', { mode: 'number' }).notNull().default(0),
-  /** Per-minute rate (per_minute) or total plan price (daily/weekly), tiyin. */
+  /** Per-minute rate (per_minute) or total plan price (rental), tiyin. */
   price: bigint('price', { mode: 'number' }).notNull(),
-  /** Null for per_minute plans. */
-  durationDays: integer('duration_days'),
+  /** Rental length in minutes — 180, 300, 1440, 10080. Null for per_minute. */
+  durationMinutes: integer('duration_minutes'),
+  /** Granted at a desk rather than sold in the app; hidden from `/catalog/plans`. */
+  officeOnly: boolean('office_only').notNull().default(false),
   active: boolean('active').notNull().default(true),
 });
 
@@ -192,6 +202,14 @@ export const subscriptions = pgTable(
     startsAt: timestamp('starts_at', { withTimezone: true }).notNull().defaultNow(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     status: subscriptionStatusEnum('status').notNull().default('active'),
+    /**
+     * When the rider last switched the scooter on, or null while it is locked.
+     *
+     * A rental's on/off is a gateway command rather than a ride, so the lock
+     * state has nowhere else to live: the vehicle stays `reserved` for the
+     * whole window and `rides` never sees it.
+     */
+    unlockedAt: timestamp('unlocked_at', { withTimezone: true }),
   },
   (t) => [
     index('subscriptions_user_idx').on(t.userId),
@@ -294,7 +312,13 @@ export const admins = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     email: text('email').notNull(),
     passwordHash: text('password_hash').notNull(),
-    role: adminRoleEnum('role').notNull().default('operator'),
+    role: adminRoleEnum('role').notNull().default('staff'),
+    /**
+     * Section → `view` | `manage`, sparse. An absent section is denied, so a
+     * section added later is invisible to existing staff until an owner ticks
+     * it. Owners ignore this column entirely — they pass every check.
+     */
+    permissions: jsonb('permissions').notNull().default({}),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex('admins_email_key').on(t.email)],

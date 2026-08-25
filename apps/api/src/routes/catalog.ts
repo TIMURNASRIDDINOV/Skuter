@@ -10,8 +10,16 @@ import { requireRider, type AppEnv } from '../middleware/auth.js';
  */
 export const catalogRoutes = new Hono<AppEnv>();
 
+/**
+ * Office-only plans are filtered out on purpose: they are agreements made at a
+ * desk, not something the app can sell, and a tariff the rider cannot buy has
+ * no business in the picker. That one filter is what keeps a week-long rental
+ * out of the vehicle sheet, the plan screen and Аренда without any client-side
+ * special-casing — and it is why the app can offer 3h, 5h and 24h without
+ * knowing anything about which of them is "long".
+ */
 catalogRoutes.get('/plans', requireRider, async (c) => {
-  const items: Plan[] = await repositories.plans.listActive();
+  const items: Plan[] = (await repositories.plans.listActive()).filter((plan) => !plan.officeOnly);
   return c.json({ items, total: items.length });
 });
 

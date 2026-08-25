@@ -44,8 +44,14 @@ API        http://localhost:8787        (health: /health)
 Admin      http://localhost:5173        (login: admin@demo.uz / demo1234)
 Mobile     scan the QR above with the dev client
 DB         postgres://localhost:5432/ozothunder
-Simulator  running, 70 vehicles, tick 3s
+Simulator  running, 0 vehicles, tick 3s
 ```
+
+The fleet starts **empty**. Scooters are real objects with a QR sticker and an
+IMEI, so they go in through Самокаты → «Добавить» in the back office, reading
+the numbers off the scooter. Tick «Симулировать» on one and the fleet simulator
+drives it; leave it off — the default — and it keeps the battery and position
+it was given, because a real scooter's telemetry comes from the scooter.
 
 > **Status.** API, database, seed, fleet simulator, admin panel and the native
 > rider app are all live. `pnpm dev` starts the API, the admin panel and the
@@ -88,8 +94,9 @@ pnpm typecheck     # strict, every workspace
 pnpm test          # unit tests
 ```
 
-`pnpm db:seed` is deterministic — the same 70 vehicles land in the same places
-every run, so a rehearsed demo stays rehearsed.
+`pnpm db:seed` is deterministic: the city, its zones, the tariffs and the owner
+account, identically every run. It creates **no vehicles** — add those from the
+back office.
 
 ---
 
@@ -121,9 +128,14 @@ The definition of done. Phone in one hand, admin panel on the laptop.
       on the street under somebody's name — and offers either SMS or the same
       one-tap Telegram share. Then it comes back to the same scooter.
 
-- [ ] **2. Scan a QR.** Unlock animation, ride starts. QR values match the
-      seeded codes (`000000001` … `000000070`); there is a dev **simulate
-      scan** button since there is no physical sticker.
+- [ ] **0. Put a scooter in the fleet.** Самокаты → «Добавить»: QR code, IMEI,
+      model, drop the pin on the map. For a demo also tick «Симулировать», so
+      the simulator drives it — without that it sits exactly where you put it,
+      which is correct for real hardware and dull in a meeting.
+
+- [ ] **2. Scan a QR.** Unlock animation, ride starts. QR values are whatever
+      you typed when adding the scooter; there is a dev **simulate scan**
+      button since there is no physical sticker.
       *Unlock fails ~8% of the time on purpose — that is the retry UI, not a bug.
       Tap retry.*
 
@@ -137,9 +149,31 @@ The definition of done. Phone in one hand, admin panel on the laptop.
 - [ ] **5. Move into a parking zone and end the ride.** It succeeds. Receipt
       shows duration, distance and the cost breakdown.
 
-- [ ] **6. Buy a weekly plan.** On the admin panel a subscription row appears
-      binding that rider to that vehicle with an expiry date, and the vehicle
-      disappears from the public map.
+- [ ] **6. Rent a scooter in the app.** Аренда offers 3 часа, 5 часов and
+      24 часа — and nothing longer, because `GET /catalog/plans` drops
+      office-only plans. Scan a scooter, pick 3 часа, pay.
+
+- [ ] **6a. The app becomes a different app.** The brand mark on the map turns
+      into «Моя аренда» and the buy lands straight on it: no map, no tariff, no
+      zone rules — one scooter, a slide-to-unlock control, and a countdown
+      ticking down from `02:59:59`. Slide right and the scooter switches on;
+      the back office shows the unlock command and the rental as «Включён».
+      Close the app and reopen it — it comes back into the rental, not the map.
+
+- [ ] **6b. A week is an office agreement.** The app cannot sell one: POSTing
+      the weekly plan's id answers `409 office_only_plan`. Пользователи →
+      search the number → «Включить аренду» → the weekly plan and a scooter.
+      The rider gets the same console, measured in days rather than hours.
+
+- [ ] **6c. End it from the office.** «Прекратить» on the subscription row.
+      The rider's app drops back to the map with the brand mark in place, and
+      the scooter is back among the pins.
+
+- [ ] **6d. Add a second administrator.** Админы → «Добавить»: an address, a
+      password, and a tick per section — «Самокаты: управление», «Поездки:
+      просмотр», the rest off. Sign in as them: the sidebar has exactly two
+      items, `/users` redirects away, the rides table has no «Завершить», and
+      Админы does not exist for them.
 
 - [ ] **7. Draw a new parking zone** on the admin map and save. Pull to refresh
       on the phone — the new zone renders.
@@ -153,7 +187,8 @@ The definition of done. Phone in one hand, admin panel on the laptop.
 
 For steering the demo in the room. Development only, unauthenticated on
 purpose, and they take a **QR code or a UUID** so you never have to read an id
-aloud.
+aloud. They only drive scooters ticked «Симулировать» — a real one is refused
+with a message saying so, rather than pretending to move.
 
 ```bash
 # what the simulator is doing right now
@@ -161,15 +196,15 @@ curl localhost:8787/dev/simulate/status
 
 # put a scooter on a ride — it starts moving along a generated street route
 curl -X POST localhost:8787/dev/simulate/ride -H 'Content-Type: application/json' \
-  -d '{"vehicle":"000000005"}'
+  -d '{"vehicle":"000000001"}'
 
 # drop a battery (below 20% flips it to low_battery on the map)
 curl -X POST localhost:8787/dev/simulate/battery -H 'Content-Type: application/json' \
-  -d '{"vehicle":"000000009","pct":8}'
+  -d '{"vehicle":"000000001","pct":8}'
 
 # take one offline — it stops reporting telemetry entirely
 curl -X POST localhost:8787/dev/simulate/offline -H 'Content-Type: application/json' \
-  -d '{"vehicle":"000000011"}'
+  -d '{"vehicle":"000000001"}'
 
 # put the fleet back the way it was
 curl -X POST localhost:8787/dev/simulate/reset
